@@ -12,47 +12,52 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'messages é obrigatório' });
     }
 
-    // Injeta system prompt como primeira mensagem do usuário
     const systemMsg = systemPrompt || 'Você é um assistente de gestão empresarial brasileiro. Responda sempre em português.';
-    
+
     const contents = [
-      { role: 'user', parts: [{ text: `[INSTRUÇÕES DO SISTEMA]: ${systemMsg}` }] },
-      { role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar.' }] },
+      { role: 'user', parts: [{ text: `[SISTEMA]: ${systemMsg}` }] },
+      { role: 'model', parts: [{ text: 'Entendido! Pronto para ajudar.' }] },
       ...messages.map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.content }]
       }))
     ];
 
-    const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro'];
+    // Tenta v1 e v1beta com modelos diferentes
+    const attempts = [
+      { version: 'v1', model: 'gemini-2.0-flash' },
+      { version: 'v1', model: 'gemini-1.5-flash' },
+      { version: 'v1', model: 'gemini-1.5-pro' },
+      { version: 'v1beta', model: 'gemini-2.0-flash' },
+      { version: 'v1beta', model: 'gemini-1.5-flash' },
+    ];
 
-    for (const model of models) {
+    for (const { version, model } of attempts) {
       try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents })
-          }
-        );
+        const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents })
+        });
 
         const data = await response.json();
 
         if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
           const text = data.candidates[0].content.parts[0].text;
-          console.log(`✅ Sucesso com: ${model}`);
+          console.log(`✅ Sucesso: ${version}/${model}`);
           return res.status(200).json({ response: text });
         }
 
-        console.error(`❌ Falha ${model}:`, data?.error?.message || JSON.stringify(data));
+        console.error(`❌ ${version}/${model}:`, data?.error?.message);
 
       } catch (e) {
-        console.error(`❌ Erro ${model}:`, e.message);
+        console.error(`❌ ${version}/${model} erro:`, e.message);
       }
     }
 
-    return res.status(500).json({ error: 'Todos os modelos falharam. Verifique a chave da API.' });
+    return res.status(500).json({ error: 'Todos os modelos falharam. Verifique a chave da API do Gemini.' });
 
   } catch (e) {
     console.error('Handler error:', e.message);
