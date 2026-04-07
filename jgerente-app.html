@@ -452,6 +452,7 @@ option{background:var(--card2)}
       <button class="sb-btn active" onclick="navTo('dashboard')"><span class="sb-icon">🏠</span>Dashboard</button>
       <button class="sb-btn" onclick="navTo('tarefas')"><span class="sb-icon">📋</span>Tarefas</button>
       <button class="sb-btn" onclick="navTo('equipe')"><span class="sb-icon">👥</span>Equipe</button>
+      <button class="sb-btn" onclick="navTo('presenca')"><span class="sb-icon">🕐</span>Presença</button>
       <div class="sb-section">Agentes</div>
       <button class="sb-btn" onclick="navTo('chat')"><span class="sb-icon">💬</span>IA Gerente</button>
       <button class="sb-btn" onclick="navTo('agentes')"><span class="sb-icon">🤖</span>Meus Agentes</button>
@@ -499,7 +500,7 @@ const sb = createClient(
 );
 
 // ── STATE ──
-let S = {
+let S = { presencas: [],
   view: 'dashboard',
   company: null,
   usuario: null,
@@ -591,16 +592,19 @@ async function initApp(user){
 // ── LOAD DATA ──
 async function loadData(){
   const cid = S.company.id;
-  const [t, e, a, c] = await Promise.all([
+  const hoje = new Date().toISOString().split('T')[0];
+  const [t, e, a, c, p] = await Promise.all([
     sb.from('tarefas').select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').eq('company_id',cid).order('created_at',{ascending:false}),
     sb.from('usuarios').select('*').eq('company_id',cid),
     sb.from('agentes').select('*').eq('company_id',cid),
     sb.from('customers').select('*').eq('company_id',cid),
+    sb.from('presencas').select('*, usuarios(nome)').eq('company_id',cid).gte('created_at', hoje+'T00:00:00').order('created_at',{ascending:false}),
   ]);
   S.tarefas = t.data||[];
   S.equipe  = e.data||[];
   S.agentes = a.data||[];
   S.customers = c.data||[];
+  S.presencas = p.data||[];
 }
 
 // ── NAVIGATION ──
@@ -624,6 +628,7 @@ function renderView(view){
     dashboard: renderDashboard,
     tarefas: renderTarefas,
     equipe: renderEquipe,
+    presenca: renderPresencaDono,
     chat: renderChat,
     agentes: renderAgentes,
     config: renderConfig,
@@ -674,9 +679,9 @@ function renderDashboard(){
         <div class="metric-sub">${concluidas} concluídas no total</div>
       </div>
       <div class="metric-card yellow">
-        <div class="metric-label">Equipe</div>
-        <div class="metric-val">${online}</div>
-        <div class="metric-sub">funcionários cadastrados</div>
+        <div class="metric-label">Presentes Hoje</div>
+        <div class="metric-val">${S.presencas.filter((p,i,arr)=>p.tipo==='entrada'&&!arr.slice(0,i).find(x=>x.usuario_id===p.usuario_id&&x.tipo==='saida'&&new Date(x.hora)>new Date(p.hora))).map(p=>p.usuario_id).filter((v,i,a)=>a.indexOf(v)===i).length}</div>
+        <div class="metric-sub">de ${online} funcionários</div>
       </div>
       <div class="metric-card red">
         <div class="metric-label">Agentes Ativos</div>
@@ -1086,8 +1091,44 @@ async function salvarTarefa(){
     return;
   }
   S.tarefas.unshift(data);
+
+  // Se tem repetições, criar filhas imediatamente para hoje
+  if(repeticoesDia > 1){
+    const hojeStr = new Date().toISOString().split('T')[0];
+    const filhas = [];
+    const cfg = horariosReps ? JSON.parse(payload.config) : null;
+
+    for(let rep=1; rep<=repeticoesDia; rep++){
+      let prazoRep = hojeStr + 'T23:59:59';
+      if(cfg?.horarios?.[rep-1]){
+        prazoRep = hojeStr + 'T' + cfg.horarios[rep-1] + ':00';
+      }
+      filhas.push({
+        company_id: S.company.id,
+        titulo: titulo,
+        descricao: desc||null,
+        atribuido_para: resp||null,
+        prioridade: prio,
+        criado_por: 'recorrente',
+        status: 'pendente',
+        prazo: prazoRep,
+        tarefa_pai: data.id,
+        recorrente: false,
+        repeticoes_dia: repeticoesDia,
+        repeticao_atual: rep
+      });
+    }
+
+    const { data: filhasData } = await sb.from('tarefas').insert(filhas).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)');
+    if(filhasData) filhasData.forEach(f=>S.tarefas.unshift(f));
+
+    // Marcar tarefa modelo como recorrente
+    await sb.from('tarefas').update({recorrente: true}).eq('id', data.id);
+    data.recorrente = true;
+  }
+
   closeModal();
-  toast(recorrente ? '🔁 Tarefa recorrente criada!' : '✅ Tarefa criada!');
+  toast(repeticoesDia > 1 ? `🔁 Tarefa criada com ${repeticoesDia} repetições!` : '✅ Tarefa criada!');
   renderView('tarefas');
 }
 
@@ -1426,6 +1467,84 @@ async function sendChat(){
     if(el) el.scrollTop = el.scrollHeight;
     document.getElementById('chat-inp')?.focus();
   },50);
+}
+
+// ══════════════════════════════════════════
+// PRESENÇA DONO
+// ══════════════════════════════════════════
+function renderPresencaDono(){
+  const hoje = new Date().toISOString().split('T')[0];
+  
+  // Status de cada funcionário
+  const statusFuncionarios = S.equipe.map(m=>{
+    const presencasM = S.presencas.filter(p=>p.usuario_id===m.id);
+    const ultima = presencasM[0]; // já ordenado por desc
+    const presente = ultima?.tipo === 'entrada';
+    
+    // Calcular horas
+    const presencasOrdem = [...presencasM].reverse();
+    let minutos = 0;
+    for(let i=0;i<presencasOrdem.length-1;i++){
+      if(presencasOrdem[i].tipo==='entrada'&&presencasOrdem[i+1].tipo==='saida'){
+        minutos += (new Date(presencasOrdem[i+1].hora)-new Date(presencasOrdem[i].hora))/1000/60;
+      }
+    }
+    if(presente && ultima) minutos += (Date.now()-new Date(ultima.hora))/1000/60;
+    const h = Math.floor(minutos/60);
+    const min = Math.round(minutos%60);
+    
+    return {...m, presente, ultima, horas: minutos>0?`${h}h${min.toString().padStart(2,'0')}`:'—'};
+  });
+
+  const presentes = statusFuncionarios.filter(m=>m.presente).length;
+
+  return`
+  <div class="main-header">
+    <div>
+      <div class="page-title">Presença</div>
+      <div class="page-sub">${presentes} de ${S.equipe.length} funcionário${S.equipe.length!==1?'s':''} presente${presentes!==1?'s':''} agora</div>
+    </div>
+    <button class="btn-add" onclick="loadData().then(()=>renderView('presenca'))">↻ Atualizar</button>
+  </div>
+  <div class="content">
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">👥 Status da equipe hoje</div></div>
+      <div class="sec-card-body">
+        ${statusFuncionarios.length===0
+          ? `<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Nenhum funcionário cadastrado.</div></div>`
+          : statusFuncionarios.map(m=>`
+          <div class="member-row">
+            <div class="member-av" style="background:${avColor(m.nome)}">${initials(m.nome)}</div>
+            <div style="flex:1;min-width:0">
+              <div class="member-name">${escHtml(m.nome)}</div>
+              <div class="member-role">${m.ultima?`Último registro: ${m.ultima.tipo} às ${new Date(m.ultima.hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`:`Sem registro hoje`}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:.72rem;font-weight:700;color:${m.presente?'var(--accent)':' var(--error)'};margin-bottom:.2rem">${m.presente?'🟢 Presente':'🔴 Ausente'}</div>
+              <div style="font-size:.7rem;color:var(--muted)">${m.horas} hoje</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">📋 Registros de hoje</div></div>
+      <div class="sec-card-body">
+        ${S.presencas.length===0
+          ? `<div class="empty"><div class="empty-icon">🕐</div><div class="empty-text">Nenhum registro hoje ainda.</div></div>`
+          : S.presencas.map(p=>`
+          <div class="activity-row">
+            <div class="activity-icon" style="background:${p.tipo==='entrada'?'rgba(0,255,136,.1)':' rgba(255,61,107,.1)'}">
+              ${p.tipo==='entrada'?'✅':'🚪'}
+            </div>
+            <div class="activity-text">
+              <b>${p.usuarios?.nome||'Funcionário'}</b> registrou <b>${p.tipo}</b>
+            </div>
+            <div class="activity-time">${new Date(p.hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
 }
 
 // ══════════════════════════════════════════
