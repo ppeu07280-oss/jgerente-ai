@@ -615,6 +615,7 @@ function renderView(view){
     config: renderConfig,
   };
   m.innerHTML = (views[view]||renderDashboard)();
+  if(view === 'chat' && chatMessages.length === 0) loadChatHistory(currentAgent);
 }
 
 // ══════════════════════════════════════════
@@ -909,6 +910,35 @@ async function removerMembro(id, nome){
 }
 
 
+
+// ── DETECÇÃO DE TAREFAS VIA IA ──────────────────────────────
+async function detectAndCreateTask(userMsg, aiReply){
+  const keywords = ['criar tarefa', 'crie uma tarefa', 'adicionar tarefa', 'nova tarefa', 'registrar tarefa', 'anota aí', 'coloca na lista'];
+  const hasKeyword = keywords.some(k => userMsg.toLowerCase().includes(k));
+  if(!hasKeyword) return;
+
+  // Extrai título da tarefa da resposta da IA
+  const lines = aiReply.split('\n').filter(l => l.trim());
+  const taskLine = lines.find(l => l.includes('✅') || l.includes('📌') || l.toLowerCase().includes('tarefa:')) || lines[0];
+  const titulo = taskLine?.replace(/[✅📌🔴⚡*#]/g,'').replace(/tarefa:/gi,'').trim().slice(0,80);
+
+  if(!titulo || titulo.length < 3) return;
+
+  try{
+    const { data } = await sb.from('tarefas').insert({
+      company_id: S.company.id,
+      titulo,
+      criado_por: 'ia',
+      status: 'pendente',
+      prioridade: 'normal'
+    }).select().single();
+    if(data){
+      S.tarefas.unshift(data);
+      toast('📋 Agente criou uma tarefa: ' + titulo.slice(0,30) + '...');
+    }
+  }catch(e){ console.error('Erro ao criar tarefa via IA:', e); }
+}
+
 // ══════════════════════════════════════════
 // CHAT IA
 // ══════════════════════════════════════════
@@ -955,11 +985,34 @@ function chatBubble(m){
   </div>`;
 }
 
-function selectAgent(agent){
+async function selectAgent(agent){
   currentAgent = agent;
   chatMessages = [];
   renderView('chat');
+  await loadChatHistory(agent);
   setTimeout(()=>document.getElementById('chat-inp')?.focus(),100);
+}
+
+async function loadChatHistory(agent){
+  try{
+    const { data } = await sb.from('conversas')
+      .select('role,content,created_at')
+      .eq('company_id', S.company.id)
+      .eq('agente', agent)
+      .order('created_at', {ascending: true})
+      .limit(20);
+    
+    if(data && data.length > 0){
+      chatMessages = data.map(m => ({ role: m.role, content: m.content }));
+      renderView('chat');
+      setTimeout(()=>{
+        const el = document.getElementById('chat-messages');
+        if(el) el.scrollTop = el.scrollHeight;
+      }, 50);
+    }
+  } catch(e){
+    console.error('Erro ao carregar histórico:', e);
+  }
 }
 
 async function sendChat(){
@@ -1010,6 +1063,8 @@ async function sendChat(){
       {company_id:S.company.id, agente:currentAgent, role:'user', content:msg},
       {company_id:S.company.id, agente:currentAgent, role:'assistant', content:reply}
     ]);
+    // Detectar se agente criou uma tarefa na resposta
+    await detectAndCreateTask(msg, reply);
 
   }catch(e){
     console.error(e);
@@ -1136,10 +1191,12 @@ const AGENTS = {
     prompt: (company, tarefas, equipe) => `Você é o Agente Gestor da empresa "${company}". Você é um gerente experiente e estratégico.
 Dados atuais:
 - Tarefas pendentes: ${tarefas.filter(t=>t.status!=='concluida').length}
-- Equipe: ${equipe.length} funcionários
+- Equipe: ${equipe.length} funcionários (${equipe.map(m=>m.nome).join(', ')||'nenhum cadastrado'})
 - Tarefas urgentes: ${tarefas.filter(t=>t.prioridade==='urgente'&&t.status!=='concluida').length}
+- Últimas tarefas: ${tarefas.slice(0,3).map(t=>t.titulo).join(', ')||'nenhuma'}
 
 Sua função: ajudar o dono a tomar decisões, criar tarefas, organizar a equipe e melhorar a operação.
+Quando o dono pedir para criar uma tarefa, responda com "📌 Tarefa: [nome da tarefa]" no início da linha.
 Responda sempre em português brasileiro, de forma direta e prática. Seja como um gerente experiente conversando com o dono.`
   },
   fidelidade: {
