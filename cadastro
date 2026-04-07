@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JgerenteAI — Criar conta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#050508;
+  --white:#F5F3EE;
+  --accent:#00FF88;
+  --muted:#8B8B99;
+  --card:#0D0D14;
+  --card2:#111118;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.12);
+  --font:'Unbounded',sans-serif;
+  --body:'DM Sans',sans-serif;
+  --error:#FF3D6B;
+  --r:14px;
+}
+html,body{height:100%}
+body{
+  font-family:var(--body);
+  background:var(--black);
+  color:var(--white);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ── NOISE ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:9999;opacity:.5;
+}
+
+/* ── LAYOUT ── */
+.page{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  min-height:100vh;
+}
+@media(max-width:768px){
+  .page{grid-template-columns:1fr}
+  .side{display:none}
+}
+
+/* ── LEFT SIDE ── */
+.side{
+  background:var(--card);
+  border-right:1px solid var(--border);
+  padding:3rem;
+  display:flex;flex-direction:column;
+  justify-content:space-between;
+  position:relative;
+  overflow:hidden;
+}
+.side-glow{
+  position:absolute;
+  width:400px;height:400px;
+  background:radial-gradient(circle,rgba(0,255,136,.1) 0%,transparent 70%);
+  bottom:-100px;left:-100px;
+  pointer-events:none;
+}
+.side-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,136,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,255,136,.03) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+.side-logo{
+  font-family:var(--font);
+  font-weight:900;
+  font-size:1.1rem;
+  letter-spacing:-.02em;
+  position:relative;z-index:1;
+}
+.side-logo .j{color:var(--accent)}
+.side-content{position:relative;z-index:1}
+.side-title{
+  font-family:var(--font);
+  font-size:2rem;
+  font-weight:900;
+  line-height:1.05;
+  letter-spacing:-.04em;
+  margin-bottom:1.5rem;
+}
+.side-title .green{color:var(--accent)}
+.side-benefits{display:flex;flex-direction:column;gap:1rem}
+.benefit{
+  display:flex;align-items:flex-start;gap:.875rem;
+  padding:1rem;
+  background:rgba(0,255,136,.04);
+  border:1px solid rgba(0,255,136,.08);
+  border-radius:12px;
+}
+.benefit-icon{font-size:1.2rem;flex-shrink:0;margin-top:-.1rem}
+.benefit-title{font-size:.85rem;font-weight:600;margin-bottom:.2rem}
+.benefit-text{font-size:.78rem;color:var(--muted);line-height:1.5}
+.side-footer{
+  font-size:.75rem;
+  color:var(--muted);
+  position:relative;z-index:1;
+}
+
+/* ── RIGHT SIDE (FORM) ── */
+.form-side{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:3rem 4rem;
+  position:relative;
+}
+@media(max-width:900px){.form-side{padding:2rem}}
+
+/* ── PROGRESS ── */
+.progress-wrap{margin-bottom:3rem}
+.progress-steps{
+  display:flex;align-items:center;gap:.5rem;
+  margin-bottom:1rem;
+}
+.prog-step{
+  display:flex;align-items:center;gap:.5rem;
+  font-size:.72rem;
+  font-weight:600;
+  color:var(--muted);
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  transition:color .3s;
+}
+.prog-step.active{color:var(--white)}
+.prog-step.done{color:var(--accent)}
+.prog-dot{
+  width:24px;height:24px;
+  border-radius:50%;
+  border:1.5px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;
+  font-weight:700;
+  flex-shrink:0;
+  transition:all .3s;
+}
+.prog-step.active .prog-dot{
+  border-color:var(--accent);
+  background:rgba(0,255,136,.1);
+  color:var(--accent);
+}
+.prog-step.done .prog-dot{
+  border-color:var(--accent);
+  background:var(--accent);
+  color:var(--black);
+}
+.prog-line{
+  flex:1;height:1px;
+  background:var(--border);
+  position:relative;
+}
+.prog-line-fill{
+  position:absolute;top:0;left:0;
+  height:100%;
+  background:var(--accent);
+  transition:width .5s ease;
+}
+.progress-bar{
+  height:2px;
+  background:var(--border);
+  border-radius:100px;
+  overflow:hidden;
+}
+.progress-fill{
+  height:100%;
+  background:var(--accent);
+  border-radius:100px;
+  transition:width .5s ease;
+}
+
+/* ── STEP CONTENT ── */
+.step-wrap{display:none;animation:fadeIn .3s ease}
+.step-wrap.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+
+.step-title{
+  font-family:var(--font);
+  font-size:1.6rem;
+  font-weight:900;
+  letter-spacing:-.04em;
+  line-height:1.1;
+  margin-bottom:.5rem;
+}
+.step-sub{
+  font-size:.88rem;
+  color:var(--muted);
+  margin-bottom:2rem;
+  line-height:1.6;
+}
+
+/* ── FORM FIELDS ── */
+.fg{margin-bottom:1.25rem}
+.lbl{
+  display:block;
+  font-size:.72rem;
+  font-weight:600;
+  color:var(--muted);
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  margin-bottom:.5rem;
+}
+.inp{
+  width:100%;
+  padding:.875rem 1rem;
+  background:var(--card2);
+  border:1.5px solid var(--border2);
+  border-radius:var(--r);
+  font-size:.95rem;
+  color:var(--white);
+  font-family:var(--body);
+  transition:border-color .2s,box-shadow .2s;
+  outline:none;
+}
+.inp::placeholder{color:var(--muted)}
+.inp:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(0,255,136,.08);
+}
+.inp.error{border-color:var(--error)}
+.inp-grid{display:grid;grid-template-columns:1fr 1fr;gap:.875rem}
+
+/* Segmento chips */
+.seg-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:.625rem;
+}
+.seg-chip{
+  padding:.75rem .5rem;
+  background:var(--card2);
+  border:1.5px solid var(--border2);
+  border-radius:12px;
+  text-align:center;
+  cursor:pointer;
+  transition:all .15s;
+  font-size:.72rem;
+  font-weight:600;
+  color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;gap:.375rem;
+}
+.seg-chip:hover{border-color:rgba(0,255,136,.3);color:var(--white)}
+.seg-chip.selected{
+  border-color:var(--accent);
+  background:rgba(0,255,136,.06);
+  color:var(--accent);
+}
+.seg-chip .seg-icon{font-size:1.4rem}
+
+/* Agentes */
+.agent-chips{display:flex;flex-direction:column;gap:.75rem}
+.agent-chip{
+  display:flex;align-items:center;gap:1rem;
+  padding:1rem 1.25rem;
+  background:var(--card2);
+  border:1.5px solid var(--border2);
+  border-radius:14px;
+  cursor:pointer;
+  transition:all .15s;
+  position:relative;
+}
+.agent-chip:hover{border-color:rgba(0,255,136,.3)}
+.agent-chip.selected{
+  border-color:var(--accent);
+  background:rgba(0,255,136,.05);
+}
+.agent-chip.disabled{opacity:.45;cursor:not-allowed}
+.agent-chip-icon{font-size:1.5rem;flex-shrink:0}
+.agent-chip-info{flex:1}
+.agent-chip-name{
+  font-size:.88rem;
+  font-weight:600;
+  margin-bottom:.15rem;
+}
+.agent-chip-desc{font-size:.75rem;color:var(--muted)}
+.agent-chip-check{
+  width:20px;height:20px;
+  border-radius:50%;
+  border:1.5px solid var(--border2);
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;
+  transition:all .15s;
+}
+.agent-chip.selected .agent-chip-check{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--black);
+  font-weight:700;
+}
+.soon-tag{
+  position:absolute;top:.5rem;right:.5rem;
+  font-size:.6rem;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--border);
+  color:var(--muted);
+  padding:.15rem .5rem;
+  border-radius:100px;
+}
+
+/* ── BUTTONS ── */
+.btn-next{
+  width:100%;
+  padding:1rem;
+  background:var(--accent);
+  color:var(--black);
+  border:none;
+  border-radius:var(--r);
+  font-family:var(--font);
+  font-size:.85rem;
+  font-weight:700;
+  letter-spacing:-.01em;
+  cursor:pointer;
+  transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:.5rem;
+  margin-top:1.5rem;
+}
+.btn-next:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(0,255,136,.25)}
+.btn-next:active{transform:scale(.98)}
+.btn-next:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-back{
+  background:none;border:none;
+  color:var(--muted);
+  font-family:var(--body);
+  font-size:.82rem;
+  cursor:pointer;
+  margin-top:.875rem;
+  display:block;
+  text-align:center;
+  width:100%;
+  padding:.5rem;
+  transition:color .2s;
+}
+.btn-back:hover{color:var(--white)}
+
+/* ── ERROR MSG ── */
+.err-msg{
+  display:none;
+  background:rgba(255,61,107,.08);
+  border:1px solid rgba(255,61,107,.2);
+  color:var(--error);
+  padding:.75rem 1rem;
+  border-radius:10px;
+  font-size:.8rem;
+  margin-bottom:1rem;
+}
+.err-msg.show{display:block}
+
+/* ── SUCCESS ── */
+.success-screen{
+  display:none;
+  text-align:center;
+  padding:2rem 0;
+}
+.success-screen.show{display:block;animation:fadeIn .4s ease}
+.success-icon{
+  width:80px;height:80px;
+  background:rgba(0,255,136,.1);
+  border:2px solid rgba(0,255,136,.3);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;
+  margin:0 auto 1.5rem;
+  animation:popIn .4s cubic-bezier(.34,1.5,.64,1);
+}
+@keyframes popIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.success-title{
+  font-family:var(--font);
+  font-size:1.6rem;
+  font-weight:900;
+  letter-spacing:-.04em;
+  margin-bottom:.75rem;
+}
+.success-sub{
+  font-size:.9rem;
+  color:var(--muted);
+  line-height:1.65;
+  max-width:320px;
+  margin:0 auto 2rem;
+}
+.success-link{
+  display:inline-flex;
+  align-items:center;gap:.5rem;
+  background:var(--accent);
+  color:var(--black);
+  padding:.9rem 2.5rem;
+  border-radius:100px;
+  font-family:var(--font);
+  font-size:.85rem;
+  font-weight:700;
+  text-decoration:none;
+  transition:all .2s;
+}
+.success-link:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,255,136,.3)}
+
+/* slug preview */
+.slug-preview{
+  margin-top:.5rem;
+  font-size:.75rem;
+  color:var(--muted);
+  padding:.5rem .75rem;
+  background:rgba(0,255,136,.04);
+  border-radius:8px;
+  border:1px solid rgba(0,255,136,.1);
+  display:none;
+}
+.slug-preview span{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <!-- LEFT SIDE -->
+  <div class="side">
+    <div class="side-grid"></div>
+    <div class="side-glow"></div>
+    <div class="side-logo"><span class="j">J</span>gerenteAI</div>
+    <div class="side-content">
+      <div class="side-title">Seu gerente de IA<br>começa <span class="green">agora.</span></div>
+      <div class="side-benefits">
+        <div class="benefit">
+          <div class="benefit-icon">⚡</div>
+          <div>
+            <div class="benefit-title">Setup em 5 minutos</div>
+            <div class="benefit-text">Sem treinamento, sem instalação. Configure e comece a usar imediatamente.</div>
+          </div>
+        </div>
+        <div class="benefit">
+          <div class="benefit-icon">🤖</div>
+          <div>
+            <div class="benefit-title">Agentes trabalhando 24/7</div>
+            <div class="benefit-text">Fidelidade, gestão e muito mais. Cada agente especialista em uma área.</div>
+          </div>
+        </div>
+        <div class="benefit">
+          <div class="benefit-icon">📱</div>
+          <div>
+            <div class="benefit-title">WhatsApp integrado</div>
+            <div class="benefit-text">Notificações para clientes e funcionários direto pelo WhatsApp.</div>
+          </div>
+        </div>
+        <div class="benefit">
+          <div class="benefit-icon">🔒</div>
+          <div>
+            <div class="benefit-title">14 dias grátis</div>
+            <div class="benefit-text">Sem cartão de crédito. Cancele quando quiser, sem burocracia.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="side-footer">© 2025 JgerenteAI · Feito no Brasil 🇧🇷</div>
+  </div>
+
+  <!-- RIGHT SIDE -->
+  <div class="form-side">
+    <!-- PROGRESS -->
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-steps">
+        <div class="prog-step active" id="ps1">
+          <div class="prog-dot" id="pd1">1</div>
+          <span>Empresa</span>
+        </div>
+        <div class="prog-line"><div class="prog-line-fill" id="pl1" style="width:0%"></div></div>
+        <div class="prog-step" id="ps2">
+          <div class="prog-dot" id="pd2">2</div>
+          <span>Conta</span>
+        </div>
+        <div class="prog-line"><div class="prog-line-fill" id="pl2" style="width:0%"></div></div>
+        <div class="prog-step" id="ps3">
+          <div class="prog-dot" id="pd3">3</div>
+          <span>Agentes</span>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:16%"></div>
+      </div>
+    </div>
+
+    <!-- STEP 1 — Empresa -->
+    <div class="step-wrap active" id="step1">
+      <div class="step-title">Sua empresa</div>
+      <div class="step-sub">Como se chama seu negócio e em qual segmento atua?</div>
+
+      <div class="err-msg" id="err1"></div>
+
+      <div class="fg">
+        <label class="lbl">Nome da empresa *</label>
+        <input class="inp" id="nome-empresa" placeholder="Ex: João do Açaí" oninput="updateSlug(this.value)">
+        <div class="slug-preview" id="slug-preview">Portal do cliente: <span id="slug-display"></span></div>
+      </div>
+
+      <div class="fg">
+        <label class="lbl">Segmento *</label>
+        <div class="seg-grid">
+          <div class="seg-chip" onclick="selectSeg(this,'🍇 Açaiteria')">
+            <span class="seg-icon">🍇</span>Açaiteria
+          </div>
+          <div class="seg-chip" onclick="selectSeg(this,'🍽️ Restaurante')">
+            <span class="seg-icon">🍽️</span>Restaurante
+          </div>
+          <div class="seg-chip" onclick="selectSeg(this,'🐾 Pet Shop')">
+            <span class="seg-icon">🐾</span>Pet Shop
+          </div>
+          <div class="seg-chip" onclick="selectSeg(this,'💇 Salão')">
+            <span class="seg-icon">💇</span>Salão
+          </div>
+          <div class="seg-chip" onclick="selectSeg(this,'👗 Loja')">
+            <span class="seg-icon">👗</span>Loja
+          </div>
+          <div class="seg-chip" onclick="selectSeg(this,'🏪 Outro')">
+            <span class="seg-icon">🏪</span>Outro
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-next" onclick="goStep(2)">Continuar →</button>
+      <div style="text-align:center;margin-top:1rem">
+        <a href="index.html" style="font-size:.8rem;color:var(--muted);text-decoration:none">← Voltar para a home</a>
+      </div>
+    </div>
+
+    <!-- STEP 2 — Conta -->
+    <div class="step-wrap" id="step2">
+      <div class="step-title">Sua conta</div>
+      <div class="step-sub">Crie seu acesso de administrador. Você poderá adicionar funcionários depois.</div>
+
+      <div class="err-msg" id="err2"></div>
+
+      <div class="fg">
+        <label class="lbl">Seu nome *</label>
+        <input class="inp" id="nome-user" placeholder="Ex: João Silva">
+      </div>
+      <div class="fg">
+        <label class="lbl">Email *</label>
+        <input class="inp" id="email" type="email" placeholder="seu@email.com">
+      </div>
+      <div class="fg">
+        <label class="lbl">Senha *</label>
+        <input class="inp" id="senha" type="password" placeholder="Mínimo 8 caracteres">
+      </div>
+      <div class="fg">
+        <label class="lbl">Confirmar senha *</label>
+        <input class="inp" id="senha2" type="password" placeholder="Repita a senha">
+      </div>
+
+      <button class="btn-next" onclick="goStep(3)">Continuar →</button>
+      <button class="btn-back" onclick="goStep(1)">← Voltar</button>
+    </div>
+
+    <!-- STEP 3 — Agentes -->
+    <div class="step-wrap" id="step3">
+      <div class="step-title">Seus agentes</div>
+      <div class="step-sub">Escolha quais agentes de IA ativar na sua empresa. Você pode mudar depois.</div>
+
+      <div class="err-msg" id="err3"></div>
+
+      <div class="agent-chips">
+        <div class="agent-chip selected" id="chip-fidelidade" onclick="toggleAgent(this,'fidelidade')">
+          <div class="agent-chip-icon">🎯</div>
+          <div class="agent-chip-info">
+            <div class="agent-chip-name">Agente Fidelidade</div>
+            <div class="agent-chip-desc">Pontos, clientes, prêmios e notificações WhatsApp</div>
+          </div>
+          <div class="agent-chip-check">✓</div>
+        </div>
+        <div class="agent-chip selected" id="chip-gestor" onclick="toggleAgent(this,'gestor')">
+          <div class="agent-chip-icon">👔</div>
+          <div class="agent-chip-info">
+            <div class="agent-chip-name">Agente Gestor</div>
+            <div class="agent-chip-desc">Tarefas para equipe, IA gerente e relatórios</div>
+          </div>
+          <div class="agent-chip-check">✓</div>
+        </div>
+        <div class="agent-chip disabled">
+          <div class="agent-chip-icon">📱</div>
+          <div class="agent-chip-info">
+            <div class="agent-chip-name">Agente Tráfego</div>
+            <div class="agent-chip-desc">Conteúdo, posts e anúncios automáticos</div>
+          </div>
+          <div class="soon-tag">Em breve</div>
+          <div class="agent-chip-check">—</div>
+        </div>
+        <div class="agent-chip disabled">
+          <div class="agent-chip-icon">💰</div>
+          <div class="agent-chip-info">
+            <div class="agent-chip-name">Agente Financeiro</div>
+            <div class="agent-chip-desc">Fluxo de caixa, alertas e projeções com IA</div>
+          </div>
+          <div class="soon-tag">Em breve</div>
+          <div class="agent-chip-check">—</div>
+        </div>
+      </div>
+
+      <button class="btn-next" id="btn-criar" onclick="criarConta()">🚀 Criar minha conta</button>
+      <button class="btn-back" onclick="goStep(2)">← Voltar</button>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="success-screen" id="success">
+      <div class="success-icon">🎉</div>
+      <div class="success-title">Conta criada!</div>
+      <div class="success-sub">Sua empresa está configurada e seus agentes de IA já estão prontos. Vamos ao painel!</div>
+      <a href="jgerente-app.html" class="success-link" id="success-link">Entrar no painel →</a>
+      <div style="margin-top:1rem;font-size:.75rem;color:var(--muted)">Você receberá um email de confirmação</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE ──
+const { createClient } = supabase;
+const sb = createClient(
+  'https://hnculphposmgfvaeliiw.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
+);
+
+// ── STATE ──
+let state = {
+  step: 1,
+  nomeEmpresa: '',
+  segmento: '',
+  slug: '',
+  nomeUser: '',
+  email: '',
+  senha: '',
+  agentes: ['fidelidade','gestor']
+};
+
+// ── SLUG ──
+function toSlug(str){
+  return str.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s-]/g,'')
+    .trim().replace(/\s+/g,'-');
+}
+function updateSlug(val){
+  const slug = toSlug(val);
+  state.slug = slug;
+  const prev = document.getElementById('slug-preview');
+  const disp = document.getElementById('slug-display');
+  if(slug){
+    disp.textContent = `jgerente.ai/cliente/${slug}`;
+    prev.style.display = 'block';
+  } else {
+    prev.style.display = 'none';
+  }
+}
+
+// ── SEGMENTO ──
+let selectedSeg = null;
+function selectSeg(el, val){
+  document.querySelectorAll('.seg-chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  state.segmento = val;
+}
+
+// ── AGENTES ──
+function toggleAgent(el, tipo){
+  if(el.classList.contains('disabled')) return;
+  el.classList.toggle('selected');
+  if(el.classList.contains('selected')){
+    if(!state.agentes.includes(tipo)) state.agentes.push(tipo);
+  } else {
+    state.agentes = state.agentes.filter(a=>a!==tipo);
+  }
+}
+
+// ── PROGRESS ──
+function updateProgress(step){
+  const fills = [0, 16, 50, 85, 100];
+  document.getElementById('progress-fill').style.width = fills[step]+'%';
+  [1,2,3].forEach(i=>{
+    const ps = document.getElementById('ps'+i);
+    const pd = document.getElementById('pd'+i);
+    ps.classList.remove('active','done');
+    if(i < step){ ps.classList.add('done'); pd.textContent='✓'; }
+    else if(i === step){ ps.classList.add('active'); pd.textContent=i; }
+    else { pd.textContent=i; }
+  });
+  [1,2].forEach(i=>{
+    const pl = document.getElementById('pl'+i);
+    pl.style.width = step > i ? '100%' : '0%';
+  });
+}
+
+// ── NAVIGATION ──
+function showErr(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 4000);
+}
+
+function goStep(n){
+  // Validate current step before moving forward
+  if(n > state.step){
+    if(state.step === 1){
+      const nome = document.getElementById('nome-empresa').value.trim();
+      if(!nome){ showErr('err1','⚠️ Informe o nome da empresa'); return; }
+      if(!state.segmento){ showErr('err1','⚠️ Selecione o segmento'); return; }
+      state.nomeEmpresa = nome;
+      state.slug = toSlug(nome);
+    }
+    if(state.step === 2){
+      const nome = document.getElementById('nome-user').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const senha = document.getElementById('senha').value;
+      const senha2 = document.getElementById('senha2').value;
+      if(!nome){ showErr('err2','⚠️ Informe seu nome'); return; }
+      if(!email || !email.includes('@')){ showErr('err2','⚠️ Email inválido'); return; }
+      if(senha.length < 8){ showErr('err2','⚠️ Senha deve ter mínimo 8 caracteres'); return; }
+      if(senha !== senha2){ showErr('err2','⚠️ As senhas não coincidem'); return; }
+      state.nomeUser = nome;
+      state.email = email;
+      state.senha = senha;
+    }
+  }
+
+  document.getElementById('step'+state.step).classList.remove('active');
+  state.step = n;
+  document.getElementById('step'+n).classList.add('active');
+  updateProgress(n);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── CRIAR CONTA ──
+async function criarConta(){
+  if(state.agentes.length === 0){
+    showErr('err3','⚠️ Selecione ao menos um agente'); return;
+  }
+  const btn = document.getElementById('btn-criar');
+  btn.disabled = true;
+  btn.textContent = 'Criando sua conta...';
+
+  try{
+    // 1. Criar usuário no Supabase Auth
+    const { data: authData, error: authErr } = await sb.auth.signUp({
+      email: state.email,
+      password: state.senha,
+      options: { data: { nome: state.nomeUser } }
+    });
+    if(authErr) throw authErr;
+
+    // 2. Criar empresa
+    const { data: company, error: compErr } = await sb.from('companies').insert({
+      nome: state.nomeEmpresa,
+      slug: state.slug,
+      plano: 'trial',
+    }).select().single();
+    if(compErr) throw compErr;
+
+    // 3. Criar usuário (dono)
+    const { error: userErr } = await sb.from('usuarios').insert({
+      company_id: company.id,
+      auth_id: authData.user?.id,
+      nome: state.nomeUser,
+      email: state.email,
+      perfil: 'dono'
+    });
+    if(userErr) throw userErr;
+
+    // 4. Ativar agentes escolhidos
+    if(state.agentes.length > 0){
+      const agentRows = state.agentes.map(tipo=>({
+        company_id: company.id,
+        tipo,
+        ativo: true,
+        config: {}
+      }));
+      await sb.from('agentes').insert(agentRows);
+    }
+
+    // 5. Salvar company_id no localStorage para o painel usar
+    localStorage.setItem('jg_company_id', company.id);
+    localStorage.setItem('jg_company_nome', company.nome);
+    localStorage.setItem('jg_company_slug', company.slug);
+    localStorage.setItem('jg_user_nome', state.nomeUser);
+    localStorage.setItem('jg_user_perfil', 'dono');
+
+    // 6. Mostrar sucesso
+    document.getElementById('progress-wrap').style.display='none';
+    document.getElementById('step3').classList.remove('active');
+    document.getElementById('success').classList.add('show');
+
+  } catch(e){
+    console.error(e);
+    let msg = '⚠️ Erro ao criar conta. Tente novamente.';
+    if(e.message?.includes('already registered')) msg = '⚠️ Este email já está cadastrado.';
+    if(e.message?.includes('duplicate key')) msg = '⚠️ Já existe uma empresa com esse nome.';
+    showErr('err3', msg);
+    btn.disabled = false;
+    btn.textContent = '🚀 Criar minha conta';
+  }
+}
+</script>
+</body>
+</html>
