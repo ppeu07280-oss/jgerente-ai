@@ -309,15 +309,17 @@ async function initApp(user){
 
 async function loadTarefas(){
   const agora = new Date();
-  const hojeStr = agora.toISOString().split('T')[0];
+  // Usar data local (não UTC) para filtrar tarefas de hoje
+  const hojeLocal = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const amanha = new Date(hojeLocal); amanha.setDate(amanha.getDate()+1);
 
-  // Buscar apenas tarefas de hoje (criadas hoje ou com prazo hoje)
   const { data } = await sb.from('tarefas')
     .select('*')
     .eq('company_id', S.company.id)
     .eq('atribuido_para', S.usuario.id)
     .eq('recorrente', false)
-    .gte('created_at', hojeStr + 'T00:00:00')
+    .gte('created_at', hojeLocal.toISOString())
+    .lt('created_at', amanha.toISOString())
     .order('prazo', {ascending: true});
 
   // Verificar expiradas por horário
