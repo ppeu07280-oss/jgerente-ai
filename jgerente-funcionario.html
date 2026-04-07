@@ -378,10 +378,14 @@ function showConcluir(id){
       <div class="foto-upload" id="foto-wrap" onclick="document.getElementById('foto-inp').click()">
         <input type="file" id="foto-inp" accept="image/*" capture="environment" style="display:none" onchange="previewFoto(this)">
         <img id="foto-preview" class="foto-preview">
-        <div id="foto-placeholder">
+        <div id="foto-placeholder" style="display:flex;flex-direction:column;align-items:center">
           <div class="foto-icon">📸</div>
-          <div class="foto-text">Toque para tirar foto</div>
+          <div class="foto-text">Toque para tirar foto agora</div>
+          <div class="foto-text" style="font-size:.65rem;margin-top:.25rem;color:rgba(139,139,153,.6)">Fotos antigas serão rejeitadas</div>
         </div>
+      </div>
+      <div id="foto-err" style="display:none;background:rgba(255,61,107,.08);border:1px solid rgba(255,61,107,.2);border-radius:8px;padding:.625rem .875rem;margin-top:.5rem">
+        <div id="foto-err-text" style="font-size:.75rem;color:var(--error);line-height:1.5"></div>
       </div>
     </div>
     <div class="fg">
@@ -393,14 +397,87 @@ function showConcluir(id){
   `);
 }
 
+let fotoComTimestamp = null;
+
 function previewFoto(input){
   const file = input.files[0];
   if(!file) return;
+
+  // Verificar se a foto foi tirada nos últimos 5 minutos
+  const agora = Date.now();
+  const dataFoto = file.lastModified;
+  const diffMinutos = (agora - dataFoto) / 1000 / 60;
+
+  if(diffMinutos > 5){
+    const mins = Math.round(diffMinutos);
+    const horas = mins > 60 ? Math.round(mins/60) + ' hora(s)' : mins + ' minuto(s)';
+    // Resetar input
+    input.value = '';
+    fotoComTimestamp = null;
+    document.getElementById('foto-preview').style.display = 'none';
+    document.getElementById('foto-placeholder').style.display = 'flex';
+    // Mostrar erro
+    const wrap = document.getElementById('foto-wrap');
+    wrap.style.borderColor = 'var(--error)';
+    wrap.style.background = 'rgba(255,61,107,.05)';
+    const errEl = document.getElementById('foto-err');
+    if(errEl) errEl.style.display = 'block';
+    document.getElementById('foto-err-text').textContent = 
+      `⚠️ Foto tirada há ${horas}. Tire uma nova foto agora para comprovar a tarefa.`;
+    setTimeout(()=>{
+      wrap.style.borderColor = '';
+      wrap.style.background = '';
+    }, 3000);
+    return;
+  }
+
+  // Foto recente — limpar erro se existir
+  const errEl = document.getElementById('foto-err');
+  if(errEl) errEl.style.display = 'none';
+  document.getElementById('foto-wrap').style.borderColor = '';
+
   const reader = new FileReader();
   reader.onload = e => {
-    document.getElementById('foto-preview').src = e.target.result;
-    document.getElementById('foto-preview').style.display = 'block';
-    document.getElementById('foto-placeholder').style.display = 'none';
+    const img = new Image();
+    img.onload = () => {
+      // Desenhar foto com timestamp no canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      // Timestamp
+      const agora = new Date();
+      const ts = agora.toLocaleString('pt-BR', {
+        day:'2-digit',month:'2-digit',year:'numeric',
+        hour:'2-digit',minute:'2-digit',second:'2-digit'
+      });
+      const label = `${S.usuario?.nome||'Funcionário'} · ${ts}`;
+
+      // Fundo do timestamp
+      const fontSize = Math.max(16, Math.round(img.width * 0.03));
+      ctx.font = `bold ${fontSize}px monospace`;
+      const tw = ctx.measureText(label).width;
+      const pad = fontSize * 0.5;
+      const bh = fontSize + pad * 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, img.height - bh, tw + pad * 2, bh);
+
+      // Texto
+      ctx.fillStyle = '#00FF88';
+      ctx.fillText(label, pad, img.height - pad * 0.8);
+
+      // Guardar como blob
+      canvas.toBlob(blob => {
+        fotoComTimestamp = new File([blob], `prova_${Date.now()}.jpg`, {type:'image/jpeg'});
+        const url = canvas.toDataURL('image/jpeg');
+        document.getElementById('foto-preview').src = url;
+        document.getElementById('foto-preview').style.display = 'block';
+        document.getElementById('foto-placeholder').style.display = 'none';
+      }, 'image/jpeg', 0.92);
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
@@ -416,16 +493,16 @@ async function confirmarConclusao(id){
   const fotoInp = document.getElementById('foto-inp');
 
   try{
-    // Upload foto se tiver
-    if(fotoInp?.files[0]){
-      const file = fotoInp.files[0];
-      const ext = file.name.split('.').pop();
-      const path = `${S.company.id}/${id}-${Date.now()}.${ext}`;
-      const { data: upData, error: upErr } = await sb.storage.from('provas').upload(path, file);
+    // Upload foto com timestamp se tiver
+    const fotoParaUpload = fotoComTimestamp || fotoInp?.files[0];
+    if(fotoParaUpload){
+      const path = `${S.company.id}/${id}-${Date.now()}.jpg`;
+      const { data: upData, error: upErr } = await sb.storage.from('provas').upload(path, fotoParaUpload);
       if(!upErr){
         const { data: urlData } = sb.storage.from('provas').getPublicUrl(path);
         fotoUrl = urlData.publicUrl;
       }
+      fotoComTimestamp = null;
     }
 
     await sb.from('tarefas').update({
