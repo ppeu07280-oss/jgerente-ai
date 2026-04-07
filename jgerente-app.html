@@ -839,17 +839,48 @@ function renderEquipe(){
           <div class="sec-card-body">
             ${S.equipe.map(m=>{
               const tarefasM = S.tarefas.filter(t=>t.atribuido_para===m.id&&t.status!=='concluida').length;
+              const concluiuM = S.tarefas.filter(t=>t.atribuido_para===m.id&&t.status==='concluida').length;
+              const expirouM = S.tarefas.filter(t=>t.atribuido_para===m.id&&t.status==='expirada').length;
+              const totalM = concluiuM + expirouM;
+              const scoreM = totalM>0 ? Math.round((concluiuM/totalM)*100) : null;
+              const scoreColor = scoreM===null?'var(--muted)':scoreM>=80?'var(--accent)':scoreM>=50?'#FFD600':'var(--error)';
               return`<div class="member-row">
                 <div class="member-av" style="background:${avColor(m.nome)}">${initials(m.nome)}</div>
                 <div style="flex:1;min-width:0">
                   <div class="member-name">${escHtml(m.nome)}</div>
-                  <div class="member-role">${m.perfil} · ${tarefasM} tarefa${tarefasM!==1?'s':''} pendente${tarefasM!==1?'s':''}</div>
+                  <div class="member-role">${m.perfil} · ${tarefasM} pendente${tarefasM!==1?'s':''}</div>
+                  ${scoreM!==null?`<div style="height:3px;background:var(--border);border-radius:100px;margin-top:.375rem;max-width:120px"><div style="height:100%;width:${scoreM}%;background:${scoreColor};border-radius:100px"></div></div>`:''}
                 </div>
-                <div style="display:flex;align-items:center;gap:.5rem">
-                  <button onclick="removerMembro('${m.id}','${escHtml(m.nome)}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem" title="Remover">✕</button>
+                <div style="text-align:right">
+                  ${scoreM!==null?`<div style="font-family:var(--font);font-size:.9rem;font-weight:800;color:${scoreColor}">${scoreM}%</div><div style="font-size:.65rem;color:var(--muted)">performance</div>`:<span style="font-size:.7rem;color:var(--muted)">sem dados</span>}
                 </div>
+                <button onclick="removerMembro('${m.id}','${escHtml(m.nome)}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;margin-left:.5rem" title="Remover">✕</button>
               </div>`;
-            }).join('')}
+            }).sort((a,b)=>0).join('')}
+          </div>
+        </div>
+        <div class="sec-card">
+          <div class="sec-card-header"><div class="sec-card-title">🏆 Ranking de Performance</div></div>
+          <div class="sec-card-body">
+            ${[...S.equipe].map(m=>{
+              const concluiuM = S.tarefas.filter(t=>t.atribuido_para===m.id&&t.status==='concluida').length;
+              const expirouM = S.tarefas.filter(t=>t.atribuido_para===m.id&&t.status==='expirada').length;
+              const totalM = concluiuM + expirouM;
+              const scoreM = totalM>0 ? Math.round((concluiuM/totalM)*100) : 0;
+              return { ...m, score: scoreM, concluiu: concluiuM, expirou: expirouM };
+            }).sort((a,b)=>b.score-a.score).map((m,i)=>{
+              const medals=['🥇','🥈','🥉'];
+              const scoreColor = m.score>=80?'var(--accent)':m.score>=50?'#FFD600':'var(--error)';
+              return`<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--border)">
+                <div style="font-size:1.2rem;width:24px">${medals[i]||i+1}</div>
+                <div class="member-av" style="background:${avColor(m.nome)};width:32px;height:32px;font-size:.65rem">${initials(m.nome)}</div>
+                <div style="flex:1">
+                  <div style="font-size:.82rem;font-weight:600">${escHtml(m.nome)}</div>
+                  <div style="font-size:.7rem;color:var(--muted)">✅ ${m.concluiu} concluídas · ⏰ ${m.expirou} expiradas</div>
+                </div>
+                <div style="font-family:var(--font);font-size:1rem;font-weight:800;color:${scoreColor}">${m.score}%</div>
+              </div>`;
+            }).join('')||'<div style="text-align:center;padding:1rem;color:var(--muted);font-size:.82rem">Nenhum dado ainda</div>'}
           </div>
         </div>`}
   </div>`;
