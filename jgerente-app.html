@@ -1099,10 +1099,22 @@ async function toggleTarefa(id, novoStatus){
 }
 
 async function deletarTarefa(id){
-  if(!confirm('Remover esta tarefa?')) return;
+  const t = S.tarefas.find(x=>x.id===id);
+  const isModelo = t?.recorrente;
+  const msg = isModelo 
+    ? 'Remover tarefa recorrente e todas as repetições do dia?' 
+    : 'Remover esta tarefa?';
+  if(!confirm(msg)) return;
+
+  // Deletar filhas primeiro se for modelo
+  if(isModelo){
+    await sb.from('tarefas').delete().eq('tarefa_pai', id);
+    S.tarefas = S.tarefas.filter(t=>t.tarefa_pai!==id);
+  }
+
   await sb.from('tarefas').delete().eq('id',id);
   S.tarefas = S.tarefas.filter(t=>t.id!==id);
-  toast('Tarefa removida');
+  toast(isModelo ? 'Tarefa recorrente removida!' : 'Tarefa removida');
   renderView('tarefas');
 }
 
