@@ -765,7 +765,7 @@ function tarefaRow(t){
       <div class="tarefa-check ${done?'done':''}" onclick="toggleTarefa('${t.id}','${done?'pendente':'concluida'}')">${done?'✓':''}</div>
       <div style="flex:1;min-width:0">
         <div class="tarefa-title ${done?'done':''}">${escHtml(t.titulo)}</div>
-        <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''} ${t.criado_por==='recorrente'?`· 🔁 ${t.repeticao_atual||1}/${t.repeticoes_dia||1}`:t.recorrente?'· 🔁 Modelo':''}</div>
+        <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''} ${t.criado_por==='recorrente'?`· 🔁 ${t.repeticao_atual||1}/${t.repeticoes_dia||1} · ⏰ ${t.prazo?new Date(t.prazo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}`:t.recorrente?'· 🔁 Modelo':''}</div>
       </div>
       <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
       <button onclick="deletarTarefa('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.25rem" title="Remover">✕</button>
@@ -789,6 +789,33 @@ function adjustRep(delta){
   if(!inp) return;
   const val = Math.min(20, Math.max(1, (parseInt(inp.value)||1) + delta));
   inp.value = val;
+  calcularHorarios();
+}
+
+function calcularHorarios(){
+  const reps = parseInt(document.getElementById('t-repeticoes')?.value)||1;
+  const inicio = document.getElementById('t-hora-inicio')?.value||'08:00';
+  const fim = document.getElementById('t-hora-fim')?.value||'18:00';
+  const preview = document.getElementById('horarios-preview');
+  if(!preview) return;
+
+  const [hI, mI] = inicio.split(':').map(Number);
+  const [hF, mF] = fim.split(':').map(Number);
+  const totalMins = (hF*60+mF) - (hI*60+mI);
+  if(totalMins <= 0){ preview.innerHTML = '<span style="font-size:.72rem;color:var(--error)">⚠️ Horário inválido</span>'; return; }
+
+  const interval = reps > 1 ? Math.floor(totalMins/(reps-1)) : 0;
+  const horarios = [];
+  for(let i=0; i<reps; i++){
+    const mins = hI*60 + mI + (interval*i);
+    const h = Math.floor(mins/60).toString().padStart(2,'0');
+    const m = (mins%60).toString().padStart(2,'0');
+    horarios.push(`${h}:${m}`);
+  }
+
+  preview.innerHTML = horarios.map((h,i)=>`
+    <span style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.15);color:var(--accent);padding:.2rem .5rem;border-radius:6px;font-size:.7rem;font-weight:600">${i+1}ª ${h}</span>
+  `).join('');
 }
 
 function toggleDiasSemana(){
@@ -821,10 +848,24 @@ function showAddTarefa(){
       <label class="lbl">Repetições por dia</label>
       <div style="display:flex;align-items:center;gap:.75rem">
         <button type="button" onclick="adjustRep(-1)" style="width:36px;height:36px;border-radius:8px;background:var(--card2);border:1.5px solid var(--border2);color:var(--white);font-size:1.1rem;cursor:pointer;flex-shrink:0">−</button>
-        <input class="inp" id="t-repeticoes" type="number" value="1" min="1" max="20" style="text-align:center;font-family:var(--font);font-weight:700;font-size:1rem">
+        <input class="inp" id="t-repeticoes" type="number" value="1" min="1" max="20" style="text-align:center;font-family:var(--font);font-weight:700;font-size:1rem" onchange="calcularHorarios()">
         <button type="button" onclick="adjustRep(1)" style="width:36px;height:36px;border-radius:8px;background:var(--card2);border:1.5px solid var(--border2);color:var(--white);font-size:1.1rem;cursor:pointer;flex-shrink:0">+</button>
       </div>
       <div style="font-size:.68rem;color:var(--muted);margin-top:.375rem">Quantas vezes por dia o funcionário deve executar essa tarefa</div>
+    </div>
+    <div class="fg">
+      <label class="lbl">Horário da tarefa</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div>
+          <div style="font-size:.68rem;color:var(--muted);margin-bottom:.375rem">Início</div>
+          <input class="inp" id="t-hora-inicio" type="time" value="08:00" onchange="calcularHorarios()">
+        </div>
+        <div>
+          <div style="font-size:.68rem;color:var(--muted);margin-bottom:.375rem">Fim</div>
+          <input class="inp" id="t-hora-fim" type="time" value="18:00" onchange="calcularHorarios()">
+        </div>
+      </div>
+      <div id="horarios-preview" style="margin-top:.625rem;display:flex;flex-wrap:wrap;gap:.375rem"></div>
     </div>
 
     <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:.5rem">
@@ -906,6 +947,24 @@ async function salvarTarefa(){
   }
 
   const repeticoesDia = parseInt(document.getElementById('t-repeticoes')?.value)||1;
+  const horaInicio = document.getElementById('t-hora-inicio')?.value||null;
+  const horaFim = document.getElementById('t-hora-fim')?.value||null;
+
+  // Calcular horários das repetições
+  let horariosReps = null;
+  if(horaInicio && horaFim && repeticoesDia > 0){
+    const [hI,mI] = horaInicio.split(':').map(Number);
+    const [hF,mF] = horaFim.split(':').map(Number);
+    const totalMins = (hF*60+mF)-(hI*60+mI);
+    const interval = repeticoesDia>1 ? Math.floor(totalMins/(repeticoesDia-1)) : 0;
+    horariosReps = [];
+    for(let i=0;i<repeticoesDia;i++){
+      const mins = hI*60+mI+(interval*i);
+      const h = Math.floor(mins/60).toString().padStart(2,'0');
+      const m = (mins%60).toString().padStart(2,'0');
+      horariosReps.push(`${h}:${m}`);
+    }
+  }
 
   const payload = {
     company_id: S.company.id,
@@ -919,7 +978,8 @@ async function salvarTarefa(){
     recorrente,
     dias_semana: diasSemana,
     repeticoes_dia: repeticoesDia,
-    repeticao_atual: 1
+    repeticao_atual: 1,
+    config: horariosReps ? JSON.stringify({horaInicio, horaFim, horarios: horariosReps}) : null
   };
 
   const { data, error } = await sb.from('tarefas').insert(payload).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').single();
@@ -1442,6 +1502,17 @@ async function criarTarefasRecorrentes(){
 
         if(jaExisteRep.data && jaExisteRep.data.length > 0) continue;
 
+        // Calcular prazo desta repetição
+        let prazoRep = hojeStr + 'T23:59:59';
+        if(t.config){
+          try{
+            const cfg = typeof t.config === 'string' ? JSON.parse(t.config) : t.config;
+            if(cfg.horarios && cfg.horarios[rep-1]){
+              prazoRep = hojeStr + 'T' + cfg.horarios[rep-1] + ':00';
+            }
+          }catch(e){}
+        }
+
         const { data: nova } = await sb.from('tarefas').insert({
           company_id: t.company_id,
           titulo: t.titulo,
@@ -1450,7 +1521,7 @@ async function criarTarefasRecorrentes(){
           prioridade: t.prioridade,
           criado_por: 'recorrente',
           status: 'pendente',
-          prazo: hojeStr + 'T23:59:59',
+          prazo: prazoRep,
           tarefa_pai: t.id,
           recorrente: false,
           repeticoes_dia: reps,
