@@ -23,19 +23,21 @@ module.exports = async function handler(req, res) {
       }))
     ];
 
-    // Tenta v1 e v1beta com modelos diferentes
+    // Modelos em ordem de prioridade
     const attempts = [
+      { version: 'v1beta', model: 'gemini-3-flash-preview' },
+      { version: 'v1beta', model: 'gemini-2.0-flash' },
+      { version: 'v1beta', model: 'gemini-2.0-flash-lite' },
+      { version: 'v1beta', model: 'gemini-1.5-flash' },
       { version: 'v1', model: 'gemini-2.0-flash' },
       { version: 'v1', model: 'gemini-1.5-flash' },
-      { version: 'v1', model: 'gemini-1.5-pro' },
-      { version: 'v1beta', model: 'gemini-2.0-flash' },
-      { version: 'v1beta', model: 'gemini-1.5-flash' },
     ];
 
     for (const { version, model } of attempts) {
       try {
         const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-        
+        console.log(`Tentando: ${url}`);
+
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -57,7 +59,21 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    return res.status(500).json({ error: 'Todos os modelos falharam. Verifique a chave da API do Gemini.' });
+    // Lista modelos disponíveis para debug
+    try {
+      const listRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`
+      );
+      const listData = await listRes.json();
+      const modelNames = listData.models?.map(m => m.name) || [];
+      console.log('Modelos disponíveis:', modelNames.join(', '));
+      return res.status(500).json({ 
+        error: 'Todos os modelos falharam',
+        modelos_disponiveis: modelNames
+      });
+    } catch(e) {
+      return res.status(500).json({ error: 'Falha total. Chave inválida.' });
+    }
 
   } catch (e) {
     console.error('Handler error:', e.message);
