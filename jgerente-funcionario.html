@@ -276,19 +276,22 @@ async function initApp(user){
 }
 
 async function loadTarefas(){
-  const today = new Date().toISOString().split('T')[0];
+  const agora = new Date();
+  const hojeStr = agora.toISOString().split('T')[0];
+
+  // Buscar apenas tarefas de hoje (criadas hoje ou com prazo hoje)
   const { data } = await sb.from('tarefas')
     .select('*')
     .eq('company_id', S.company.id)
     .eq('atribuido_para', S.usuario.id)
-    .order('created_at', {ascending: false});
-  
-  // Verificar expiradas (prazo passou e não concluiu)
-  const agora = new Date();
+    .eq('recorrente', false)
+    .gte('created_at', hojeStr + 'T00:00:00')
+    .order('prazo', {ascending: true});
+
+  // Verificar expiradas por horário
   for(const t of (data||[])){
     if(t.status === 'pendente' || t.status === 'em_andamento'){
       if(t.prazo && new Date(t.prazo) < agora){
-        // Expirou — atualiza no banco
         await sb.from('tarefas').update({status:'expirada'}).eq('id',t.id);
         t.status = 'expirada';
       }
@@ -528,269 +531,6 @@ async function marcarAndamento(id){
   const t = S.tarefas.find(x=>x.id===id);
   if(t) t.status='em_andamento';
   renderTarefas();
-}
-
-function showConcluir(id){
-  const t = S.tarefas.find(x=>x.id===id);
-  openModal(`
-    <div class="modal-title">✅ Concluir tarefa</div>
-    <div style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem">${escHtml(t?.titulo||'')}</div>
-    <div class="fg">
-      <label class="lbl">Foto como prova</label>
-      <div class="foto-upload" id="foto-wrap" onclick="document.getElementById('foto-inp').click()">
-        <input type="file" id="foto-inp" capture="environment" style="display:none" onchange="previewFoto(this)">
-        <img id="foto-preview" class="foto-preview">
-        <div id="foto-placeholder" style="display:flex;flex-direction:column;align-items:center">
-          <div class="foto-icon">📸</div>
-          <div class="foto-text">Toque para tirar foto agora</div>
-          <div class="foto-text" style="font-size:.65rem;margin-top:.25rem;color:rgba(139,139,153,.6)">Fotos antigas serão rejeitadas</div>
-        </div>
-      </div>
-      <div id="foto-err" style="display:none;background:rgba(255,61,107,.08);border:1px solid rgba(255,61,107,.2);border-radius:8px;padding:.625rem .875rem;margin-top:.5rem">
-        <div id="foto-err-text" style="font-size:.75rem;color:var(--error);line-height:1.5"></div>
-      </div>
-    </div>
-    <div class="fg">
-      <label class="lbl">Comentário *</label>
-      <textarea class="inp" id="prova-comment" rows="3" placeholder="Descreva o que foi feito..." style="resize:none"></textarea>
-    </div>
-    <button class="btn-modal primary" id="btn-confirmar" onclick="confirmarConclusao('${id}')">✅ Confirmar conclusão</button>
-    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
-  `);
-}
-
-let fotoComTimestamp = null;
-
-function previewFoto(input){
-  const file = input.files[0];
-  if(!file) return;
-
-  // Verificar se a foto foi tirada nos últimos 5 minutos
-  const agora = Date.now();
-  const dataFoto = file.lastModified;
-  const diffMinutos = (agora - dataFoto) / 1000 / 60;
-
-  if(diffMinutos > 5){
-    const mins = Math.round(diffMinutos);
-    const horas = mins > 60 ? Math.round(mins/60) + ' hora(s)' : mins + ' minuto(s)';
-    // Resetar input
-    input.value = '';
-    fotoComTimestamp = null;
-    document.getElementById('foto-preview').style.display = 'none';
-    document.getElementById('foto-placeholder').style.display = 'flex';
-    // Mostrar erro
-    const wrap = document.getElementById('foto-wrap');
-    wrap.style.borderColor = 'var(--error)';
-    wrap.style.background = 'rgba(255,61,107,.05)';
-    const errEl = document.getElementById('foto-err');
-    if(errEl) errEl.style.display = 'block';
-    document.getElementById('foto-err-text').textContent = 
-      `⚠️ Foto tirada há ${horas}. Tire uma nova foto agora para comprovar a tarefa.`;
-    setTimeout(()=>{
-      wrap.style.borderColor = '';
-      wrap.style.background = '';
-    }, 3000);
-    return;
-  }
-
-  // Foto recente — limpar erro se existir
-  const errEl = document.getElementById('foto-err');
-  if(errEl) errEl.style.display = 'none';
-  document.getElementById('foto-wrap').style.borderColor = '';
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      // Desenhar foto com timestamp no canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-
-      // Timestamp
-      const agora = new Date();
-      const ts = agora.toLocaleString('pt-BR', {
-        day:'2-digit',month:'2-digit',year:'numeric',
-        hour:'2-digit',minute:'2-digit',second:'2-digit'
-      });
-      const label = `${S.usuario?.nome||'Funcionário'} · ${ts}`;
-
-      // Fundo do timestamp
-      const fontSize = Math.max(16, Math.round(img.width * 0.03));
-      ctx.font = `bold ${fontSize}px monospace`;
-      const tw = ctx.measureText(label).width;
-      const pad = fontSize * 0.5;
-      const bh = fontSize + pad * 2;
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillRect(0, img.height - bh, tw + pad * 2, bh);
-
-      // Texto
-      ctx.fillStyle = '#00FF88';
-      ctx.fillText(label, pad, img.height - pad * 0.8);
-
-      // Guardar como blob
-      canvas.toBlob(blob => {
-        fotoComTimestamp = new File([blob], `prova_${Date.now()}.jpg`, {type:'image/jpeg'});
-        const url = canvas.toDataURL('image/jpeg');
-        document.getElementById('foto-preview').src = url;
-        document.getElementById('foto-preview').style.display = 'block';
-        document.getElementById('foto-placeholder').style.display = 'none';
-      }, 'image/jpeg', 0.92);
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-async function confirmarConclusao(id){
-  const comment = document.getElementById('prova-comment')?.value.trim();
-  if(!comment){ toast('⚠️ Escreva um comentário', false); return; }
-
-  const btn = document.getElementById('btn-confirmar');
-  btn.disabled=true; btn.textContent='Enviando...';
-
-  try{
-    // Upload múltiplas fotos
-    const fotosUrls = [];
-    for(let i=0; i<fotosColetadas.length; i++){
-      btn.textContent = `Enviando foto ${i+1}/${fotosColetadas.length}...`;
-      const path = `${S.company.id}/${id}-${Date.now()}-${i}.jpg`;
-      const { error: upErr } = await sb.storage.from('provas').upload(path, fotosColetadas[i]);
-      if(!upErr){
-        const { data: urlData } = sb.storage.from('provas').getPublicUrl(path);
-        fotosUrls.push(urlData.publicUrl);
-      }
-    }
-
-    await sb.from('tarefas').update({
-      status: 'concluida',
-      prova_comentario: comment,
-      prova_foto: fotosUrls[0]||null,
-      provas_fotos: fotosUrls.length>0 ? fotosUrls : null,
-      concluido_por: S.usuario.id,
-      concluido_em: new Date().toISOString()
-    }).eq('id', id);
-
-    const t = S.tarefas.find(x=>x.id===id);
-    if(t){
-      t.status='concluida';
-      t.prova_comentario=comment;
-      t.prova_foto=fotosUrls[0]||null;
-      t.provas_fotos=fotosUrls;
-      t.concluido_em=new Date().toISOString();
-    }
-
-    fotosColetadas = [];
-    closeModal();
-    toast(`✅ Tarefa concluída com ${fotosUrls.length} foto(s)!`);
-    renderTarefas();
-
-  }catch(e){
-    console.error(e);
-    toast('⚠️ Erro ao enviar. Tente novamente.', false);
-    btn.disabled=false; btn.textContent='✅ Confirmar conclusão';
-  }
-}
-
-// ── PERFORMANCE ──
-async function renderPerformance(){
-  const el = document.getElementById('content');
-  el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted)">Carregando...</div>`;
-
-  // Buscar tarefas dos últimos 7 dias
-  const from7 = new Date();
-  from7.setDate(from7.getDate()-6);
-  from7.setHours(0,0,0,0);
-
-  const { data: historico } = await sb.from('tarefas')
-    .select('*')
-    .eq('company_id', S.company.id)
-    .eq('atribuido_para', S.usuario.id)
-    .gte('created_at', from7.toISOString());
-
-  const tarefas = historico || [];
-  const concluidas = tarefas.filter(t=>t.status==='concluida').length;
-  const expiradas = tarefas.filter(t=>t.status==='expirada').length;
-  const total = concluidas + expiradas;
-  const score = total > 0 ? Math.round((concluidas/total)*100) : 0;
-  const scoreColor = score>=80?'var(--accent)':score>=50?'#FFD600':'var(--error)';
-
-  // Dados por dia
-  const dias = [];
-  for(let i=6;i>=0;i--){
-    const d = new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
-    const next = new Date(d); next.setDate(next.getDate()+1);
-    const dayTasks = tarefas.filter(t=>{
-      const ct = new Date(t.created_at);
-      return ct >= d && ct < next;
-    });
-    dias.push({
-      label: d.toLocaleDateString('pt-BR',{weekday:'short'}).slice(0,3),
-      concluidas: dayTasks.filter(t=>t.status==='concluida').length,
-      expiradas: dayTasks.filter(t=>t.status==='expirada').length,
-      total: dayTasks.length
-    });
-  }
-  const maxVal = Math.max(...dias.map(d=>d.concluidas+d.expiradas), 1);
-
-  el.innerHTML = `
-    <div class="perf-header">
-      <div class="perf-av" style="background:${avColor(S.usuario?.nome||'')}">${initials(S.usuario?.nome||'')}</div>
-      <div>
-        <div class="perf-name">${escHtml(S.usuario?.nome||'')}</div>
-        <div class="perf-role">${S.usuario?.perfil||'funcionário'} · ${escHtml(S.company?.nome||'')}</div>
-      </div>
-    </div>
-
-    <div class="perf-score">
-      <div class="score-num" style="color:${scoreColor}">${score}%</div>
-      <div class="score-label">Taxa de conclusão — 7 dias</div>
-      <div class="score-bar">
-        <div class="score-fill" style="width:${score}%;background:${scoreColor}"></div>
-      </div>
-    </div>
-
-    <div class="stats-row">
-      <div class="stat-mini">
-        <div class="stat-mini-val" style="color:var(--accent)">${concluidas}</div>
-        <div class="stat-mini-label">✅ Concluídas</div>
-      </div>
-      <div class="stat-mini">
-        <div class="stat-mini-val" style="color:var(--error)">${expiradas}</div>
-        <div class="stat-mini-label">⏰ Expiradas</div>
-      </div>
-    </div>
-
-    <div class="chart-wrap">
-      <div class="chart-title">Tarefas por dia</div>
-      <div class="chart-bars">
-        ${dias.map(d=>{
-          const hC = d.concluidas>0 ? Math.max(8, Math.round((d.concluidas/maxVal)*72)) : 0;
-          const hE = d.expiradas>0 ? Math.max(8, Math.round((d.expiradas/maxVal)*72)) : 0;
-          return`<div class="chart-col">
-            <div class="chart-bar-wrap">
-              ${hE>0?`<div class="bar-expirada" style="height:${hE}px"></div>`:''}
-              ${hC>0?`<div class="bar-concluida" style="height:${hC}px"></div>`:''}
-              ${hC===0&&hE===0?`<div style="height:2px;background:var(--border);border-radius:2px"></div>`:''}
-            </div>
-            <div class="chart-day">${d.label}</div>
-          </div>`;
-        }).join('')}
-      </div>
-      <div style="display:flex;gap:1rem;margin-top:.875rem;justify-content:center">
-        <div style="display:flex;align-items:center;gap:.375rem;font-size:.68rem;color:var(--muted)"><div style="width:8px;height:8px;border-radius:2px;background:var(--accent)"></div>Concluída</div>
-        <div style="display:flex;align-items:center;gap:.375rem;font-size:.68rem;color:var(--muted)"><div style="width:8px;height:8px;border-radius:2px;background:var(--error)"></div>Expirada</div>
-      </div>
-    </div>
-
-    <div style="background:${score>=80?'rgba(0,255,136,.06)':score>=50?'rgba(255,214,0,.06)':'rgba(255,61,107,.06)'};border:1px solid ${score>=80?'rgba(0,255,136,.15)':score>=50?'rgba(255,214,0,.15)':'rgba(255,61,107,.15)'};border-radius:12px;padding:1rem;text-align:center">
-      <div style="font-size:1.5rem;margin-bottom:.375rem">${score>=80?'🌟':score>=50?'💪':'⚡'}</div>
-      <div style="font-size:.85rem;font-weight:600;margin-bottom:.25rem">${score>=80?'Excelente desempenho!':score>=50?'Bom trabalho, pode melhorar!':'Atenção: muitas tarefas expiradas'}</div>
-      <div style="font-size:.75rem;color:var(--muted)">${score>=80?'Continue assim! Você está entre os melhores.':score>=50?'Tente concluir as tarefas antes do prazo.':'Converse com seu gerente sobre os prazos.'}</div>
-    </div>
-  `;
 }
 
 // ── BOOT ──
