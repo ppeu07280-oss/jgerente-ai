@@ -852,7 +852,7 @@ function renderEquipe(){
                   ${scoreM!==null?`<div style="height:3px;background:var(--border);border-radius:100px;margin-top:.375rem;max-width:120px"><div style="height:100%;width:${scoreM}%;background:${scoreColor};border-radius:100px"></div></div>`:''}
                 </div>
                 <div style="text-align:right">
-                  ${scoreM!==null?`<div style="font-family:var(--font);font-size:.9rem;font-weight:800;color:${scoreColor}">${scoreM}%</div><div style="font-size:.65rem;color:var(--muted)">performance</div>`:<span style="font-size:.7rem;color:var(--muted)">sem dados</span>}
+                  ${scoreM!==null?`<div style="font-family:var(--font);font-size:.9rem;font-weight:800;color:${scoreColor}">${scoreM}%</div><div style="font-size:.65rem;color:var(--muted)">performance</div>`:'<span style="font-size:.7rem;color:var(--muted)">sem dados</span>'}
                 </div>
                 <button onclick="removerMembro('${m.id}','${escHtml(m.nome)}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;margin-left:.5rem" title="Remover">✕</button>
               </div>`;
