@@ -578,7 +578,7 @@ async function initApp(user){
 async function loadData(){
   const cid = S.company.id;
   const [t, e, a, c] = await Promise.all([
-    sb.from('tarefas').select('*,usuarios(nome)').eq('company_id',cid).order('created_at',{ascending:false}),
+    sb.from('tarefas').select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').eq('company_id',cid).order('created_at',{ascending:false}),
     sb.from('usuarios').select('*').eq('company_id',cid),
     sb.from('agentes').select('*').eq('company_id',cid),
     sb.from('customers').select('*').eq('company_id',cid),
@@ -700,7 +700,7 @@ function renderDashboard(){
               <div class="activity-icon" style="background:${t.status==='concluida'?'rgba(0,255,136,.1)':t.prioridade==='urgente'?'rgba(255,61,107,.1)':'rgba(61,107,255,.1)'}">
                 ${t.status==='concluida'?'✅':t.prioridade==='urgente'?'🔴':'📌'}
               </div>
-              <div class="activity-text"><b>${escHtml(t.titulo)}</b><div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">${t.usuarios?.nome||'Sem responsável'} · ${fmtDate(t.created_at)}</div></div>
+              <div class="activity-text"><b>${escHtml(t.titulo)}</b><div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">${t.atribuido_para?.nome||'Sem responsável'} · ${fmtDate(t.created_at)}</div></div>
               <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
             </div>`).join('')}
       </div>
@@ -749,7 +749,7 @@ function tarefaRow(t){
     <div class="tarefa-check ${done?'done':''}" onclick="toggleTarefa('${t.id}','${done?'pendente':'concluida'}')">${done?'✓':''}</div>
     <div style="flex:1;min-width:0">
       <div class="tarefa-title ${done?'done':''}">${escHtml(t.titulo)}</div>
-      <div class="tarefa-meta">${t.usuarios?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''}</div>
+      <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''}</div>
     </div>
     <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
     <button onclick="deletarTarefa('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.25rem;margin-left:.25rem" title="Remover">✕</button>
@@ -811,7 +811,7 @@ async function salvarTarefa(){
 
   console.log('Criando tarefa:', payload);
 
-  const { data, error } = await sb.from('tarefas').insert(payload).select('*,usuarios(nome)').single();
+  const { data, error } = await sb.from('tarefas').insert(payload).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').single();
   if(error){
     console.error('Erro tarefa:', error);
     toast('⚠️ Erro: '+error.message, true);
