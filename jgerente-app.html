@@ -725,33 +725,130 @@ function renderDashboard(){
 // ══════════════════════════════════════════
 // TAREFAS
 // ══════════════════════════════════════════
+function agruparTarefas(tarefas){
+  // Separar tarefas modelo (recorrentes) das filhas
+  const modelos = tarefas.filter(t=>t.recorrente);
+  const filhas = tarefas.filter(t=>t.tarefa_pai);
+  const normais = tarefas.filter(t=>!t.recorrente && !t.tarefa_pai);
+
+  // Agrupar filhas por tarefa_pai
+  const grupos = {};
+  filhas.forEach(t=>{
+    if(!grupos[t.tarefa_pai]) grupos[t.tarefa_pai] = [];
+    grupos[t.tarefa_pai].push(t);
+  });
+
+  // Montar lista final
+  const resultado = [...normais];
+
+  // Adicionar modelos com seus grupos
+  modelos.forEach(m=>{
+    resultado.push({...m, _filhas: grupos[m.id]||[]});
+  });
+
+  // Adicionar filhas que não têm modelo na lista (modelo deletado)
+  Object.keys(grupos).forEach(paiId=>{
+    const temModelo = modelos.find(m=>m.id===paiId);
+    if(!temModelo){
+      grupos[paiId].forEach(f=>resultado.push(f));
+    }
+  });
+
+  return resultado;
+}
+
 function renderTarefas(){
-  const pendentes = S.tarefas.filter(t=>t.status!=='concluida');
-  const concluidas = S.tarefas.filter(t=>t.status==='concluida');
+  const todas = S.tarefas;
+  const pendentes = todas.filter(t=>t.status!=='concluida'&&t.status!=='expirada'&&!t.tarefa_pai);
+  const recorrentes = todas.filter(t=>t.recorrente);
+  const concluidas = todas.filter(t=>t.status==='concluida'&&!t.recorrente);
+  const expiradas = todas.filter(t=>t.status==='expirada'&&!t.recorrente&&!t.tarefa_pai);
+
+  // Tarefas filhas agrupadas por pai
+  const filhasPorPai = {};
+  todas.filter(t=>t.tarefa_pai).forEach(t=>{
+    if(!filhasPorPai[t.tarefa_pai]) filhasPorPai[t.tarefa_pai]=[];
+    filhasPorPai[t.tarefa_pai].push(t);
+  });
+
+  const totalPend = pendentes.length + recorrentes.reduce((acc,m)=>{
+    const filhas = filhasPorPai[m.id]||[];
+    return acc + filhas.filter(f=>f.status==='pendente'||f.status==='em_andamento').length;
+  },0);
+
   return`
   <div class="main-header">
     <div>
       <div class="page-title">Tarefas</div>
-      <div class="page-sub">${pendentes.length} pendentes · ${concluidas.length} concluídas</div>
+      <div class="page-sub">${totalPend} pendentes · ${concluidas.length} concluídas hoje</div>
     </div>
     <button class="btn-add" onclick="showAddTarefa()">+ Nova tarefa</button>
   </div>
   <div class="content">
-    ${pendentes.length===0&&concluidas.length===0
+    ${totalPend===0&&concluidas.length===0&&expiradas.length===0
       ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa criada ainda.<br>Crie a primeira para sua equipe!</div></div>`
       : ''}
+
     ${pendentes.length>0?`
     <div class="sec-card">
-      <div class="sec-card-header"><div class="sec-card-title">📌 Pendentes (${pendentes.length})</div></div>
+      <div class="sec-card-header"><div class="sec-card-title">📌 Tarefas do dia (${pendentes.length})</div></div>
       <div class="sec-card-body">
         ${pendentes.map(t=>tarefaRow(t)).join('')}
       </div>
     </div>`:''}
+
+    ${recorrentes.length>0?`
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">🔁 Tarefas recorrentes (${recorrentes.length})</div></div>
+      <div class="sec-card-body">
+        ${recorrentes.map(m=>{
+          const filhas = (filhasPorPai[m.id]||[]).sort((a,b)=>a.repeticao_atual-b.repeticao_atual);
+          const concl = filhas.filter(f=>f.status==='concluida').length;
+          const expir = filhas.filter(f=>f.status==='expirada').length;
+          const total = m.repeticoes_dia||1;
+          const prox = filhas.find(f=>f.status==='pendente'||f.status==='em_andamento');
+          return`<div class="tarefa-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
+            <div style="display:flex;align-items:center;gap:.875rem">
+              <div style="width:20px;height:20px;border-radius:50%;background:rgba(0,255,136,.1);border:1.5px solid rgba(0,255,136,.2);display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0">🔁</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:.85rem;font-weight:600">${escHtml(m.titulo)}</div>
+                <div style="font-size:.72rem;color:var(--muted)">${m.atribuido_para?.nome||'Sem responsável'} · ${total}x por dia</div>
+              </div>
+              <div style="display:flex;gap:.375rem;align-items:center">
+                ${[...Array(total)].map((_,i)=>{
+                  const f = filhas.find(x=>x.repeticao_atual===(i+1));
+                  const cor = !f?'var(--border2)':f.status==='concluida'?'var(--accent)':f.status==='expirada'?'var(--error)':' #FFD600';
+                  return`<div style="width:10px;height:10px;border-radius:50%;background:${cor}" title="${i+1}ª repetição"></div>`;
+                }).join('')}
+              </div>
+              <button onclick="deletarTarefa('${m.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem" title="Remover">✕</button>
+            </div>
+            <div style="display:flex;gap:.5rem;padding-left:2rem;flex-wrap:wrap">
+              ${filhas.map(f=>`
+                <div style="background:${f.status==='concluida'?'rgba(0,255,136,.08)':f.status==='expirada'?'rgba(255,61,107,.08)':' rgba(255,214,0,.08)'};border:1px solid ${f.status==='concluida'?'rgba(0,255,136,.15)':f.status==='expirada'?'rgba(255,61,107,.15)':' rgba(255,214,0,.15)'};border-radius:8px;padding:.3rem .625rem;font-size:.68rem;font-weight:600;color:${f.status==='concluida'?'var(--accent)':f.status==='expirada'?'var(--error)':' #FFD600'}">
+                  ${f.repeticao_atual}ª ${f.prazo?new Date(f.prazo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}
+                  ${f.status==='concluida'?'✅':f.status==='expirada'?'⏰':' ▶'}
+                </div>`).join('')}
+              ${filhas.length===0?`<span style="font-size:.7rem;color:var(--muted)">Abrindo hoje ao recarregar...</span>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`:''}
+
     ${concluidas.length>0?`
     <div class="sec-card">
       <div class="sec-card-header"><div class="sec-card-title">✅ Concluídas (${concluidas.length})</div></div>
       <div class="sec-card-body">
         ${concluidas.map(t=>tarefaRow(t)).join('')}
+      </div>
+    </div>`:''}
+
+    ${expiradas.length>0?`
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">⏰ Expiradas (${expiradas.length})</div></div>
+      <div class="sec-card-body">
+        ${expiradas.map(t=>tarefaRow(t)).join('')}
       </div>
     </div>`:''}
   </div>`;
