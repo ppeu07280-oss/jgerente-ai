@@ -286,6 +286,19 @@ body{font-family:var(--body);background:var(--black);color:var(--white)}
 .btn-modal.outline{background:none;border:1px solid var(--border2);color:var(--white)}
 .btn-modal:hover{opacity:.9}
 
+/* ── DIAS SEMANA ── */
+.dia-btn{
+  padding:.35rem .5rem;border-radius:8px;
+  font-size:.68rem;font-weight:700;
+  background:var(--card2);border:1.5px solid var(--border2);
+  color:var(--muted);transition:all .15s;
+  min-width:34px;text-align:center;
+}
+.dia-btn.active{
+  background:rgba(0,255,136,.1);
+  border-color:var(--accent);color:var(--accent);
+}
+
 /* ── TOAST ── */
 .toast{
   position:fixed;top:1.5rem;right:1.5rem;z-index:9999;
@@ -564,6 +577,7 @@ async function initApp(user){
 
     // Carregar dados
     await loadData();
+    await criarTarefasRecorrentes();
     renderView('dashboard');
 
   }catch(e){
@@ -751,7 +765,7 @@ function tarefaRow(t){
       <div class="tarefa-check ${done?'done':''}" onclick="toggleTarefa('${t.id}','${done?'pendente':'concluida'}')">${done?'✓':''}</div>
       <div style="flex:1;min-width:0">
         <div class="tarefa-title ${done?'done':''}">${escHtml(t.titulo)}</div>
-        <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''}</div>
+        <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''} ${t.criado_por==='recorrente'?'· 🔁 Recorrente':t.recorrente?'· 🔁 Modelo':''}</div>
       </div>
       <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
       <button onclick="deletarTarefa('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.25rem" title="Remover">✕</button>
@@ -763,6 +777,12 @@ function tarefaRow(t){
       ${t.concluido_em?`<div style="font-size:.68rem;color:var(--muted);margin-top:.375rem">✅ Concluído em ${fmtDate(t.concluido_em)}</div>`:''}
     </div>`:''}
   </div>`;
+}
+
+function toggleDiasSemana(){
+  const cb = document.getElementById('t-recorrente');
+  const wrap = document.getElementById('dias-semana-wrap');
+  if(wrap) wrap.style.display = cb?.checked ? 'block' : 'none';
 }
 
 function showAddTarefa(){
@@ -785,9 +805,58 @@ function showAddTarefa(){
       </select>
     </div>
     <div class="fg"><label class="lbl">Prazo</label><input class="inp" id="t-prazo" type="date"></div>
+    
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:.5rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+        <div>
+          <div style="font-size:.78rem;font-weight:600">🔁 Repetir automaticamente</div>
+          <div style="font-size:.7rem;color:var(--muted)">Cria essa tarefa todo dia automaticamente</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
+          <input type="checkbox" id="t-recorrente" onchange="toggleDiasSemana()" style="opacity:0;width:0;height:0">
+          <span style="position:absolute;inset:0;background:var(--border2);border-radius:100px;transition:.2s" id="toggle-track"></span>
+          <span style="position:absolute;left:2px;top:2px;width:18px;height:18px;background:white;border-radius:50%;transition:.2s" id="toggle-thumb"></span>
+        </label>
+      </div>
+      <div id="dias-semana-wrap" style="display:none">
+        <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem">Dias da semana</div>
+        <div style="display:flex;gap:.375rem;flex-wrap:wrap">
+          ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d,i)=>`
+            <label style="cursor:pointer">
+              <input type="checkbox" value="${i}" class="dia-check" style="display:none" ${i>0&&i<7?'checked':''}>
+              <div class="dia-btn ${i>0&&i<7?'active':''}" data-idx="${i}">${d}</div>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
     <button class="btn-modal primary" onclick="salvarTarefa()">✅ Criar Tarefa</button>
     <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
   `);
+  
+  // Setup toggle visual
+  document.getElementById('t-recorrente').addEventListener('change', function(){
+    const track = document.getElementById('toggle-track');
+    const thumb = document.getElementById('toggle-thumb');
+    if(this.checked){
+      track.style.background = 'var(--accent)';
+      thumb.style.left = '20px';
+    } else {
+      track.style.background = 'var(--border2)';
+      thumb.style.left = '2px';
+    }
+  });
+
+  // Setup dia buttons
+  setTimeout(()=>{
+    document.querySelectorAll('.dia-check').forEach(cb=>{
+      cb.addEventListener('change', function(){
+        const btn = this.parentElement.querySelector('.dia-btn');
+        btn.classList.toggle('active', this.checked);
+      });
+    });
+  }, 50);
 }
 
 async function salvarTarefa(){
@@ -807,6 +876,14 @@ async function salvarTarefa(){
     }
   }
 
+  // Verificar recorrência
+  const recorrente = document.getElementById('t-recorrente')?.checked || false;
+  let diasSemana = null;
+  if(recorrente){
+    diasSemana = [...document.querySelectorAll('.dia-check:checked')].map(cb=>parseInt(cb.value));
+    if(diasSemana.length===0){ toast('⚠️ Selecione ao menos um dia',true); return; }
+  }
+
   const payload = {
     company_id: S.company.id,
     titulo,
@@ -815,10 +892,10 @@ async function salvarTarefa(){
     prioridade: prio,
     prazo: prazoFinal,
     criado_por: 'dono',
-    status: 'pendente'
+    status: 'pendente',
+    recorrente,
+    dias_semana: diasSemana
   };
-
-  console.log('Criando tarefa:', payload);
 
   const { data, error } = await sb.from('tarefas').insert(payload).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').single();
   if(error){
@@ -828,7 +905,7 @@ async function salvarTarefa(){
   }
   S.tarefas.unshift(data);
   closeModal();
-  toast('✅ Tarefa criada!');
+  toast(recorrente ? '🔁 Tarefa recorrente criada!' : '✅ Tarefa criada!');
   renderView('tarefas');
 }
 
@@ -1294,6 +1371,62 @@ Sua função: analisar o negócio, identificar oportunidades de crescimento, sug
 Responda sempre em português brasileiro, com visão estratégica e exemplos práticos do mercado brasileiro.`
   }
 };
+
+// ── TAREFAS RECORRENTES ──────────────────────────────
+async function criarTarefasRecorrentes(){
+  try{
+    const hoje = new Date();
+    const diaSemana = hoje.getDay(); // 0=Dom, 1=Seg...
+    const hojeStr = hoje.toISOString().split('T')[0];
+
+    // Buscar tarefas recorrentes da empresa
+    const { data: recorrentes } = await sb.from('tarefas')
+      .select('*')
+      .eq('company_id', S.company.id)
+      .eq('recorrente', true)
+      .not('dias_semana', 'is', null);
+
+    if(!recorrentes || recorrentes.length === 0) return;
+
+    for(const t of recorrentes){
+      // Verificar se hoje é um dia configurado
+      if(!t.dias_semana.includes(diaSemana)) continue;
+
+      // Verificar se já foi criada hoje (tarefa filha com mesmo título hoje)
+      const { data: jaExiste } = await sb.from('tarefas')
+        .select('id')
+        .eq('company_id', S.company.id)
+        .eq('tarefa_pai', t.id)
+        .gte('created_at', hojeStr + 'T00:00:00')
+        .lte('created_at', hojeStr + 'T23:59:59')
+        .limit(1);
+
+      if(jaExiste && jaExiste.length > 0) continue;
+
+      // Criar tarefa do dia
+      const { data: nova } = await sb.from('tarefas').insert({
+        company_id: t.company_id,
+        titulo: t.titulo,
+        descricao: t.descricao,
+        atribuido_para: t.atribuido_para,
+        prioridade: t.prioridade,
+        criado_por: 'recorrente',
+        status: 'pendente',
+        prazo: hojeStr + 'T23:59:59',
+        tarefa_pai: t.id,
+        recorrente: false
+      }).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').single();
+
+      if(nova){
+        // Adicionar à lista se não existir ainda
+        const jaNaLista = S.tarefas.find(x=>x.tarefa_pai===t.id && x.created_at?.startsWith(hojeStr));
+        if(!jaNaLista) S.tarefas.unshift(nova);
+      }
+    }
+  }catch(e){
+    console.error('Erro ao criar tarefas recorrentes:', e);
+  }
+}
 
 // ── BOOT ──
 (async()=>{
