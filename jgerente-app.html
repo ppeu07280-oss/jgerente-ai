@@ -457,6 +457,7 @@ option{background:var(--card2)}
       <button class="sb-btn" onclick="navTo('chat')"><span class="sb-icon">💬</span>IA Gerente</button>
       <button class="sb-btn" onclick="navTo('agentes')"><span class="sb-icon">🤖</span>Meus Agentes</button>
       <button class="sb-btn" onclick="abrirFidelidade()"><span class="sb-icon">🎯</span>Fidelidade ↗</button>
+      <button class="sb-btn" onclick="window.open('jgerente-financeiro.html','_blank')"><span class="sb-icon">💰</span>Financeiro ↗</button>
       <div class="sb-section">Conta</div>
       <button class="sb-btn" onclick="navTo('config')"><span class="sb-icon">⚙️</span>Configurações</button>
     </div>
@@ -1613,49 +1614,177 @@ function renderConfig(){
   <div class="main-header">
     <div>
       <div class="page-title">Configurações</div>
-      <div class="page-sub">Gerencie sua conta e empresa</div>
+      <div class="page-sub">Edições liberadas apenas para o administrador</div>
     </div>
   </div>
   <div class="content">
+
+    <!-- EMPRESA -->
     <div class="sec-card">
-      <div class="sec-card-header"><div class="sec-card-title">🏪 Sua Empresa</div></div>
-      <div class="sec-card-body">
+      <div class="sec-card-header">
+        <div class="sec-card-title">🏪 Empresa</div>
+        <button class="btn-add" onclick="editarEmpresa()">✏️ Editar</button>
+      </div>
+      <div class="sec-card-body" id="empresa-body">
         <div class="config-row">
-          <div><div class="config-label">Nome</div><div class="config-sub">${escHtml(S.company?.nome||'')}</div></div>
+          <div><div class="config-label">Nome da empresa</div><div class="config-sub" id="empresa-nome">${escHtml(S.company?.nome||'')}</div></div>
         </div>
         <div class="config-row">
-          <div><div class="config-label">Slug / URL do cliente</div><div class="config-sub">jgerente.ai/cliente/${escHtml(S.company?.slug||'')}</div></div>
-        </div>
-        <div class="config-row">
-          <div><div class="config-label">Plano atual</div><div class="config-sub" style="color:var(--accent);font-weight:600">⚡ Trial — ${diasTrial} dias restantes</div>
-          <div class="trial-bar" style="margin-top:.5rem;max-width:200px"><div class="trial-fill" style="width:${100-pct}%"></div></div>
+          <div><div class="config-label">Plano</div>
+            <div class="config-sub" style="color:var(--accent);font-weight:600">⚡ Trial — ${diasTrial} dias restantes</div>
+            <div class="trial-bar" style="margin-top:.5rem;max-width:200px"><div class="trial-fill" style="width:${100-pct}%"></div></div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- PERFIL DO DONO -->
     <div class="sec-card">
-      <div class="sec-card-header"><div class="sec-card-title">👤 Sua Conta</div></div>
+      <div class="sec-card-header">
+        <div class="sec-card-title">👤 Meu Perfil</div>
+        <button class="btn-add" onclick="editarPerfil()">✏️ Editar</button>
+      </div>
       <div class="sec-card-body">
         <div class="config-row">
-          <div><div class="config-label">Nome</div><div class="config-sub">${escHtml(S.usuario?.nome||'')}</div></div>
+          <div><div class="config-label">Nome</div><div class="config-sub" id="dono-nome">${escHtml(S.usuario?.nome||'')}</div></div>
         </div>
         <div class="config-row">
           <div><div class="config-label">Email</div><div class="config-sub">${escHtml(S.usuario?.email||'')}</div></div>
         </div>
         <div class="config-row">
-          <div><div class="config-label">Perfil</div><div class="config-sub" style="text-transform:capitalize">${S.usuario?.perfil||'dono'}</div></div>
+          <div><div class="config-label">Perfil</div><div class="config-sub" style="text-transform:capitalize;color:var(--accent)">👑 ${S.usuario?.perfil||'dono'}</div></div>
         </div>
       </div>
     </div>
 
+    <!-- EQUIPE -->
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">👥 Perfis da Equipe</div></div>
+      <div class="sec-card-body">
+        ${S.equipe.filter(m=>m.id!==S.usuario?.id).length===0
+          ? `<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.82rem">Nenhum funcionário cadastrado.</div>`
+          : S.equipe.filter(m=>m.id!==S.usuario?.id).map(m=>`
+          <div class="config-row" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="config-label">${escHtml(m.nome)}</div>
+              <div class="config-sub" style="text-transform:capitalize">${m.perfil} · ${m.email||''}</div>
+              <div style="margin-top:.375rem">
+                <span style="font-size:.7rem;font-weight:600;color:${m.ativo!==false?'var(--accent)':'var(--error)'}">${m.ativo!==false?'✅ Ativo':'❌ Inativo'}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
+              <button onclick="editarFuncionario('${m.id}')" style="background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">✏️ Editar</button>
+              <button onclick="toggleAtivoFuncionario('${m.id}','${m.nome}',${m.ativo!==false})" style="background:${m.ativo!==false?'rgba(255,61,107,.08)':'rgba(0,255,136,.08)'};border:1px solid ${m.ativo!==false?'rgba(255,61,107,.2)':'rgba(0,255,136,.2)'};color:${m.ativo!==false?'var(--error)':'var(--accent)'};font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">${m.ativo!==false?'Desativar':'Ativar'}</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- ZONA DE PERIGO -->
     <div class="sec-card">
       <div class="sec-card-header"><div class="sec-card-title">🚨 Zona de Perigo</div></div>
       <div class="sec-card-body">
         <button onclick="doLogout()" style="padding:.75rem 1.5rem;background:rgba(255,61,107,.08);border:1px solid rgba(255,61,107,.2);color:var(--error);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">🚪 Sair da conta</button>
       </div>
     </div>
+
   </div>`;
+}
+
+// ── EDITAR EMPRESA ──
+function editarEmpresa(){
+  openModal(`
+    <div class="modal-title">🏪 Editar Empresa</div>
+    <div class="fg"><label class="lbl">Nome da empresa *</label>
+      <input class="inp" id="edit-empresa-nome" value="${escHtml(S.company?.nome||'')}">
+    </div>
+    <button class="btn-modal primary" onclick="salvarEmpresa()">💾 Salvar</button>
+    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+async function salvarEmpresa(){
+  const nome = document.getElementById('edit-empresa-nome')?.value.trim();
+  if(!nome){ toast('⚠️ Informe o nome',true); return; }
+  const { error } = await sb.from('companies').update({nome}).eq('id', S.company.id);
+  if(error){ toast('⚠️ Erro ao salvar',true); return; }
+  S.company.nome = nome;
+  document.getElementById('sb-company-name').textContent = nome;
+  closeModal();
+  toast('✅ Empresa atualizada!');
+  renderView('config');
+}
+
+// ── EDITAR PERFIL DONO ──
+function editarPerfil(){
+  openModal(`
+    <div class="modal-title">👤 Editar Meu Perfil</div>
+    <div class="fg"><label class="lbl">Seu nome *</label>
+      <input class="inp" id="edit-dono-nome" value="${escHtml(S.usuario?.nome||'')}">
+    </div>
+    <button class="btn-modal primary" onclick="salvarPerfil()">💾 Salvar</button>
+    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+async function salvarPerfil(){
+  const nome = document.getElementById('edit-dono-nome')?.value.trim();
+  if(!nome){ toast('⚠️ Informe o nome',true); return; }
+  const { error } = await sb.from('usuarios').update({nome}).eq('id', S.usuario.id);
+  if(error){ toast('⚠️ Erro ao salvar',true); return; }
+  S.usuario.nome = nome;
+  document.getElementById('sb-user-name').textContent = nome;
+  const av = document.getElementById('sb-avatar');
+  av.textContent = initials(nome);
+  closeModal();
+  toast('✅ Perfil atualizado!');
+  renderView('config');
+}
+
+// ── EDITAR FUNCIONARIO ──
+function editarFuncionario(id){
+  const m = S.equipe.find(x=>x.id===id);
+  if(!m) return;
+  openModal(`
+    <div class="modal-title">✏️ Editar Funcionário</div>
+    <div class="fg"><label class="lbl">Nome *</label>
+      <input class="inp" id="edit-func-nome" value="${escHtml(m.nome||'')}">
+    </div>
+    <div class="fg"><label class="lbl">Perfil</label>
+      <select class="inp" id="edit-func-perfil">
+        <option value="funcionario" ${m.perfil==='funcionario'?'selected':''}>Funcionário</option>
+        <option value="gerente" ${m.perfil==='gerente'?'selected':''}>Gerente</option>
+      </select>
+    </div>
+    <button class="btn-modal primary" onclick="salvarFuncionario('${id}')">💾 Salvar</button>
+    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+async function salvarFuncionario(id){
+  const nome = document.getElementById('edit-func-nome')?.value.trim();
+  const perfil = document.getElementById('edit-func-perfil')?.value;
+  if(!nome){ toast('⚠️ Informe o nome',true); return; }
+  const { error } = await sb.from('usuarios').update({nome,perfil}).eq('id',id);
+  if(error){ toast('⚠️ Erro ao salvar',true); return; }
+  const m = S.equipe.find(x=>x.id===id);
+  if(m){ m.nome=nome; m.perfil=perfil; }
+  closeModal();
+  toast('✅ Funcionário atualizado!');
+  renderView('config');
+}
+
+// ── ATIVAR/DESATIVAR FUNCIONARIO ──
+async function toggleAtivoFuncionario(id, nome, ativoAtual){
+  const novoStatus = !ativoAtual;
+  const acao = novoStatus ? 'ativar' : 'desativar';
+  if(!confirm(`${acao.charAt(0).toUpperCase()+acao.slice(1)} ${nome}?`)) return;
+  const { error } = await sb.from('usuarios').update({ativo:novoStatus}).eq('id',id);
+  if(error){ toast('⚠️ Erro ao atualizar',true); return; }
+  const m = S.equipe.find(x=>x.id===id);
+  if(m) m.ativo = novoStatus;
+  toast(`✅ ${nome} ${novoStatus?'ativado':'desativado'}!`);
+  renderView('config');
 }
 
 
