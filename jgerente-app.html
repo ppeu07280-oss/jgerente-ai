@@ -786,18 +786,37 @@ async function salvarTarefa(){
   if(!titulo){ toast('⚠️ Informe o título',true); return; }
   const resp = document.getElementById('t-resp')?.value||null;
   const prio = document.getElementById('t-prio')?.value||'normal';
-  const prazo = document.getElementById('t-prazo')?.value||null;
+  const prazoRaw = document.getElementById('t-prazo')?.value||null;
   const desc = document.getElementById('t-desc')?.value.trim()||null;
-  const { data, error } = await sb.from('tarefas').insert({
+
+  // Validar prazo
+  let prazoFinal = null;
+  if(prazoRaw){
+    const d = new Date(prazoRaw);
+    if(!isNaN(d.getTime()) && d.getFullYear() < 2100){
+      prazoFinal = d.toISOString();
+    }
+  }
+
+  const payload = {
     company_id: S.company.id,
-    titulo, descricao:desc,
+    titulo,
+    descricao: desc||null,
     atribuido_para: resp||null,
     prioridade: prio,
-    prazo: prazo||null,
+    prazo: prazoFinal,
     criado_por: 'dono',
     status: 'pendente'
-  }).select('*,usuarios(nome)').single();
-  if(error){ toast('⚠️ Erro ao criar tarefa',true); return; }
+  };
+
+  console.log('Criando tarefa:', payload);
+
+  const { data, error } = await sb.from('tarefas').insert(payload).select('*,usuarios(nome)').single();
+  if(error){
+    console.error('Erro tarefa:', error);
+    toast('⚠️ Erro: '+error.message, true);
+    return;
+  }
   S.tarefas.unshift(data);
   closeModal();
   toast('✅ Tarefa criada!');
