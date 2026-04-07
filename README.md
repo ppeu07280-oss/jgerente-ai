@@ -1,0 +1,944 @@
+[jgerente-app (2).html](https://github.com/user-attachments/files/26524141/jgerente-app.2.html)
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JgerenteAI — Painel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#050508;
+  --white:#F5F3EE;
+  --accent:#00FF88;
+  --accent-dim:rgba(0,255,136,.08);
+  --accent-border:rgba(0,255,136,.15);
+  --muted:#8B8B99;
+  --card:#0D0D14;
+  --card2:#111118;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.1);
+  --font:'Unbounded',sans-serif;
+  --body:'DM Sans',sans-serif;
+  --error:#FF3D6B;
+  --warning:#FFD600;
+  --sidebar:220px;
+  --r:12px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--body);background:var(--black);color:var(--white)}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--black);
+  display:flex;align-items:center;justify-content:center;
+  padding:2rem;
+}
+.login-box{
+  width:100%;max-width:400px;
+  background:var(--card);
+  border:1px solid var(--border2);
+  border-radius:20px;
+  padding:2.5rem;
+}
+.login-logo{
+  font-family:var(--font);font-weight:900;font-size:1.1rem;
+  letter-spacing:-.02em;margin-bottom:2rem;text-align:center;
+}
+.login-logo .j{color:var(--accent)}
+.login-title{font-family:var(--font);font-size:1.3rem;font-weight:900;letter-spacing:-.03em;margin-bottom:.375rem}
+.login-sub{font-size:.82rem;color:var(--muted);margin-bottom:1.75rem}
+.lbl{display:block;font-size:.7rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.4rem}
+.inp{width:100%;padding:.8rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:var(--r);font-size:.9rem;color:var(--white);font-family:var(--body);outline:none;transition:border-color .2s}
+.inp::placeholder{color:var(--muted)}
+.inp:focus{border-color:var(--accent)}
+.fg{margin-bottom:1rem}
+.btn-login{
+  width:100%;padding:.875rem;background:var(--accent);color:var(--black);
+  border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;
+  font-weight:700;cursor:pointer;transition:all .2s;margin-top:.5rem;
+  display:flex;align-items:center;justify-content:center;gap:.5rem;
+}
+.btn-login:hover{box-shadow:0 6px 24px rgba(0,255,136,.25)}
+.btn-login:disabled{opacity:.5;cursor:not-allowed}
+.login-err{font-size:.78rem;color:var(--error);margin-top:.75rem;text-align:center;min-height:20px}
+.login-link{text-align:center;margin-top:1.25rem;font-size:.78rem;color:var(--muted)}
+.login-link a{color:var(--accent);text-decoration:none}
+
+/* ── APP LAYOUT ── */
+#app{display:none;height:100vh;overflow:hidden;flex-direction:row}
+#app.show{display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;
+  background:var(--card);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  height:100vh;overflow:hidden;
+  position:relative;
+}
+.sb-logo{
+  padding:1.5rem 1.25rem 1rem;
+  font-family:var(--font);font-weight:900;font-size:.95rem;
+  letter-spacing:-.02em;border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.sb-logo .j{color:var(--accent)}
+.sb-company{
+  padding:.875rem 1.25rem;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.sb-company-name{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-company-plan{
+  display:inline-flex;align-items:center;gap:.3rem;
+  font-size:.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--accent);margin-top:.25rem;
+}
+.sb-nav{flex:1;padding:.75rem .75rem;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.sb-btn{
+  display:flex;align-items:center;gap:.75rem;
+  padding:.7rem .875rem;border-radius:10px;
+  font-size:.8rem;font-weight:500;color:var(--muted);
+  cursor:pointer;transition:all .15s;border:none;background:none;
+  width:100%;text-align:left;font-family:var(--body);
+  white-space:nowrap;
+}
+.sb-btn:hover{background:var(--card2);color:var(--white)}
+.sb-btn.active{background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border);font-weight:600}
+.sb-icon{font-size:1rem;flex-shrink:0;width:20px;text-align:center}
+.sb-section{font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.5rem .875rem .25rem;margin-top:.5rem}
+.sb-footer{
+  padding:.875rem 1.25rem;
+  border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.sb-user{display:flex;align-items:center;gap:.625rem;margin-bottom:.75rem}
+.sb-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--accent);color:var(--black);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;font-weight:800;flex-shrink:0;
+}
+.sb-user-name{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-user-role{font-size:.65rem;color:var(--muted)}
+.btn-sair{
+  width:100%;padding:.6rem;border-radius:8px;
+  background:none;border:1px solid var(--border);
+  color:var(--muted);font-family:var(--body);font-size:.75rem;
+  cursor:pointer;transition:all .15s;
+}
+.btn-sair:hover{border-color:var(--error);color:var(--error)}
+
+/* ── MAIN CONTENT ── */
+.main{flex:1;overflow-y:auto;height:100vh;background:var(--black)}
+.main-header{
+  padding:1.5rem 2rem 0;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:1.75rem;
+}
+.page-title{font-family:var(--font);font-size:1.3rem;font-weight:900;letter-spacing:-.03em}
+.page-sub{font-size:.8rem;color:var(--muted);margin-top:.25rem}
+.content{padding:0 2rem 3rem}
+
+/* ── CARDS ── */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:1.5rem}
+.metric-card{background:var(--card);padding:1.25rem 1.5rem;position:relative;overflow:hidden}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.metric-card.green::before{background:var(--accent)}
+.metric-card.blue::before{background:#3D6BFF}
+.metric-card.yellow::before{background:#FFD600}
+.metric-card.red::before{background:#FF3D6B}
+.metric-label{font-size:.68rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem}
+.metric-val{font-family:var(--font);font-size:1.8rem;font-weight:900;letter-spacing:-.04em;line-height:1}
+.metric-sub{font-size:.72rem;color:var(--muted);margin-top:.375rem}
+
+/* ── SECTION CARD ── */
+.sec-card{background:var(--card);border:1px solid var(--border);border-radius:16px;margin-bottom:1.25rem;overflow:hidden}
+.sec-card-header{
+  padding:1rem 1.25rem;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sec-card-title{font-size:.8rem;font-weight:700;letter-spacing:.02em}
+.sec-card-body{padding:1.25rem}
+
+/* ── ALERTS ── */
+.alert-item{
+  display:flex;align-items:flex-start;gap:.875rem;
+  padding:.875rem;background:var(--card2);border-radius:10px;
+  margin-bottom:.625rem;border:1px solid var(--border);
+}
+.alert-icon{font-size:1.1rem;flex-shrink:0;margin-top:.1rem}
+.alert-title{font-size:.82rem;font-weight:600;margin-bottom:.15rem}
+.alert-text{font-size:.75rem;color:var(--muted);line-height:1.5}
+.alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:.35rem}
+.alert-dot.yellow{background:var(--warning)}
+.alert-dot.red{background:var(--error)}
+.alert-dot.green{background:var(--accent)}
+
+/* ── ACTIVITY ── */
+.activity-row{
+  display:flex;align-items:center;gap:.875rem;
+  padding:.75rem 0;border-bottom:1px solid var(--border);
+}
+.activity-row:last-child{border-bottom:none}
+.activity-icon{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;flex-shrink:0;
+}
+.activity-text{flex:1;font-size:.8rem}
+.activity-text b{font-weight:600}
+.activity-time{font-size:.7rem;color:var(--muted);white-space:nowrap}
+
+/* ── TAREFAS ── */
+.tarefa-row{
+  display:flex;align-items:center;gap:.875rem;
+  padding:.875rem;background:var(--card2);border-radius:10px;
+  margin-bottom:.625rem;border:1px solid var(--border);
+  transition:border-color .15s;
+}
+.tarefa-row:hover{border-color:var(--border2)}
+.tarefa-check{
+  width:20px;height:20px;border-radius:50%;
+  border:1.5px solid var(--border2);flex-shrink:0;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;transition:all .15s;
+}
+.tarefa-check.done{background:var(--accent);border-color:var(--accent);color:var(--black);font-weight:700}
+.tarefa-title{flex:1;font-size:.82rem;font-weight:600}
+.tarefa-title.done{text-decoration:line-through;color:var(--muted)}
+.tarefa-meta{font-size:.7rem;color:var(--muted)}
+.prio-badge{
+  padding:.15rem .5rem;border-radius:100px;
+  font-size:.62rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  flex-shrink:0;
+}
+.prio-badge.urgente{background:rgba(255,61,107,.15);color:var(--error);border:1px solid rgba(255,61,107,.2)}
+.prio-badge.alta{background:rgba(255,214,0,.1);color:var(--warning);border:1px solid rgba(255,214,0,.15)}
+.prio-badge.normal{background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border)}
+
+/* ── EQUIPE ── */
+.member-row{
+  display:flex;align-items:center;gap:.875rem;
+  padding:.875rem;background:var(--card2);border-radius:10px;
+  margin-bottom:.625rem;border:1px solid var(--border);
+}
+.member-av{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:800;color:var(--black);flex-shrink:0;
+}
+.member-name{font-size:.82rem;font-weight:600}
+.member-role{font-size:.72rem;color:var(--muted)}
+.member-status{
+  display:flex;align-items:center;gap:.3rem;
+  font-size:.68rem;font-weight:600;margin-left:auto;
+}
+.status-dot{width:6px;height:6px;border-radius:50%}
+.status-dot.online{background:var(--accent)}
+.status-dot.offline{background:var(--muted)}
+
+/* ── AGENTES ── */
+.agent-row{
+  display:flex;align-items:center;gap:1rem;
+  padding:1rem 1.25rem;background:var(--card2);border-radius:12px;
+  margin-bottom:.75rem;border:1px solid var(--border);
+  transition:all .15s;
+}
+.agent-row:hover{border-color:var(--border2)}
+.agent-row-icon{font-size:1.5rem;flex-shrink:0}
+.agent-row-info{flex:1}
+.agent-row-name{font-size:.85rem;font-weight:600;margin-bottom:.2rem}
+.agent-row-desc{font-size:.75rem;color:var(--muted)}
+.agent-row-status{
+  display:flex;align-items:center;gap:.375rem;
+  font-size:.72rem;font-weight:600;
+}
+.agent-row-btn{
+  padding:.5rem 1rem;border-radius:8px;
+  font-size:.72rem;font-weight:600;cursor:pointer;
+  border:none;font-family:var(--body);transition:all .15s;
+  text-decoration:none;display:inline-flex;align-items:center;gap:.375rem;
+}
+.agent-row-btn.primary{background:var(--accent);color:var(--black)}
+.agent-row-btn.primary:hover{box-shadow:0 4px 16px rgba(0,255,136,.2)}
+.agent-row-btn.outline{background:none;border:1px solid var(--border2);color:var(--white)}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px)}
+.overlay.show{display:flex}
+.modal{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:1.5rem;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.modal-handle{width:36px;height:3px;background:var(--border2);border-radius:100px;margin:-.5rem auto 1.25rem}
+.modal-title{font-family:var(--font);font-size:1.1rem;font-weight:900;letter-spacing:-.03em;margin-bottom:1.25rem}
+.btn-modal{
+  width:100%;padding:.875rem;border-radius:var(--r);
+  font-family:var(--font);font-size:.8rem;font-weight:700;
+  cursor:pointer;border:none;transition:all .2s;margin-top:.625rem;
+}
+.btn-modal.primary{background:var(--accent);color:var(--black)}
+.btn-modal.outline{background:none;border:1px solid var(--border2);color:var(--white)}
+.btn-modal:hover{opacity:.9}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;top:1.5rem;right:1.5rem;z-index:9999;
+  background:var(--card2);border:1px solid var(--border2);
+  padding:.875rem 1.25rem;border-radius:12px;
+  font-size:.82rem;font-weight:600;
+  display:none;animation:toastIn .3s ease;
+  max-width:300px;
+}
+.toast.show{display:block}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+/* ── BUTTONS ── */
+.btn-add{
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.5rem 1rem;border-radius:8px;
+  background:var(--accent-dim);border:1px solid var(--accent-border);
+  color:var(--accent);font-size:.75rem;font-weight:600;
+  cursor:pointer;transition:all .15s;font-family:var(--body);
+}
+.btn-add:hover{background:rgba(0,255,136,.12)}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:3rem 1rem;color:var(--muted)}
+.empty-icon{font-size:2.5rem;margin-bottom:.75rem}
+.empty-text{font-size:.85rem;line-height:1.6}
+
+/* ── CONFIG ── */
+.config-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 0;border-bottom:1px solid var(--border);
+}
+.config-row:last-child{border-bottom:none}
+.config-label{font-size:.85rem;font-weight:600}
+.config-sub{font-size:.75rem;color:var(--muted);margin-top:.15rem}
+.trial-bar{height:4px;background:var(--border);border-radius:100px;overflow:hidden;margin-top:.5rem}
+.trial-fill{height:100%;background:var(--accent);border-radius:100px}
+
+/* ── SELECT ── */
+select.inp{cursor:pointer}
+option{background:var(--card2)}
+
+@media(max-width:768px){
+  .sidebar{display:none}
+  .content{padding:0 1rem 3rem}
+  .main-header{padding:1.25rem 1rem 0}
+  .cards-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo"><span class="j">J</span>gerenteAI</div>
+    <div class="login-title">Bem-vindo de volta</div>
+    <div class="login-sub">Entre na sua conta para acessar o painel</div>
+    <div class="fg"><label class="lbl">Email</label><input class="inp" id="l-email" type="email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')document.getElementById('l-pwd').focus()"></div>
+    <div class="fg"><label class="lbl">Senha</label><input class="inp" id="l-pwd" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn-login" id="l-btn" onclick="doLogin()">🔐 Entrar</button>
+    <div class="login-err" id="l-err"></div>
+    <div class="login-link">Não tem conta? <a href="jgerente-cadastro.html">Criar grátis →</a></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-logo"><span class="j">J</span>gerenteAI</div>
+    <div class="sb-company">
+      <div class="sb-company-name" id="sb-company-name">Carregando...</div>
+      <div class="sb-company-plan">⚡ Trial ativo</div>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-section">Principal</div>
+      <button class="sb-btn active" onclick="navTo('dashboard')"><span class="sb-icon">🏠</span>Dashboard</button>
+      <button class="sb-btn" onclick="navTo('tarefas')"><span class="sb-icon">📋</span>Tarefas</button>
+      <button class="sb-btn" onclick="navTo('equipe')"><span class="sb-icon">👥</span>Equipe</button>
+      <div class="sb-section">Agentes</div>
+      <button class="sb-btn" onclick="navTo('agentes')"><span class="sb-icon">🤖</span>Meus Agentes</button>
+      <button class="sb-btn" onclick="abrirFidelidade()"><span class="sb-icon">🎯</span>Fidelidade ↗</button>
+      <div class="sb-section">Conta</div>
+      <button class="sb-btn" onclick="navTo('config')"><span class="sb-icon">⚙️</span>Configurações</button>
+    </div>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-avatar" id="sb-avatar">JG</div>
+        <div>
+          <div class="sb-user-name" id="sb-user-name">Carregando...</div>
+          <div class="sb-user-role">Dono</div>
+        </div>
+      </div>
+      <button class="btn-sair" onclick="doLogout()">🚪 Sair</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="main">
+    <div style="padding:3rem;text-align:center;color:var(--muted)">
+      <div style="font-size:2rem;margin-bottom:.5rem">⚡</div>
+      Carregando painel...
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE ──
+const { createClient } = supabase;
+const sb = createClient(
+  'https://hnculphposmgfvaeliiw.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
+);
+
+// ── STATE ──
+let S = {
+  view: 'dashboard',
+  company: null,
+  usuario: null,
+  tarefas: [],
+  equipe: [],
+  agentes: [],
+  customers: [],
+};
+
+// ── HELPERS ──
+function initials(n){ const p=n?.trim().split(' ')||[]; return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n?.slice(0,2).toUpperCase()||'JG'; }
+function fmtDate(iso){ if(!iso)return''; const d=new Date(iso); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); }
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+let toastTimer;
+function toast(msg, isError=false){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.borderColor=isError?'rgba(255,61,107,.3)':'rgba(0,255,136,.2)';
+  el.style.color=isError?'#FF3D6B':'var(--accent)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+function openModal(html){ document.getElementById('modal-body').innerHTML=html; document.getElementById('overlay').classList.add('show'); }
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+const AV_COLORS=['#00FF88','#3D6BFF','#FF3D6B','#FFD600','#A855F7','#FF8C00'];
+function avColor(str){ let h=0; for(let i=0;i<(str||'').length;i++) h=(h*31+str.charCodeAt(i))&0xffff; return AV_COLORS[h%AV_COLORS.length]; }
+
+// ── LOGIN ──
+async function doLogin(){
+  const email = document.getElementById('l-email').value.trim();
+  const pwd = document.getElementById('l-pwd').value;
+  const btn = document.getElementById('l-btn');
+  const err = document.getElementById('l-err');
+  if(!email||!pwd){ err.textContent='⚠️ Preencha email e senha'; return; }
+  btn.disabled=true; btn.textContent='Entrando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if(error){
+    err.textContent='❌ Email ou senha incorretos';
+    btn.disabled=false; btn.textContent='🔐 Entrar';
+    return;
+  }
+  await initApp(data.user);
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  localStorage.removeItem('jg_company_id');
+  location.reload();
+}
+
+// ── INIT APP ──
+async function initApp(user){
+  try{
+    // Buscar usuário na tabela usuarios
+    const { data: usr } = await sb.from('usuarios').select('*').eq('auth_id', user.id).single();
+    if(!usr){ document.getElementById('l-err').textContent='⚠️ Usuário não encontrado'; return; }
+    S.usuario = usr;
+
+    // Buscar empresa
+    const { data: comp } = await sb.from('companies').select('*').eq('id', usr.company_id).single();
+    if(!comp){ document.getElementById('l-err').textContent='⚠️ Empresa não encontrada'; return; }
+    S.company = comp;
+
+    // Atualizar sidebar
+    document.getElementById('sb-company-name').textContent = comp.nome;
+    document.getElementById('sb-user-name').textContent = usr.nome;
+    const av = document.getElementById('sb-avatar');
+    av.textContent = initials(usr.nome);
+    av.style.background = avColor(usr.nome);
+
+    // Mostrar app
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('show');
+
+    // Carregar dados
+    await loadData();
+    renderView('dashboard');
+
+  }catch(e){
+    console.error(e);
+    document.getElementById('l-btn').disabled=false;
+    document.getElementById('l-btn').textContent='🔐 Entrar';
+    document.getElementById('l-err').textContent='⚠️ Erro ao carregar. Tente novamente.';
+  }
+}
+
+// ── LOAD DATA ──
+async function loadData(){
+  const cid = S.company.id;
+  const [t, e, a, c] = await Promise.all([
+    sb.from('tarefas').select('*,usuarios(nome)').eq('company_id',cid).order('created_at',{ascending:false}),
+    sb.from('usuarios').select('*').eq('company_id',cid),
+    sb.from('agentes').select('*').eq('company_id',cid),
+    sb.from('customers').select('*').eq('company_id',cid),
+  ]);
+  S.tarefas = t.data||[];
+  S.equipe  = e.data||[];
+  S.agentes = a.data||[];
+  S.customers = c.data||[];
+}
+
+// ── NAVIGATION ──
+function navTo(view){
+  S.view = view;
+  document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
+  const map={dashboard:0,tarefas:1,equipe:2,agentes:3,config:5};
+  const btns=document.querySelectorAll('.sb-btn');
+  if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
+  renderView(view);
+}
+
+function abrirFidelidade(){
+  // Abre o painel de fidelidade em nova aba
+  window.open('https://ppeu07280-oss.github.io/acaipoints/acaipoints-admin.html','_blank');
+}
+
+function renderView(view){
+  const m = document.getElementById('main');
+  const views = {
+    dashboard: renderDashboard,
+    tarefas: renderTarefas,
+    equipe: renderEquipe,
+    agentes: renderAgentes,
+    config: renderConfig,
+  };
+  m.innerHTML = (views[view]||renderDashboard)();
+}
+
+// ══════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════
+function renderDashboard(){
+  const pendentes = S.tarefas.filter(t=>t.status==='pendente').length;
+  const concluidas = S.tarefas.filter(t=>t.status==='concluida').length;
+  const clientes = S.customers.length;
+  const online = S.equipe.length;
+
+  // Alertas inteligentes
+  const alertas = [];
+  if(pendentes > 5) alertas.push({icon:'⚠️',dot:'yellow',title:`${pendentes} tarefas pendentes`,text:'Existem tarefas acumuladas. Considere redistribuir para a equipe.'});
+  if(S.equipe.length === 0) alertas.push({icon:'👥',dot:'red',title:'Nenhum funcionário cadastrado',text:'Cadastre sua equipe para distribuir tarefas e controlar a operação.'});
+  if(S.agentes.length === 0) alertas.push({icon:'🤖',dot:'yellow',title:'Nenhum agente ativo',text:'Ative seus agentes para começar a automatizar a gestão.'});
+  if(clientes > 0) alertas.push({icon:'🎯',dot:'green',title:`${clientes} clientes no programa de fidelidade`,text:'Seu programa está ativo. Continue engajando seus clientes.'});
+  if(alertas.length===0) alertas.push({icon:'✅',dot:'green',title:'Tudo em ordem!',text:'Nenhum alerta no momento. Sua operação está funcionando bem.'});
+
+  // Trial info
+  const trialAte = S.company.trial_ate ? new Date(S.company.trial_ate) : null;
+  const diasTrial = trialAte ? Math.max(0,Math.ceil((trialAte-Date.now())/86400000)) : 0;
+
+  return`
+  <div class="main-header">
+    <div>
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Visão geral da ${escHtml(S.company?.nome||'sua empresa')}</div>
+    </div>
+    ${diasTrial>0?`<div style="font-size:.72rem;color:var(--warning);background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.15);padding:.4rem .875rem;border-radius:100px;font-weight:600">⏳ Trial: ${diasTrial} dias restantes</div>`:''}
+  </div>
+  <div class="content">
+    <div class="cards-grid">
+      <div class="metric-card green">
+        <div class="metric-label">Clientes Fidelidade</div>
+        <div class="metric-val">${clientes}</div>
+        <div class="metric-sub">no programa de pontos</div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-label">Tarefas Pendentes</div>
+        <div class="metric-val">${pendentes}</div>
+        <div class="metric-sub">${concluidas} concluídas no total</div>
+      </div>
+      <div class="metric-card yellow">
+        <div class="metric-label">Equipe</div>
+        <div class="metric-val">${online}</div>
+        <div class="metric-sub">funcionários cadastrados</div>
+      </div>
+      <div class="metric-card red">
+        <div class="metric-label">Agentes Ativos</div>
+        <div class="metric-val">${S.agentes.filter(a=>a.ativo).length}</div>
+        <div class="metric-sub">de ${S.agentes.length} configurados</div>
+      </div>
+    </div>
+
+    <div class="sec-card">
+      <div class="sec-card-header">
+        <div class="sec-card-title">🔔 Alertas Inteligentes</div>
+      </div>
+      <div class="sec-card-body">
+        ${alertas.map(a=>`
+          <div class="alert-item">
+            <div class="alert-dot ${a.dot}"></div>
+            <div>
+              <div class="alert-title">${a.icon} ${a.title}</div>
+              <div class="alert-text">${a.text}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="sec-card">
+      <div class="sec-card-header">
+        <div class="sec-card-title">📋 Últimas Tarefas</div>
+        <button class="btn-add" onclick="navTo('tarefas')">Ver todas →</button>
+      </div>
+      <div class="sec-card-body">
+        ${S.tarefas.slice(0,4).length===0
+          ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa ainda.<br>Crie a primeira para sua equipe.</div></div>`
+          : S.tarefas.slice(0,4).map(t=>`
+            <div class="activity-row">
+              <div class="activity-icon" style="background:${t.status==='concluida'?'rgba(0,255,136,.1)':t.prioridade==='urgente'?'rgba(255,61,107,.1)':'rgba(61,107,255,.1)'}">
+                ${t.status==='concluida'?'✅':t.prioridade==='urgente'?'🔴':'📌'}
+              </div>
+              <div class="activity-text"><b>${escHtml(t.titulo)}</b><div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">${t.usuarios?.nome||'Sem responsável'} · ${fmtDate(t.created_at)}</div></div>
+              <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
+            </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+// TAREFAS
+// ══════════════════════════════════════════
+function renderTarefas(){
+  const pendentes = S.tarefas.filter(t=>t.status!=='concluida');
+  const concluidas = S.tarefas.filter(t=>t.status==='concluida');
+  return`
+  <div class="main-header">
+    <div>
+      <div class="page-title">Tarefas</div>
+      <div class="page-sub">${pendentes.length} pendentes · ${concluidas.length} concluídas</div>
+    </div>
+    <button class="btn-add" onclick="showAddTarefa()">+ Nova tarefa</button>
+  </div>
+  <div class="content">
+    ${pendentes.length===0&&concluidas.length===0
+      ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa criada ainda.<br>Crie a primeira para sua equipe!</div></div>`
+      : ''}
+    ${pendentes.length>0?`
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">📌 Pendentes (${pendentes.length})</div></div>
+      <div class="sec-card-body">
+        ${pendentes.map(t=>tarefaRow(t)).join('')}
+      </div>
+    </div>`:''}
+    ${concluidas.length>0?`
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">✅ Concluídas (${concluidas.length})</div></div>
+      <div class="sec-card-body">
+        ${concluidas.map(t=>tarefaRow(t)).join('')}
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+function tarefaRow(t){
+  const done = t.status==='concluida';
+  return`<div class="tarefa-row">
+    <div class="tarefa-check ${done?'done':''}" onclick="toggleTarefa('${t.id}','${done?'pendente':'concluida'}')">${done?'✓':''}</div>
+    <div style="flex:1;min-width:0">
+      <div class="tarefa-title ${done?'done':''}">${escHtml(t.titulo)}</div>
+      <div class="tarefa-meta">${t.usuarios?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''}</div>
+    </div>
+    <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
+    <button onclick="deletarTarefa('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.25rem;margin-left:.25rem" title="Remover">✕</button>
+  </div>`;
+}
+
+function showAddTarefa(){
+  const membros = S.equipe.map(m=>`<option value="${m.id}">${escHtml(m.nome)}</option>`).join('');
+  openModal(`
+    <div class="modal-title">📋 Nova Tarefa</div>
+    <div class="fg"><label class="lbl">Título *</label><input class="inp" id="t-titulo" placeholder="Ex: Limpar o salão antes das 18h"></div>
+    <div class="fg"><label class="lbl">Descrição</label><input class="inp" id="t-desc" placeholder="Detalhes da tarefa..."></div>
+    <div class="fg"><label class="lbl">Responsável</label>
+      <select class="inp" id="t-resp">
+        <option value="">Sem responsável</option>
+        ${membros}
+      </select>
+    </div>
+    <div class="fg"><label class="lbl">Prioridade</label>
+      <select class="inp" id="t-prio">
+        <option value="normal">Normal</option>
+        <option value="alta">Alta</option>
+        <option value="urgente">Urgente</option>
+      </select>
+    </div>
+    <div class="fg"><label class="lbl">Prazo</label><input class="inp" id="t-prazo" type="date"></div>
+    <button class="btn-modal primary" onclick="salvarTarefa()">✅ Criar Tarefa</button>
+    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+async function salvarTarefa(){
+  const titulo = document.getElementById('t-titulo')?.value.trim();
+  if(!titulo){ toast('⚠️ Informe o título',true); return; }
+  const resp = document.getElementById('t-resp')?.value||null;
+  const prio = document.getElementById('t-prio')?.value||'normal';
+  const prazo = document.getElementById('t-prazo')?.value||null;
+  const desc = document.getElementById('t-desc')?.value.trim()||null;
+  const { data, error } = await sb.from('tarefas').insert({
+    company_id: S.company.id,
+    titulo, descricao:desc,
+    atribuido_para: resp||null,
+    prioridade: prio,
+    prazo: prazo||null,
+    criado_por: 'dono',
+    status: 'pendente'
+  }).select('*,usuarios(nome)').single();
+  if(error){ toast('⚠️ Erro ao criar tarefa',true); return; }
+  S.tarefas.unshift(data);
+  closeModal();
+  toast('✅ Tarefa criada!');
+  renderView('tarefas');
+}
+
+async function toggleTarefa(id, novoStatus){
+  await sb.from('tarefas').update({status:novoStatus}).eq('id',id);
+  const t = S.tarefas.find(x=>x.id===id);
+  if(t) t.status = novoStatus;
+  renderView('tarefas');
+}
+
+async function deletarTarefa(id){
+  if(!confirm('Remover esta tarefa?')) return;
+  await sb.from('tarefas').delete().eq('id',id);
+  S.tarefas = S.tarefas.filter(t=>t.id!==id);
+  toast('Tarefa removida');
+  renderView('tarefas');
+}
+
+// ══════════════════════════════════════════
+// EQUIPE
+// ══════════════════════════════════════════
+function renderEquipe(){
+  return`
+  <div class="main-header">
+    <div>
+      <div class="page-title">Equipe</div>
+      <div class="page-sub">${S.equipe.length} membro${S.equipe.length!==1?'s':''} cadastrado${S.equipe.length!==1?'s':''}</div>
+    </div>
+    <button class="btn-add" onclick="showAddMembro()">+ Adicionar membro</button>
+  </div>
+  <div class="content">
+    ${S.equipe.length===0
+      ? `<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Nenhum funcionário cadastrado ainda.<br>Adicione sua equipe para distribuir tarefas.</div></div>`
+      : `<div class="sec-card">
+          <div class="sec-card-header"><div class="sec-card-title">👥 Membros da equipe</div></div>
+          <div class="sec-card-body">
+            ${S.equipe.map(m=>{
+              const tarefasM = S.tarefas.filter(t=>t.atribuido_para===m.id&&t.status!=='concluida').length;
+              return`<div class="member-row">
+                <div class="member-av" style="background:${avColor(m.nome)}">${initials(m.nome)}</div>
+                <div style="flex:1;min-width:0">
+                  <div class="member-name">${escHtml(m.nome)}</div>
+                  <div class="member-role">${m.perfil} · ${tarefasM} tarefa${tarefasM!==1?'s':''} pendente${tarefasM!==1?'s':''}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <button onclick="removerMembro('${m.id}','${escHtml(m.nome)}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem" title="Remover">✕</button>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`}
+  </div>`;
+}
+
+function showAddMembro(){
+  openModal(`
+    <div class="modal-title">👤 Novo Membro</div>
+    <div class="fg"><label class="lbl">Nome *</label><input class="inp" id="m-nome" placeholder="Nome completo"></div>
+    <div class="fg"><label class="lbl">Email *</label><input class="inp" id="m-email" type="email" placeholder="email@exemplo.com"></div>
+    <div class="fg"><label class="lbl">Perfil</label>
+      <select class="inp" id="m-perfil">
+        <option value="funcionario">Funcionário</option>
+        <option value="gerente">Gerente</option>
+      </select>
+    </div>
+    <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:10px;padding:.875rem;font-size:.78rem;color:var(--muted);margin-bottom:.5rem">
+      💡 O funcionário receberá um convite por email para criar sua senha e acessar o painel.
+    </div>
+    <button class="btn-modal primary" onclick="salvarMembro()">👤 Adicionar Membro</button>
+    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+async function salvarMembro(){
+  const nome = document.getElementById('m-nome')?.value.trim();
+  const email = document.getElementById('m-email')?.value.trim();
+  const perfil = document.getElementById('m-perfil')?.value||'funcionario';
+  if(!nome||!email){ toast('⚠️ Preencha nome e email',true); return; }
+
+  // Criar usuário no Auth com senha temporária
+  const senhaTemp = Math.random().toString(36).slice(-10)+'A1!';
+  const { data: authData, error: authErr } = await sb.auth.signUp({
+    email, password: senhaTemp,
+    options:{ data:{ nome } }
+  });
+  if(authErr){ toast('⚠️ Erro: '+authErr.message,true); return; }
+
+  const { data, error } = await sb.from('usuarios').insert({
+    company_id: S.company.id,
+    auth_id: authData.user?.id,
+    nome, email, perfil
+  }).select().single();
+  if(error){ toast('⚠️ Erro ao cadastrar',true); return; }
+
+  S.equipe.push(data);
+  closeModal();
+  toast('✅ Membro adicionado! Convite enviado por email.');
+  renderView('equipe');
+}
+
+async function removerMembro(id, nome){
+  if(!confirm(`Remover ${nome} da equipe?`)) return;
+  await sb.from('usuarios').delete().eq('id',id);
+  S.equipe = S.equipe.filter(m=>m.id!==id);
+  toast('Membro removido');
+  renderView('equipe');
+}
+
+// ══════════════════════════════════════════
+// AGENTES
+// ══════════════════════════════════════════
+function renderAgentes(){
+  const todos = [
+    {tipo:'fidelidade',icon:'🎯',nome:'Agente Fidelidade',desc:'Pontos, clientes, prêmios e notificações WhatsApp',ativo:true,link:true},
+    {tipo:'gestor',icon:'👔',nome:'Agente Gestor',desc:'Tarefas, equipe e relatórios automáticos',ativo:true,link:false},
+    {tipo:'trafego',icon:'📱',nome:'Agente Tráfego',desc:'Conteúdo, posts e anúncios automáticos',ativo:false,em_breve:true},
+    {tipo:'financeiro',icon:'💰',nome:'Agente Financeiro',desc:'Fluxo de caixa, alertas e projeções',ativo:false,em_breve:true},
+    {tipo:'estoque',icon:'📦',nome:'Agente Estoque',desc:'Controle de produtos e alertas de ruptura',ativo:false,em_breve:true},
+  ];
+
+  return`
+  <div class="main-header">
+    <div>
+      <div class="page-title">Agentes de IA</div>
+      <div class="page-sub">Seus assistentes especializados trabalhando 24/7</div>
+    </div>
+  </div>
+  <div class="content">
+    ${todos.map(a=>`
+      <div class="agent-row">
+        <div class="agent-row-icon">${a.icon}</div>
+        <div class="agent-row-info">
+          <div class="agent-row-name">${a.nome} ${a.em_breve?'<span style="font-size:.6rem;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);padding:.1rem .5rem;border-radius:100px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-left:.25rem">Em breve</span>':''}</div>
+          <div class="agent-row-desc">${a.desc}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          ${a.em_breve
+            ? `<span style="font-size:.72rem;color:var(--muted)">🔒 Em breve</span>`
+            : a.link
+              ? `<a href="https://ppeu07280-oss.github.io/acaipoints/acaipoints-admin.html" target="_blank" class="agent-row-btn primary">Abrir ↗</a>`
+              : `<span class="agent-row-status"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span> Ativo</span>`
+          }
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════
+function renderConfig(){
+  const trialAte = S.company?.trial_ate ? new Date(S.company.trial_ate) : null;
+  const diasTrial = trialAte ? Math.max(0,Math.ceil((trialAte-Date.now())/86400000)) : 0;
+  const pct = Math.min(100, Math.round(((14-diasTrial)/14)*100));
+
+  return`
+  <div class="main-header">
+    <div>
+      <div class="page-title">Configurações</div>
+      <div class="page-sub">Gerencie sua conta e empresa</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">🏪 Sua Empresa</div></div>
+      <div class="sec-card-body">
+        <div class="config-row">
+          <div><div class="config-label">Nome</div><div class="config-sub">${escHtml(S.company?.nome||'')}</div></div>
+        </div>
+        <div class="config-row">
+          <div><div class="config-label">Slug / URL do cliente</div><div class="config-sub">jgerente.ai/cliente/${escHtml(S.company?.slug||'')}</div></div>
+        </div>
+        <div class="config-row">
+          <div><div class="config-label">Plano atual</div><div class="config-sub" style="color:var(--accent);font-weight:600">⚡ Trial — ${diasTrial} dias restantes</div>
+          <div class="trial-bar" style="margin-top:.5rem;max-width:200px"><div class="trial-fill" style="width:${100-pct}%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">👤 Sua Conta</div></div>
+      <div class="sec-card-body">
+        <div class="config-row">
+          <div><div class="config-label">Nome</div><div class="config-sub">${escHtml(S.usuario?.nome||'')}</div></div>
+        </div>
+        <div class="config-row">
+          <div><div class="config-label">Email</div><div class="config-sub">${escHtml(S.usuario?.email||'')}</div></div>
+        </div>
+        <div class="config-row">
+          <div><div class="config-label">Perfil</div><div class="config-sub" style="text-transform:capitalize">${S.usuario?.perfil||'dono'}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-card">
+      <div class="sec-card-header"><div class="sec-card-title">🚨 Zona de Perigo</div></div>
+      <div class="sec-card-body">
+        <button onclick="doLogout()" style="padding:.75rem 1.5rem;background:rgba(255,61,107,.08);border:1px solid rgba(255,61,107,.2);color:var(--error);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">🚪 Sair da conta</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── BOOT ──
+(async()=>{
+  // Verificar sessão ativa
+  const { data } = await sb.auth.getSession();
+  if(data?.session?.user){
+    await initApp(data.session.user);
+  }
+  // Se não tiver sessão, mostra login (já visível por padrão)
+})();
+</script>
+</body>
+</html>
