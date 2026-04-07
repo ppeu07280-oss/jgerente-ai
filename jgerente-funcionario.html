@@ -696,6 +696,91 @@ async function registrarPresenca(tipo){
   }
 }
 
+async function renderPerformance(){
+  const el = document.getElementById('content');
+  el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted)">Carregando...</div>`;
+
+  const from7 = new Date();
+  from7.setDate(from7.getDate()-6);
+  from7.setHours(0,0,0,0);
+
+  const { data: historico } = await sb.from('tarefas')
+    .select('*')
+    .eq('company_id', S.company.id)
+    .eq('atribuido_para', S.usuario.id)
+    .eq('recorrente', false)
+    .gte('created_at', from7.toISOString());
+
+  const tarefas = historico || [];
+  const concluidas = tarefas.filter(t=>t.status==='concluida').length;
+  const expiradas = tarefas.filter(t=>t.status==='expirada').length;
+  const total = concluidas + expiradas;
+  const score = total > 0 ? Math.round((concluidas/total)*100) : 0;
+  const scoreColor = score>=80?'var(--accent)':score>=50?'#FFD600':'var(--error)';
+
+  const dias = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
+    const next = new Date(d); next.setDate(next.getDate()+1);
+    const dayTasks = tarefas.filter(t=>{ const ct=new Date(t.created_at); return ct>=d&&ct<next; });
+    dias.push({
+      label: d.toLocaleDateString('pt-BR',{weekday:'short'}).slice(0,3),
+      concluidas: dayTasks.filter(t=>t.status==='concluida').length,
+      expiradas: dayTasks.filter(t=>t.status==='expirada').length,
+    });
+  }
+  const maxVal = Math.max(...dias.map(d=>d.concluidas+d.expiradas), 1);
+
+  el.innerHTML = `
+    <div class="perf-header">
+      <div class="perf-av" style="background:${avColor(S.usuario?.nome||'')}">${initials(S.usuario?.nome||'')}</div>
+      <div>
+        <div class="perf-name">${escHtml(S.usuario?.nome||'')}</div>
+        <div class="perf-role">${S.usuario?.perfil||'funcionário'} · ${escHtml(S.company?.nome||'')}</div>
+      </div>
+    </div>
+
+    <div class="perf-score">
+      <div class="score-num" style="color:${scoreColor}">${score}%</div>
+      <div class="score-label">Taxa de conclusão — 7 dias</div>
+      <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${scoreColor}"></div></div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-mini"><div class="stat-mini-val" style="color:var(--accent)">${concluidas}</div><div class="stat-mini-label">✅ Concluídas</div></div>
+      <div class="stat-mini"><div class="stat-mini-val" style="color:var(--error)">${expiradas}</div><div class="stat-mini-label">⏰ Expiradas</div></div>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">Tarefas por dia</div>
+      <div class="chart-bars">
+        ${dias.map(d=>{
+          const hC = d.concluidas>0?Math.max(8,Math.round((d.concluidas/maxVal)*72)):0;
+          const hE = d.expiradas>0?Math.max(8,Math.round((d.expiradas/maxVal)*72)):0;
+          return`<div class="chart-col">
+            <div class="chart-bar-wrap">
+              ${hE>0?`<div class="bar-expirada" style="height:${hE}px"></div>`:''}
+              ${hC>0?`<div class="bar-concluida" style="height:${hC}px"></div>`:''}
+              ${hC===0&&hE===0?`<div style="height:2px;background:var(--border);border-radius:2px"></div>`:''}
+            </div>
+            <div class="chart-day">${d.label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:.875rem;justify-content:center">
+        <div style="display:flex;align-items:center;gap:.375rem;font-size:.68rem;color:var(--muted)"><div style="width:8px;height:8px;border-radius:2px;background:var(--accent)"></div>Concluída</div>
+        <div style="display:flex;align-items:center;gap:.375rem;font-size:.68rem;color:var(--muted)"><div style="width:8px;height:8px;border-radius:2px;background:var(--error)"></div>Expirada</div>
+      </div>
+    </div>
+
+    <div style="background:${score>=80?'rgba(0,255,136,.06)':score>=50?'rgba(255,214,0,.06)':'rgba(255,61,107,.06)'};border:1px solid ${score>=80?'rgba(0,255,136,.15)':score>=50?'rgba(255,214,0,.15)':'rgba(255,61,107,.15)'};border-radius:12px;padding:1rem;text-align:center">
+      <div style="font-size:1.5rem;margin-bottom:.375rem">${score>=80?'🌟':score>=50?'💪':'⚡'}</div>
+      <div style="font-size:.85rem;font-weight:600;margin-bottom:.25rem">${score>=80?'Excelente desempenho!':score>=50?'Bom trabalho, pode melhorar!':'Atenção: muitas tarefas expiradas'}</div>
+      <div style="font-size:.75rem;color:var(--muted)">${score>=80?'Continue assim!':score>=50?'Tente concluir antes do prazo.':'Converse com seu gerente.'}</div>
+    </div>
+  `;
+}
+
 function renderPresenca(){
   const el = document.getElementById('content');
   const ultima = S.presencaHoje;
