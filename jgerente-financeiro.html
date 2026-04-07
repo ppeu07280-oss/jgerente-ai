@@ -166,8 +166,10 @@ body{font-family:var(--body);background:var(--black);color:var(--white)}
   <div class="tabs">
     <button class="tab-btn active" onclick="showTab('dashboard')">📊 Dashboard</button>
     <button class="tab-btn" onclick="showTab('lancamento')">+ Lançamento</button>
+    <button class="tab-btn" onclick="showTab('contas')">📅 Contas</button>
+    <button class="tab-btn" onclick="showTab('dre')">📈 DRE</button>
     <button class="tab-btn" onclick="showTab('historico')">📋 Histórico</button>
-    <button class="tab-btn" onclick="showTab('chat')">🤖 IA Financeira</button>
+    <button class="tab-btn" onclick="showTab('chat')">🤖 IA</button>
   </div>
 
   <div class="content" id="content">
@@ -185,7 +187,7 @@ const sb = createClient(
 );
 const API_URL = 'https://jgerente-ai.vercel.app/api/chat';
 
-let S = { usuario: null, company: null, lancamentos: [], chatMsgs: [], periodo: '7d', tipoLanc: 'entrada' };
+let S = { usuario: null, company: null, lancamentos: [], contas: [], chatMsgs: [], periodo: '7d', tipoLanc: 'entrada', metaReceita: 0, metaDespesa: 0 };
 let chartBar = null, chartPizza = null;
 
 // ── HELPERS ──
@@ -193,7 +195,8 @@ function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&l
 function fmtMoeda(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtData(iso){ return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); }
 let toastTimer;
-function toast(msg, green=true){
+function toast(msg, green=true){ toastF(msg,green); }
+function _toast(msg, green=true){
   const el=document.getElementById('toast');
   el.textContent=msg;
   el.style.color=green?'var(--accent)':'var(--error)';
@@ -242,20 +245,37 @@ async function initApp(user){
 
 async function loadLancamentos(){
   const from = new Date(); from.setDate(from.getDate()-30);
-  const { data } = await sb.from('financeiro')
-    .select('*')
-    .eq('company_id', S.company.id)
-    .gte('created_at', from.toISOString())
-    .order('created_at',{ascending:false});
-  S.lancamentos = data||[];
+  const [lancs, contas] = await Promise.all([
+    sb.from('financeiro').select('*').eq('company_id',S.company.id).gte('created_at',from.toISOString()).order('created_at',{ascending:false}),
+    sb.from('contas').select('*').eq('company_id',S.company.id).order('vencimento',{ascending:true})
+  ]);
+  S.lancamentos = lancs.data||[];
+  S.contas = contas.data||[];
+  
+  // Verificar contas atrasadas
+  const hoje = new Date().toISOString().split('T')[0];
+  for(const c of S.contas){
+    if(c.status==='pendente' && c.vencimento < hoje){
+      await sb.from('contas').update({status:'atrasado'}).eq('id',c.id);
+      c.status='atrasado';
+    }
+  }
+
+  // Carregar metas do localStorage
+  S.metaReceita = parseFloat(localStorage.getItem('meta_receita_'+S.company.id)||0);
+  S.metaDespesa = parseFloat(localStorage.getItem('meta_despesa_'+S.company.id)||0);
 }
 
 // ── TABS ──
 function showTab(tab){
   S.currentTab=tab;
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['dashboard','lancamento','historico','chat'][i]===tab));
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['dashboard','lancamento','contas','dre','historico','chat'][i]===tab));
+  const el=document.getElementById('content');
+  el.style.padding='1.25rem';
   if(tab==='dashboard') renderDashboard();
   else if(tab==='lancamento') renderLancamento();
+  else if(tab==='contas') renderContas();
+  else if(tab==='dre') renderDRE();
   else if(tab==='historico') renderHistorico();
   else renderChat();
 }
@@ -294,12 +314,34 @@ function renderDashboard(){
   });
   const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
 
-  // Alertas IA simples
+  // Contas vencendo hoje e amanhã
+  const hoje = new Date().toISOString().split('T')[0];
+  const amanha = new Date(); amanha.setDate(amanha.getDate()+1);
+  const amanhaStr = amanha.toISOString().split('T')[0];
+  const contasHoje = S.contas.filter(c=>c.vencimento===hoje&&c.status==='pendente');
+  const contasAmanha = S.contas.filter(c=>c.vencimento===amanhaStr&&c.status==='pendente');
+  const contasAtrasadas = S.contas.filter(c=>c.status==='atrasado');
+  const totalVencer = [...contasHoje,...contasAmanha].reduce((a,c)=>a+Number(c.valor),0);
+  const totalAtrasado = contasAtrasadas.reduce((a,c)=>a+Number(c.valor),0);
+
+  // Ticket médio
+  const diasComVenda = new Set(lancs.filter(l=>l.tipo==='entrada').map(l=>l.created_at.split('T')[0])).size;
+  const ticketMedio = diasComVenda > 0 ? entradas/diasComVenda : 0;
+
+  // Alertas IA
   const alertas=[];
+  if(contasAtrasadas.length>0) alertas.push({emoji:'🚨',txt:`${contasAtrasadas.length} conta(s) atrasada(s) totalizando ${fmtMoeda(totalAtrasado)}. Regularize para evitar juros!`});
+  if(contasHoje.length>0) alertas.push({emoji:'⏰',txt:`${contasHoje.length} conta(s) vence(m) HOJE totalizando ${fmtMoeda(contasHoje.reduce((a,c)=>a+Number(c.valor),0))}. Não esqueça!`});
+  if(contasAmanha.length>0) alertas.push({emoji:'📅',txt:`${contasAmanha.length} conta(s) vence(m) amanhã totalizando ${fmtMoeda(contasAmanha.reduce((a,c)=>a+Number(c.valor),0))}.`});
   if(saidas>entradas) alertas.push({emoji:'🚨',txt:`Suas saídas (${fmtMoeda(saidas)}) estão maiores que as entradas (${fmtMoeda(entradas)}). Risco de caixa negativo!`});
   if(margem<20&&margem>0) alertas.push({emoji:'⚠️',txt:`Sua margem está em ${margem}%. O ideal é acima de 30%. Revise seus custos.`});
   const maiorGasto=cats[0];
   if(maiorGasto) alertas.push({emoji:'💡',txt:`Seu maior gasto é ${maiorGasto[0]} (${fmtMoeda(maiorGasto[1])}). Analise se é possível reduzir.`});
+  if(S.metaReceita>0){
+    const pctMeta=Math.round((entradas/S.metaReceita)*100);
+    if(pctMeta<50) alertas.push({emoji:'🎯',txt:`Você atingiu ${pctMeta}% da meta de receita (${fmtMoeda(S.metaReceita)}). Faltam ${fmtMoeda(S.metaReceita-entradas)}.`});
+    else if(pctMeta>=100) alertas.push({emoji:'🏆',txt:`Parabéns! Você bateu a meta de receita de ${fmtMoeda(S.metaReceita)}!`});
+  }
 
   const el=document.getElementById('content');
   el.innerHTML=`
@@ -318,17 +360,39 @@ function renderDashboard(){
       <div class="metric-card green">
         <div class="metric-label">Entradas</div>
         <div class="metric-val" style="font-size:1.1rem;color:var(--accent)">${fmtMoeda(entradas)}</div>
-        <div class="metric-sub">${lancs.filter(l=>l.tipo==='entrada').length} lançamentos</div>
+        ${S.metaReceita>0?`<div style="height:3px;background:var(--border);border-radius:100px;margin-top:.375rem;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((entradas/S.metaReceita)*100))}%;background:var(--accent);border-radius:100px"></div></div><div style="font-size:.62rem;color:var(--muted);margin-top:.2rem">Meta: ${fmtMoeda(S.metaReceita)}</div>`:`<div class="metric-sub">${lancs.filter(l=>l.tipo==='entrada').length} lançamentos</div>`}
       </div>
       <div class="metric-card red">
         <div class="metric-label">Saídas</div>
         <div class="metric-val" style="font-size:1.1rem;color:var(--error)">${fmtMoeda(saidas)}</div>
-        <div class="metric-sub">${lancs.filter(l=>l.tipo==='saida').length} lançamentos</div>
+        ${S.metaDespesa>0?`<div style="height:3px;background:var(--border);border-radius:100px;margin-top:.375rem;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((saidas/S.metaDespesa)*100))}%;background:var(--error);border-radius:100px"></div></div><div style="font-size:.62rem;color:var(--muted);margin-top:.2rem">Limite: ${fmtMoeda(S.metaDespesa)}</div>`:`<div class="metric-sub">${lancs.filter(l=>l.tipo==='saida').length} lançamentos</div>`}
       </div>
       <div class="metric-card ${margem>=30?'green':margem>=20?'yellow':'red'}">
         <div class="metric-label">Margem</div>
         <div class="metric-val" style="font-size:1.1rem;color:${margem>=30?'var(--accent)':margem>=20?'var(--warning)':'var(--error)'}">${margem}%</div>
         <div class="metric-sub">Lucro / Receita</div>
+      </div>
+    </div>
+    <div class="cards-grid" style="margin-top:-.25rem">
+      <div class="metric-card blue">
+        <div class="metric-label">Ticket Médio/Dia</div>
+        <div class="metric-val" style="font-size:1rem">${fmtMoeda(ticketMedio)}</div>
+        <div class="metric-sub">${diasComVenda} dias com vendas</div>
+      </div>
+      <div class="metric-card ${contasAtrasadas.length>0?'red':'yellow'}">
+        <div class="metric-label">Contas Pendentes</div>
+        <div class="metric-val" style="font-size:1rem;color:${contasAtrasadas.length>0?'var(--error)':'var(--warning)'}">${S.contas.filter(c=>c.status==='pendente'||c.status==='atrasado').length}</div>
+        <div class="metric-sub">${fmtMoeda(S.contas.filter(c=>c.status==='pendente'||c.status==='atrasado').reduce((a,c)=>a+Number(c.valor),0))} a pagar/receber</div>
+      </div>
+      <div class="metric-card green" style="cursor:pointer" onclick="editarMetas()">
+        <div class="metric-label">Meta Receita</div>
+        <div class="metric-val" style="font-size:1rem;color:var(--accent)">${S.metaReceita>0?fmtMoeda(S.metaReceita):'Definir →'}</div>
+        <div class="metric-sub">Clique para editar</div>
+      </div>
+      <div class="metric-card red" style="cursor:pointer" onclick="editarMetas()">
+        <div class="metric-label">Limite Despesas</div>
+        <div class="metric-val" style="font-size:1rem;color:var(--error)">${S.metaDespesa>0?fmtMoeda(S.metaDespesa):'Definir →'}</div>
+        <div class="metric-sub">Clique para editar</div>
       </div>
     </div>
 
@@ -619,6 +683,269 @@ Use emojis para destacar pontos importantes. Seja como um contador experiente co
 
   document.getElementById('btn-send').disabled=false;
   renderChat();
+}
+
+// ── CONTAS A PAGAR/RECEBER ──────────────────────────
+function renderContas(){
+  const hoje = new Date().toISOString().split('T')[0];
+  const pendentes = S.contas.filter(c=>c.status==='pendente'||c.status==='atrasado');
+  const pagas = S.contas.filter(c=>c.status==='pago'||c.status==='recebido');
+  const pagar = pendentes.filter(c=>c.tipo==='pagar');
+  const receber = pendentes.filter(c=>c.tipo==='receber');
+
+  const el=document.getElementById('content');
+  el.innerHTML=`
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <button onclick="addConta('pagar')" style="flex:1;padding:.75rem;background:rgba(255,61,107,.08);border:1.5px solid rgba(255,61,107,.2);color:var(--error);border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--body)">+ A Pagar</button>
+      <button onclick="addConta('receber')" style="flex:1;padding:.75rem;background:rgba(0,255,136,.08);border:1.5px solid rgba(0,255,136,.2);color:var(--accent);border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--body)">+ A Receber</button>
+    </div>
+
+    ${pagar.length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem;margin-bottom:.875rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--error);margin-bottom:.875rem">📤 A PAGAR (${pagar.length})</div>
+      ${pagar.map(c=>contaRow(c)).join('')}
+    </div>`:''}
+
+    ${receber.length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem;margin-bottom:.875rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--accent);margin-bottom:.875rem">📥 A RECEBER (${receber.length})</div>
+      ${receber.map(c=>contaRow(c)).join('')}
+    </div>`:''}
+
+    ${pagas.length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.875rem">✅ LIQUIDADAS (${pagas.length})</div>
+      ${pagas.slice(0,5).map(c=>contaRow(c)).join('')}
+    </div>`:''}
+
+    ${pendentes.length===0&&pagas.length===0?`
+    <div style="text-align:center;padding:3rem;color:var(--muted)">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">📅</div>
+      <div style="font-size:.85rem">Nenhuma conta cadastrada.<br>Adicione contas a pagar e a receber.</div>
+    </div>`:''}
+  `;
+}
+
+function contaRow(c){
+  const hoje = new Date().toISOString().split('T')[0];
+  const atrasada = c.status==='atrasado';
+  const paga = c.status==='pago'||c.status==='recebido';
+  const diasVenc = Math.ceil((new Date(c.vencimento)-new Date(hoje))/86400000);
+  const corVal = c.tipo==='receber'?'var(--accent)':'var(--error)';
+
+  return`<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--border)">
+    <div style="width:32px;height:32px;border-radius:8px;background:${paga?'rgba(255,255,255,.04)':c.tipo==='receber'?'rgba(0,255,136,.08)':'rgba(255,61,107,.08)'};display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0">
+      ${paga?'✅':c.tipo==='receber'?'📥':'📤'}
+    </div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.descricao)}</div>
+      <div style="font-size:.7rem;color:${atrasada?'var(--error)':'var(--muted)'}">
+        ${atrasada?'⚠️ Atrasada':paga?'✅ Liquidada':'📅'} ${new Date(c.vencimento+'T12:00:00').toLocaleDateString('pt-BR')}
+        ${!paga&&!atrasada&&diasVenc<=3?` · Vence em ${diasVenc} dia${diasVenc!==1?'s':''}`:'' }
+      </div>
+    </div>
+    <div style="font-family:var(--font);font-size:.9rem;font-weight:800;color:${paga?'var(--muted)':corVal};flex-shrink:0">${fmtMoeda(c.valor)}</div>
+    ${!paga?`<button onclick="liquidarConta('${c.id}','${c.tipo}')" style="background:${c.tipo==='receber'?'rgba(0,255,136,.08)':'rgba(255,61,107,.08)'};border:1px solid ${c.tipo==='receber'?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)'};color:${corVal};font-size:.65rem;font-weight:700;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-family:var(--body);flex-shrink:0">${c.tipo==='receber'?'Receber':'Pagar'}</button>`:''}
+  </div>`;
+}
+
+function addConta(tipo){
+  const modal=`
+    <div class="modal-title">${tipo==='pagar'?'📤 Nova Conta a Pagar':'📥 Nova Conta a Receber'}</div>
+    <div class="fg"><label class="lbl">Descrição *</label><input class="inp" id="c-desc" placeholder="${tipo==='pagar'?'Ex: Fornecedor de coco ralado':'Ex: Pagamento cliente João'}"></div>
+    <div class="fg"><label class="lbl">Valor *</label><input class="inp" id="c-valor" type="number" step="0.01" placeholder="0,00"></div>
+    <div class="fg"><label class="lbl">Vencimento *</label><input class="inp" id="c-venc" type="date"></div>
+    <button class="btn-lancar" onclick="salvarConta('${tipo}')">💾 Salvar</button>
+    <button style="width:100%;padding:.75rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer;margin-top:.5rem" onclick="closeModal()">Cancelar</button>
+  `;
+  openModal(modal);
+}
+
+function openModal(html){
+  let overlay=document.getElementById('f-overlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='f-overlay';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px)';
+    overlay.onclick=e=>{if(e.target===overlay)closeModal()};
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML=`<div style="background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.5rem;animation:slideUp .25s ease"><div style="width:36px;height:3px;background:var(--border2);border-radius:100px;margin:-.5rem auto 1.25rem"></div>${html}</div>`;
+  overlay.style.display='flex';
+}
+function closeModal(){ const o=document.getElementById('f-overlay'); if(o) o.style.display='none'; }
+
+async function salvarConta(tipo){
+  const desc=document.getElementById('c-desc')?.value.trim();
+  const valor=parseFloat(document.getElementById('c-valor')?.value);
+  const venc=document.getElementById('c-venc')?.value;
+  if(!desc||!valor||!venc){ toastF('⚠️ Preencha todos os campos',false); return; }
+  const { data, error } = await sb.from('contas').insert({
+    company_id:S.company.id, tipo, descricao:desc, valor, vencimento:venc, status:'pendente'
+  }).select().single();
+  if(error){ toastF('⚠️ Erro ao salvar',false); return; }
+  S.contas.push(data);
+  closeModal();
+  toastF(`✅ Conta ${tipo==='pagar'?'a pagar':'a receber'} cadastrada!`);
+  renderContas();
+}
+
+async function liquidarConta(id, tipo){
+  const status=tipo==='receber'?'recebido':'pago';
+  await sb.from('contas').update({status}).eq('id',id);
+  const c=S.contas.find(x=>x.id===id);
+  if(c){
+    c.status=status;
+    // Registrar no financeiro automaticamente
+    await sb.from('financeiro').insert({
+      company_id:S.company.id,
+      tipo:tipo==='receber'?'entrada':'saida',
+      valor:c.valor,
+      descricao:c.descricao,
+      categoria:tipo==='receber'?'Recebimentos':'Pagamentos',
+      produto:c.descricao
+    });
+    S.lancamentos.unshift({...c,tipo:tipo==='receber'?'entrada':'saida',created_at:new Date().toISOString()});
+  }
+  toastF(`✅ ${tipo==='receber'?'Recebimento':'Pagamento'} registrado!`);
+  renderContas();
+}
+
+function toastF(msg, green=true){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.color=green?'var(--accent)':'var(--error)';
+  el.style.borderColor=green?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)';
+  el.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── DRE ──────────────────────────────────────────────
+function renderDRE(){
+  const agora = new Date();
+  const mesAtual = agora.getMonth();
+  const anoAtual = agora.getFullYear();
+
+  // Últimos 3 meses
+  const meses = [];
+  for(let i=2;i>=0;i--){
+    const d = new Date(anoAtual, mesAtual-i, 1);
+    const fim = new Date(anoAtual, mesAtual-i+1, 0, 23, 59, 59);
+    const lancs = S.lancamentos.filter(l=>{
+      const ct=new Date(l.created_at);
+      return ct>=d&&ct<=fim;
+    });
+    const entrada = lancs.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+Number(l.valor),0);
+    const saida = lancs.filter(l=>l.tipo==='saida').reduce((a,l)=>a+Number(l.valor),0);
+    const lucro = entrada-saida;
+    const margem = entrada>0?Math.round((lucro/entrada)*100):0;
+
+    // Categorias
+    const cats={};
+    lancs.filter(l=>l.tipo==='saida').forEach(l=>{ cats[l.categoria||'Outros']=(cats[l.categoria||'Outros']||0)+Number(l.valor); });
+
+    meses.push({
+      label: d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}),
+      entrada, saida, lucro, margem, cats
+    });
+  }
+
+  const el=document.getElementById('content');
+  const mesAtualData = meses[2];
+
+  el.innerHTML=`
+    <div style="font-size:.78rem;font-weight:700;margin-bottom:1rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">DRE — Demonstrativo de Resultado</div>
+
+    <!-- Mês atual resumo -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:1rem;text-transform:uppercase;letter-spacing:.06em">${mesAtualData.label}</div>
+      ${dreRow('(+) Receita Bruta', mesAtualData.entrada, 'var(--accent)')}
+      ${dreRow('(-) Total de Custos', mesAtualData.saida, 'var(--error)')}
+      <div style="height:1px;background:var(--border);margin:.75rem 0"></div>
+      ${dreRow('(=) Lucro Bruto', mesAtualData.lucro, mesAtualData.lucro>=0?'var(--accent)':'var(--error)', true)}
+      <div style="margin-top:.875rem;padding:.75rem;background:${mesAtualData.margem>=30?'rgba(0,255,136,.06)':mesAtualData.margem>=20?'rgba(255,214,0,.06)':'rgba(255,61,107,.06)'};border-radius:8px;text-align:center">
+        <span style="font-family:var(--font);font-size:1.5rem;font-weight:900;color:${mesAtualData.margem>=30?'var(--accent)':mesAtualData.margem>=20?'var(--warning)':'var(--error)'}">${mesAtualData.margem}%</span>
+        <span style="font-size:.72rem;color:var(--muted);margin-left:.5rem">de margem</span>
+      </div>
+    </div>
+
+    <!-- Breakdown de custos -->
+    ${Object.keys(mesAtualData.cats).length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.875rem;text-transform:uppercase;letter-spacing:.06em">Custos por categoria</div>
+      ${Object.entries(mesAtualData.cats).sort((a,b)=>b[1]-a[1]).map(([cat,val])=>`
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1;font-size:.8rem">${cat}</div>
+          <div style="font-size:.8rem;font-weight:700;color:var(--error)">${fmtMoeda(val)}</div>
+          <div style="font-size:.7rem;color:var(--muted);width:35px;text-align:right">${Math.round((val/mesAtualData.saida)*100)}%</div>
+        </div>`).join('')}
+    </div>`:''}
+
+    <!-- Comparativo 3 meses -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.875rem;text-transform:uppercase;letter-spacing:.06em">Comparativo — Últimos 3 meses</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem">
+        ${meses.map(m=>`
+          <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.75rem;text-align:center">
+            <div style="font-size:.62rem;color:var(--muted);margin-bottom:.375rem">${m.label.split(' ')[0]}</div>
+            <div style="font-size:.75rem;font-weight:700;color:${m.lucro>=0?'var(--accent)':'var(--error)'}">${fmtMoeda(m.lucro)}</div>
+            <div style="font-size:.62rem;color:var(--muted);margin-top:.2rem">${m.margem}% margem</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Metas -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-top:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem">
+        <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Metas do mês</div>
+        <button onclick="editarMetas()" style="background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-size:.7rem;padding:.3rem .625rem;border-radius:6px;cursor:pointer;font-family:var(--body)">✏️ Editar</button>
+      </div>
+      ${S.metaReceita>0?`
+        <div style="margin-bottom:.75rem">
+          <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.375rem"><span>Meta de Receita</span><span style="color:var(--accent)">${fmtMoeda(mesAtualData.entrada)} / ${fmtMoeda(S.metaReceita)}</span></div>
+          <div style="height:6px;background:var(--border);border-radius:100px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((mesAtualData.entrada/S.metaReceita)*100))}%;background:var(--accent);border-radius:100px"></div></div>
+        </div>`:'<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:.5rem">Nenhuma meta definida. <button onclick="editarMetas()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:.78rem">Definir agora →</button></div>'}
+      ${S.metaDespesa>0?`
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.375rem"><span>Limite de Despesas</span><span style="color:var(--error)">${fmtMoeda(mesAtualData.saida)} / ${fmtMoeda(S.metaDespesa)}</span></div>
+          <div style="height:6px;background:var(--border);border-radius:100px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((mesAtualData.saida/S.metaDespesa)*100))}%;background:var(--error);border-radius:100px"></div></div>
+        </div>`:''}
+    </div>
+  `;
+}
+
+function dreRow(label, val, cor, bold=false){
+  return`<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)">
+    <div style="font-size:${bold?'.82':'0.78'}rem;font-weight:${bold?700:400};color:${bold?'var(--white)':'var(--muted)'}">${label}</div>
+    <div style="font-family:var(--font);font-size:${bold?'.9':'0.82'}rem;font-weight:${bold?900:600};color:${cor}">${fmtMoeda(val)}</div>
+  </div>`;
+}
+
+// ── METAS ──
+function editarMetas(){
+  openModal(`
+    <div style="font-family:var(--font);font-size:1rem;font-weight:900;letter-spacing:-.03em;margin-bottom:1.25rem">🎯 Metas do mês</div>
+    <div class="fg"><label class="lbl">Meta de Receita (R$)</label>
+      <input class="inp" id="meta-receita" type="number" step="0.01" value="${S.metaReceita||''}" placeholder="Ex: 10000">
+    </div>
+    <div class="fg"><label class="lbl">Limite de Despesas (R$)</label>
+      <input class="inp" id="meta-despesa" type="number" step="0.01" value="${S.metaDespesa||''}" placeholder="Ex: 6000">
+    </div>
+    <button class="btn-lancar" onclick="salvarMetas()">💾 Salvar metas</button>
+    <button style="width:100%;padding:.75rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer;margin-top:.5rem" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+function salvarMetas(){
+  const r=parseFloat(document.getElementById('meta-receita')?.value)||0;
+  const d=parseFloat(document.getElementById('meta-despesa')?.value)||0;
+  S.metaReceita=r; S.metaDespesa=d;
+  localStorage.setItem('meta_receita_'+S.company.id, r);
+  localStorage.setItem('meta_despesa_'+S.company.id, d);
+  closeModal();
+  toastF('✅ Metas salvas!');
+  renderDashboard();
 }
 
 // ── BOOT ──
