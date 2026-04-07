@@ -287,7 +287,7 @@ async function loadTarefas(){
   const agora = new Date();
   for(const t of (data||[])){
     if(t.status === 'pendente' || t.status === 'em_andamento'){
-      if(t.prazo && new Date(t.prazo) < agora && new Date(t.prazo).toDateString() !== agora.toDateString()){
+      if(t.prazo && new Date(t.prazo) < agora){
         // Expirou — atualiza no banco
         await sb.from('tarefas').update({status:'expirada'}).eq('id',t.id);
         t.status = 'expirada';
@@ -345,7 +345,8 @@ function tarefaCard(t){
     <div class="tarefa-titulo ${done||expired?'riscado':''}">${escHtml(t.titulo)}</div>
     <div class="tarefa-meta">
       <span class="prio-badge ${expired?'expirada':t.prioridade||'normal'}">${expired?'⏰ Expirada':t.prioridade||'normal'}</span>
-      ${t.prazo?`<span>📅 ${fmtDate(t.prazo)}</span>`:''}
+      ${t.criado_por==='recorrente'&&t.repeticoes_dia>1?`<span>🔁 ${t.repeticao_atual||1}/${t.repeticoes_dia}</span>`:''}
+      ${t.prazo?`<span>⏰ Até ${new Date(t.prazo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>`:''}
       ${t.descricao?`<span>${escHtml(t.descricao.slice(0,50))}</span>`:''}
     </div>
     ${!done&&!expired?`
