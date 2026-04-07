@@ -138,6 +138,36 @@ body{font-family:var(--body);background:var(--black);color:var(--white)}
 .stat-mini-val{font-family:var(--font);font-size:1.5rem;font-weight:900;letter-spacing:-.03em;line-height:1}
 .stat-mini-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
 
+/* PRESENÇA */
+.btn-presenca{
+  width:100%;padding:1.5rem;border-radius:20px;
+  font-family:var(--font);font-size:1rem;font-weight:900;
+  letter-spacing:-.02em;cursor:pointer;border:none;
+  transition:all .2s;display:flex;align-items:center;
+  justify-content:center;gap:.75rem;margin-bottom:1rem;
+}
+.btn-entrada{background:var(--accent);color:var(--black)}
+.btn-entrada:hover{box-shadow:0 8px 30px rgba(0,255,136,.3)}
+.btn-saida{background:rgba(255,61,107,.15);border:2px solid rgba(255,61,107,.3);color:var(--error)}
+.btn-saida:hover{background:rgba(255,61,107,.2)}
+.status-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:1.5rem;text-align:center;margin-bottom:1rem;
+}
+.status-icon{font-size:3rem;margin-bottom:.75rem}
+.status-title{font-family:var(--font);font-size:1.1rem;font-weight:900;letter-spacing:-.03em;margin-bottom:.25rem}
+.status-sub{font-size:.8rem;color:var(--muted)}
+.presenca-row{
+  display:flex;align-items:center;gap:.875rem;
+  padding:.75rem 0;border-bottom:1px solid var(--border);
+}
+.presenca-row:last-child{border-bottom:none}
+.presenca-tipo{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;flex-shrink:0;
+}
+
 /* EMPTY */
 .empty{text-align:center;padding:3rem 1rem;color:var(--muted)}
 .empty-icon{font-size:2.5rem;margin-bottom:.75rem}
@@ -183,6 +213,7 @@ body{font-family:var(--body);background:var(--black);color:var(--white)}
 
   <div class="tabs">
     <button class="tab-btn active" onclick="showTab('tarefas')">📋 Tarefas</button>
+    <button class="tab-btn" onclick="showTab('presenca')">🕐 Presença</button>
     <button class="tab-btn" onclick="showTab('performance')">📊 Performance</button>
   </div>
 
@@ -208,7 +239,7 @@ const sb = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
 );
 
-let S = { usuario: null, company: null, tarefas: [], currentTab: 'tarefas' };
+let S = { usuario: null, company: null, tarefas: [], presencas: [], currentTab: 'tarefas', presencaHoje: null };
 const AV_COLORS = ['#00FF88','#3D6BFF','#FF3D6B','#FFD600','#A855F7'];
 function avColor(str){ let h=0; for(let i=0;i<(str||'').length;i++) h=(h*31+str.charCodeAt(i))&0xffff; return AV_COLORS[h%AV_COLORS.length]; }
 function initials(n){ const p=n?.trim().split(' ')||[]; return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n?.slice(0,2).toUpperCase()||'JG'; }
@@ -265,6 +296,7 @@ async function initApp(user){
     document.getElementById('app').classList.add('show');
 
     await loadTarefas();
+    await loadPresencas();
     renderTab('tarefas');
 
   }catch(e){
@@ -303,44 +335,139 @@ async function loadTarefas(){
 // ── TABS ──
 function showTab(tab){
   S.currentTab = tab;
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['tarefas','performance'][i]===tab));
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['tarefas','presenca','performance'][i]===tab));
   renderTab(tab);
 }
 
 function renderTab(tab){
   if(tab==='tarefas') renderTarefas();
+  else if(tab==='presenca') renderPresenca();
   else renderPerformance();
 }
 
 // ── TAREFAS ──
 function renderTarefas(){
-  // Mostrar apenas tarefas filhas (repetições do dia) e tarefas normais — não modelos recorrentes
-  const todasVisiveis = S.tarefas.filter(t => !t.recorrente);
-  const pendentes = todasVisiveis.filter(t=>t.status==='pendente'||t.status==='em_andamento');
-  const concluidas = todasVisiveis.filter(t=>t.status==='concluida');
-  const expiradas = todasVisiveis.filter(t=>t.status==='expirada');
-
+  const agora = new Date();
   const el = document.getElementById('content');
+
+  // Separar normais e grupos recorrentes
+  const normais = S.tarefas.filter(t=>!t.recorrente && !t.tarefa_pai);
+  const filhas = S.tarefas.filter(t=>t.tarefa_pai);
+
+  // Agrupar filhas por tarefa_pai
+  const grupos = {};
+  filhas.forEach(t=>{
+    if(!grupos[t.tarefa_pai]) grupos[t.tarefa_pai]=[];
+    grupos[t.tarefa_pai].push(t);
+  });
+
+  // Verificar expiração por horário
+  filhas.forEach(async t=>{
+    if((t.status==='pendente'||t.status==='em_andamento') && t.prazo && new Date(t.prazo) < agora){
+      await sb.from('tarefas').update({status:'expirada'}).eq('id',t.id);
+      t.status='expirada';
+    }
+  });
+
+  const temTarefas = normais.length>0 || Object.keys(grupos).length>0;
+
   el.innerHTML = `
-    ${pendentes.length===0&&concluidas.length===0
-      ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa atribuída a você ainda.<br>Aguarde seu gerente criar tarefas.</div></div>`
-      : ''}
-    ${pendentes.length>0?`
-      <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem">
-        Pendentes (${pendentes.length})
-      </div>
-      ${pendentes.map(t=>tarefaCard(t)).join('')}`:''}
-    ${concluidas.length>0?`
-      <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:.75rem 0;margin-top:1.25rem">
-        Concluídas hoje (${concluidas.length})
-      </div>
-      ${concluidas.map(t=>tarefaCard(t)).join('')}`:''}
-    ${expiradas.length>0?`
-      <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:.75rem 0;margin-top:1.25rem">
-        Expiradas (${expiradas.length})
-      </div>
-      ${expiradas.map(t=>tarefaCard(t)).join('')}`:''}
+    ${!temTarefas?`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa para hoje.<br>Bom descanso! 😄</div></div>`:''}
+
+    ${normais.map(t=>tarefaCard(t)).join('')}
+
+    ${Object.keys(grupos).map(paiId=>{
+      const reps = grupos[paiId].sort((a,b)=>a.repeticao_atual-b.repeticao_atual);
+      return grupoCard(reps);
+    }).join('')}
   `;
+
+  // Auto-refresh a cada minuto para desbloquear próximas repetições
+  clearTimeout(window._refreshTimer);
+  window._refreshTimer = setTimeout(()=>renderTarefas(), 60000);
+}
+
+function grupoCard(reps){
+  const agora = new Date();
+  const total = reps[0]?.repeticoes_dia || reps.length;
+  const titulo = reps[0]?.titulo || '';
+  const concluidas = reps.filter(r=>r.status==='concluida').length;
+  const expiradas = reps.filter(r=>r.status==='expirada').length;
+
+  // Calcular horários das repetições
+  const horarios = reps.map(r=>r.prazo ? new Date(r.prazo) : null);
+
+  // Encontrar repetição ativa agora (±5 min antes do prazo, até 10 min depois)
+  const repAtiva = reps.find(r=>{
+    if(r.status==='concluida'||r.status==='expirada') return false;
+    if(!r.prazo) return r.status==='pendente';
+    const prazo = new Date(r.prazo);
+    const abertura = new Date(prazo.getTime() - 5*60*1000); // 5 min antes
+    const fechamento = new Date(prazo.getTime() + 10*60*1000); // 10 min depois
+    return agora >= abertura && agora <= fechamento;
+  });
+
+  return`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem;margin-bottom:.75rem">
+    <div style="margin-bottom:.875rem">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:.375rem">${escHtml(titulo)}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.625rem">🔁 ${total} repetições hoje</div>
+
+      <!-- Bolinhas de status -->
+      <div style="display:flex;gap:.375rem;flex-wrap:wrap;margin-bottom:.625rem">
+        ${reps.map(r=>{
+          const prazo = r.prazo ? new Date(r.prazo) : null;
+          const abertura = prazo ? new Date(prazo.getTime()-5*60*1000) : null;
+          const isAtiva = repAtiva?.id === r.id;
+          const isBloqueada = !isAtiva && r.status==='pendente' && abertura && agora < abertura;
+          const cor = r.status==='concluida'?'var(--accent)':r.status==='expirada'?'var(--error)':isAtiva?'#FFD600':'var(--border2)';
+          const icone = r.status==='concluida'?'✓':r.status==='expirada'?'✕':isAtiva?'▶':'🔒';
+          return`<div style="display:flex;flex-direction:column;align-items:center;gap:.2rem">
+            <div style="width:28px;height:28px;border-radius:50%;background:${r.status==='concluida'?'rgba(0,255,136,.15)':r.status==='expirada'?'rgba(255,61,107,.15)':isAtiva?'rgba(255,214,0,.15)':'rgba(255,255,255,.04)'};border:1.5px solid ${cor};display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:${cor}">${icone}</div>
+            <div style="font-size:.55rem;color:var(--muted)">${prazo?prazo.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Progresso -->
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:.375rem">${concluidas} de ${total} concluídas · ${expiradas} expiradas</div>
+      <div style="height:4px;background:var(--border);border-radius:100px;overflow:hidden">
+        <div style="height:100%;width:${Math.round((concluidas/total)*100)}%;background:var(--accent);border-radius:100px"></div>
+      </div>
+    </div>
+
+    ${repAtiva ? `
+    <div style="background:rgba(255,214,0,.06);border:1px solid rgba(255,214,0,.2);border-radius:10px;padding:.875rem;margin-top:.5rem">
+      <div style="font-size:.72rem;font-weight:700;color:#FFD600;margin-bottom:.5rem">
+        ▶ ${repAtiva.repeticao_atual}ª repetição — Disponível agora!
+        ${repAtiva.prazo?`Expira às ${new Date(new Date(repAtiva.prazo).getTime()+10*60*1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`:''}
+      </div>
+      <div style="display:flex;gap:.5rem">
+        ${repAtiva.status!=='em_andamento'?`<button class="btn-action btn-andamento" onclick="marcarAndamento('${repAtiva.id}')" style="flex:1">▶ Em andamento</button>`:'<span style="font-size:.72rem;color:#FFD600;font-weight:600;padding:.5rem">▶ Em andamento</span>'}
+        <button class="btn-action btn-concluir" onclick="showConcluir('${repAtiva.id}')" style="flex:1">✅ Concluir</button>
+      </div>
+    </div>
+    ` : reps.every(r=>r.status==='concluida') ? `
+    <div style="text-align:center;padding:.75rem;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:10px;font-size:.8rem;font-weight:600;color:var(--accent)">
+      🎉 Todas as repetições concluídas!
+    </div>
+    ` : reps.every(r=>r.status==='concluida'||r.status==='expirada') ? `
+    <div style="text-align:center;padding:.75rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;font-size:.78rem;color:var(--muted)">
+      Tarefa encerrada para hoje
+    </div>
+    ` : `
+    <div style="text-align:center;padding:.75rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem">🔒 Próxima repetição</div>
+      <div style="font-size:.85rem;font-weight:600;color:var(--white)">
+        ${(()=>{
+          const prox = reps.find(r=>r.status==='pendente');
+          if(!prox||!prox.prazo) return 'Em breve';
+          const abertura = new Date(new Date(prox.prazo).getTime()-5*60*1000);
+          return 'Disponível às '+abertura.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        })()}
+      </div>
+    </div>
+    `}
+  </div>`;
 }
 
 function tarefaCard(t){
@@ -531,6 +658,100 @@ async function marcarAndamento(id){
   const t = S.tarefas.find(x=>x.id===id);
   if(t) t.status='em_andamento';
   renderTarefas();
+}
+
+// ── PRESENÇA ──────────────────────────────────────────
+async function loadPresencas(){
+  const hoje = new Date().toISOString().split('T')[0];
+  const { data } = await sb.from('presencas')
+    .select('*')
+    .eq('company_id', S.company.id)
+    .eq('usuario_id', S.usuario.id)
+    .gte('created_at', hoje + 'T00:00:00')
+    .order('created_at', {ascending: true});
+  S.presencas = data || [];
+  // Verificar status atual
+  if(S.presencas.length > 0){
+    const ultima = S.presencas[S.presencas.length-1];
+    S.presencaHoje = ultima;
+  }
+}
+
+async function registrarPresenca(tipo){
+  try{
+    const { data, error } = await sb.from('presencas').insert({
+      company_id: S.company.id,
+      usuario_id: S.usuario.id,
+      tipo,
+      hora: new Date().toISOString()
+    }).select().single();
+    if(error) throw error;
+    S.presencas.push(data);
+    S.presencaHoje = data;
+    toast(tipo === 'entrada' ? '✅ Entrada registrada!' : '👋 Saída registrada!');
+    renderPresenca();
+  }catch(e){
+    console.error(e);
+    toast('⚠️ Erro ao registrar. Tente novamente.', false);
+  }
+}
+
+function renderPresenca(){
+  const el = document.getElementById('content');
+  const ultima = S.presencaHoje;
+  const estaPresente = ultima?.tipo === 'entrada';
+  const hojeStr = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+
+  // Calcular horas trabalhadas hoje
+  let horasTrabalhadas = '—';
+  let minutosTotais = 0;
+  for(let i=0; i<S.presencas.length-1; i++){
+    const curr = S.presencas[i];
+    const next = S.presencas[i+1];
+    if(curr.tipo==='entrada' && next.tipo==='saida'){
+      minutosTotais += (new Date(next.hora) - new Date(curr.hora)) / 1000 / 60;
+    }
+  }
+  if(estaPresente && ultima){
+    minutosTotais += (Date.now() - new Date(ultima.hora)) / 1000 / 60;
+  }
+  if(minutosTotais > 0){
+    const h = Math.floor(minutosTotais/60);
+    const m = Math.round(minutosTotais%60);
+    horasTrabalhadas = `${h}h${m.toString().padStart(2,'0')}min`;
+  }
+
+  el.innerHTML = `
+    <div style="font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem;text-align:center">${hojeStr}</div>
+
+    <div class="status-card" style="border-color:${estaPresente?'rgba(0,255,136,.2)':'var(--border)'}">
+      <div class="status-icon">${estaPresente?'🟢':'🔴'}</div>
+      <div class="status-title">${estaPresente?'Você está presente':'Você não registrou entrada'}</div>
+      <div class="status-sub">${ultima?`Último registro: ${new Date(ultima.hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} (${ultima.tipo})`:'Nenhum registro hoje'}</div>
+      ${minutosTotais>0?`<div style="margin-top:.75rem;font-family:var(--font);font-size:1.5rem;font-weight:900;color:var(--accent)">${horasTrabalhadas}</div><div style="font-size:.7rem;color:var(--muted)">trabalhadas hoje</div>`:''}
+    </div>
+
+    ${estaPresente
+      ? `<button class="btn-presenca btn-saida" onclick="registrarPresenca('saida')">🚪 Registrar Saída</button>`
+      : `<button class="btn-presenca btn-entrada" onclick="registrarPresenca('entrada')">✅ Registrar Entrada</button>`
+    }
+
+    ${S.presencas.length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem">
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.875rem">Registros de hoje</div>
+      ${S.presencas.map(p=>`
+        <div class="presenca-row">
+          <div class="presenca-tipo" style="background:${p.tipo==='entrada'?'rgba(0,255,136,.1)':'rgba(255,61,107,.1)'}">
+            ${p.tipo==='entrada'?'✅':'🚪'}
+          </div>
+          <div style="flex:1">
+            <div style="font-size:.82rem;font-weight:600;text-transform:capitalize">${p.tipo}</div>
+            <div style="font-size:.72rem;color:var(--muted)">${new Date(p.hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`:''}
+  `;
 }
 
 // ── BOOT ──
