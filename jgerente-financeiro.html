@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JgerenteAI — Financeiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#050508;--white:#F5F3EE;--accent:#00FF88;
+  --muted:#8B8B99;--card:#0D0D14;--card2:#111118;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.1);
+  --font:'Unbounded',sans-serif;--body:'DM Sans',sans-serif;
+  --error:#FF3D6B;--warning:#FFD600;--r:12px;
+  --entrada:#00FF88;--saida:#FF3D6B;
+}
+html,body{min-height:100vh}
+body{font-family:var(--body);background:var(--black);color:var(--white)}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;z-index:999;background:var(--black);display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.login-box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2rem}
+.login-logo{font-family:var(--font);font-weight:900;font-size:1rem;letter-spacing:-.02em;margin-bottom:1.5rem;text-align:center}
+.login-logo .j{color:var(--accent)}
+.lbl{display:block;font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.375rem}
+.inp{width:100%;padding:.8rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:var(--r);font-size:.9rem;color:var(--white);font-family:var(--body);outline:none;transition:border-color .2s}
+.inp::placeholder{color:var(--muted)}
+.inp:focus{border-color:var(--accent)}
+.fg{margin-bottom:1rem}
+.btn-login{width:100%;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer;margin-top:.25rem}
+.login-err{font-size:.75rem;color:var(--error);margin-top:.625rem;text-align:center;min-height:18px}
+
+/* APP */
+#app{display:none;min-height:100vh;flex-direction:column}
+#app.show{display:flex}
+
+/* HEADER */
+.app-header{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:1rem}
+.header-logo{font-family:var(--font);font-size:.85rem;font-weight:900}
+.header-logo .j{color:var(--accent)}
+.header-company{font-size:.75rem;color:var(--muted)}
+.btn-back{background:none;border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.375rem}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--card);overflow-x:auto;scrollbar-width:none}
+.tab-btn{flex-shrink:0;padding:.875rem 1.25rem;font-size:.75rem;font-weight:600;color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--body);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* CONTENT */
+.content{padding:1.25rem;flex:1;max-width:900px;margin:0 auto;width:100%}
+
+/* CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-bottom:1.25rem}
+@media(min-width:600px){.cards-grid{grid-template-columns:repeat(4,1fr)}}
+.metric-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem;position:relative;overflow:hidden}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.metric-card.green::before{background:var(--accent)}
+.metric-card.red::before{background:var(--error)}
+.metric-card.blue::before{background:#3D6BFF}
+.metric-card.yellow::before{background:var(--warning)}
+.metric-label{font-size:.65rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem}
+.metric-val{font-family:var(--font);font-size:1.4rem;font-weight:900;letter-spacing:-.04em;line-height:1}
+.metric-sub{font-size:.68rem;color:var(--muted);margin-top:.25rem}
+
+/* CHART */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.chart-title{font-size:.8rem;font-weight:700;letter-spacing:.02em}
+.chart-period{display:flex;gap:.375rem}
+.period-btn{padding:.3rem .625rem;border-radius:6px;font-size:.65rem;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:none;color:var(--muted);font-family:var(--body);transition:all .15s}
+.period-btn.active{background:var(--accent-dim,rgba(0,255,136,.08));border-color:rgba(0,255,136,.2);color:var(--accent)}
+
+/* LANÇAMENTO */
+.lanc-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem}
+.lanc-tipo{display:flex;gap:.5rem;margin-bottom:1rem}
+.tipo-btn{flex:1;padding:.75rem;border-radius:10px;font-size:.8rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border2);background:none;color:var(--muted);font-family:var(--body);transition:all .15s}
+.tipo-btn.entrada.active{border-color:var(--accent);background:rgba(0,255,136,.08);color:var(--accent)}
+.tipo-btn.saida.active{border-color:var(--error);background:rgba(255,61,107,.08);color:var(--error)}
+.sugestoes{display:flex;flex-wrap:wrap;gap:.375rem;margin-top:.375rem}
+.sugestao-chip{padding:.25rem .625rem;background:var(--card2);border:1px solid var(--border2);border-radius:100px;font-size:.7rem;color:var(--muted);cursor:pointer;transition:all .15s}
+.sugestao-chip:hover{border-color:var(--accent);color:var(--accent)}
+.btn-lancar{width:100%;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer;margin-top:.875rem;transition:all .2s}
+.btn-lancar:hover{opacity:.9}
+.btn-lancar:disabled{opacity:.5;cursor:not-allowed}
+
+/* LISTA */
+.lanc-row{display:flex;align-items:center;gap:.875rem;padding:.875rem 0;border-bottom:1px solid var(--border)}
+.lanc-row:last-child{border-bottom:none}
+.lanc-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+.lanc-info{flex:1;min-width:0}
+.lanc-desc{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lanc-cat{font-size:.7rem;color:var(--muted)}
+.lanc-val{font-family:var(--font);font-size:.9rem;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+
+/* CHAT IA */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 160px);min-height:400px}
+.chat-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.875rem}
+.chat-msg{display:flex;gap:.625rem;max-width:85%}
+.chat-msg.user{align-self:flex-end;flex-direction:row-reverse}
+.chat-bubble{padding:.75rem 1rem;border-radius:14px;font-size:.83rem;line-height:1.6}
+.chat-msg.user .chat-bubble{background:var(--accent);color:var(--black);font-weight:500;border-radius:14px 14px 4px 14px}
+.chat-msg.ai .chat-bubble{background:var(--card2);border:1px solid var(--border);border-radius:14px 14px 14px 4px}
+.chat-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;margin-top:.2rem}
+.chat-input-wrap{padding:.875rem 1rem;border-top:1px solid var(--border);display:flex;gap:.625rem;background:var(--black)}
+.chat-inp{flex:1;padding:.75rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:var(--r);font-size:.85rem;color:var(--white);font-family:var(--body);outline:none}
+.chat-inp:focus{border-color:var(--accent)}
+.btn-send{width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--black);border:none;cursor:pointer;font-size:.9rem;flex-shrink:0}
+.btn-send:disabled{opacity:.4;cursor:not-allowed}
+.typing{display:flex;gap:4px;align-items:center;padding:.5rem}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bounce .8s infinite}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+
+/* CATEGORIAS */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.625rem;margin-bottom:1.25rem}
+.cat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.875rem;text-align:center}
+.cat-name{font-size:.72rem;font-weight:600;color:var(--muted);margin-bottom:.375rem}
+.cat-val{font-family:var(--font);font-size:1rem;font-weight:900;letter-spacing:-.03em}
+
+/* TOAST */
+.toast{position:fixed;top:1rem;right:1rem;z-index:9999;background:var(--card2);border:1px solid var(--border2);padding:.75rem 1.25rem;border-radius:12px;font-size:.8rem;font-weight:600;display:none;max-width:280px}
+.toast.show{display:block;animation:toastIn .3s ease}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+/* ALERTA IA */
+.alerta-ia{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:12px;padding:1rem;margin-bottom:1rem}
+.alerta-ia-title{font-size:.78rem;font-weight:700;color:var(--accent);margin-bottom:.5rem;display:flex;align-items:center;gap:.375rem}
+.alerta-ia-text{font-size:.78rem;color:var(--muted);line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo"><span class="j">J</span>gerenteAI · Financeiro</div>
+    <div class="fg"><label class="lbl">Email</label><input class="inp" id="l-email" type="email" placeholder="seu@email.com"></div>
+    <div class="fg"><label class="lbl">Senha</label><input class="inp" id="l-pwd" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn-login" id="l-btn" onclick="doLogin()">Entrar →</button>
+    <div class="login-err" id="l-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="app-header">
+    <div class="header-left">
+      <div>
+        <div class="header-logo"><span class="j">J</span>gerenteAI</div>
+        <div class="header-company" id="h-company">Carregando...</div>
+      </div>
+    </div>
+    <a href="jgerente-app.html" class="btn-back">← Painel</a>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('dashboard')">📊 Dashboard</button>
+    <button class="tab-btn" onclick="showTab('lancamento')">+ Lançamento</button>
+    <button class="tab-btn" onclick="showTab('historico')">📋 Histórico</button>
+    <button class="tab-btn" onclick="showTab('chat')">🤖 IA Financeira</button>
+  </div>
+
+  <div class="content" id="content">
+    <div style="text-align:center;padding:3rem;color:var(--muted)">Carregando...</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  'https://hnculphposmgfvaeliiw.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
+);
+const API_URL = 'https://jgerente-ai.vercel.app/api/chat';
+
+let S = { usuario: null, company: null, lancamentos: [], chatMsgs: [], periodo: '7d', tipoLanc: 'entrada' };
+let chartBar = null, chartPizza = null;
+
+// ── HELPERS ──
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtMoeda(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtData(iso){ return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); }
+let toastTimer;
+function toast(msg, green=true){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.color=green?'var(--accent)':'var(--error)';
+  el.style.borderColor=green?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── CATEGORIAS ──
+const CATS_SAIDA = ['Ingredientes','Bebidas','Embalagens','Funcionários','Aluguel','Energia','Gás','Limpeza','Manutenção','Marketing','Outros'];
+const CATS_ENTRADA = ['Vendas','Delivery','PIX','Cartão','Dinheiro','Outros'];
+
+// ── LOGIN ──
+async function doLogin(){
+  const email=document.getElementById('l-email').value.trim();
+  const pwd=document.getElementById('l-pwd').value;
+  const btn=document.getElementById('l-btn');
+  const err=document.getElementById('l-err');
+  if(!email||!pwd){ err.textContent='⚠️ Preencha email e senha'; return; }
+  btn.disabled=true; btn.textContent='Entrando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if(error){ err.textContent='❌ Email ou senha incorretos'; btn.disabled=false; btn.textContent='Entrar →'; return; }
+  await initApp(data.user);
+}
+
+async function initApp(user){
+  try{
+    const { data: usr } = await sb.from('usuarios').select('*').eq('auth_id', user.id).single();
+    if(!usr){ document.getElementById('l-err').textContent='⚠️ Usuário não encontrado'; return; }
+    S.usuario = usr;
+    const { data: comp } = await sb.from('companies').select('*').eq('id', usr.company_id).single();
+    S.company = comp;
+    document.getElementById('h-company').textContent = comp?.nome||'';
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('show');
+    await loadLancamentos();
+    showTab('dashboard');
+  }catch(e){
+    console.error(e);
+    document.getElementById('l-btn').disabled=false;
+    document.getElementById('l-btn').textContent='Entrar →';
+    document.getElementById('l-err').textContent='⚠️ Erro. Tente novamente.';
+  }
+}
+
+async function loadLancamentos(){
+  const from = new Date(); from.setDate(from.getDate()-30);
+  const { data } = await sb.from('financeiro')
+    .select('*')
+    .eq('company_id', S.company.id)
+    .gte('created_at', from.toISOString())
+    .order('created_at',{ascending:false});
+  S.lancamentos = data||[];
+}
+
+// ── TABS ──
+function showTab(tab){
+  S.currentTab=tab;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['dashboard','lancamento','historico','chat'][i]===tab));
+  if(tab==='dashboard') renderDashboard();
+  else if(tab==='lancamento') renderLancamento();
+  else if(tab==='historico') renderHistorico();
+  else renderChat();
+}
+
+// ── DASHBOARD ──
+function getLancsPeriodo(){
+  const dias = S.periodo==='7d'?7:S.periodo==='15d'?15:30;
+  const from = new Date(); from.setDate(from.getDate()-dias);
+  return S.lancamentos.filter(l=>new Date(l.created_at)>=from);
+}
+
+function renderDashboard(){
+  const lancs = getLancsPeriodo();
+  const entradas = lancs.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+Number(l.valor),0);
+  const saidas = lancs.filter(l=>l.tipo==='saida').reduce((a,l)=>a+Number(l.valor),0);
+  const saldo = entradas - saidas;
+  const margem = entradas>0 ? Math.round((saldo/entradas)*100) : 0;
+
+  // Dados por dia para gráfico
+  const dias = S.periodo==='7d'?7:S.periodo==='15d'?15:30;
+  const labels=[],dataEnt=[],dataSai=[];
+  for(let i=dias-1;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
+    const next=new Date(d); next.setDate(next.getDate()+1);
+    const dayLancs=lancs.filter(l=>{const ct=new Date(l.created_at);return ct>=d&&ct<next;});
+    labels.push(d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
+    dataEnt.push(dayLancs.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+Number(l.valor),0));
+    dataSai.push(dayLancs.filter(l=>l.tipo==='saida').reduce((a,l)=>a+Number(l.valor),0));
+  }
+
+  // Categorias de saída
+  const catMap={};
+  lancs.filter(l=>l.tipo==='saida').forEach(l=>{
+    const cat=l.categoria||'Outros';
+    catMap[cat]=(catMap[cat]||0)+Number(l.valor);
+  });
+  const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+
+  // Alertas IA simples
+  const alertas=[];
+  if(saidas>entradas) alertas.push({emoji:'🚨',txt:`Suas saídas (${fmtMoeda(saidas)}) estão maiores que as entradas (${fmtMoeda(entradas)}). Risco de caixa negativo!`});
+  if(margem<20&&margem>0) alertas.push({emoji:'⚠️',txt:`Sua margem está em ${margem}%. O ideal é acima de 30%. Revise seus custos.`});
+  const maiorGasto=cats[0];
+  if(maiorGasto) alertas.push({emoji:'💡',txt:`Seu maior gasto é ${maiorGasto[0]} (${fmtMoeda(maiorGasto[1])}). Analise se é possível reduzir.`});
+
+  const el=document.getElementById('content');
+  el.innerHTML=`
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <button class="period-btn ${S.periodo==='7d'?'active':''}" onclick="S.periodo='7d';renderDashboard()">7 dias</button>
+      <button class="period-btn ${S.periodo==='15d'?'active':''}" onclick="S.periodo='15d';renderDashboard()">15 dias</button>
+      <button class="period-btn ${S.periodo==='30d'?'active':''}" onclick="S.periodo='30d';renderDashboard()">30 dias</button>
+    </div>
+
+    <div class="cards-grid">
+      <div class="metric-card ${saldo>=0?'green':'red'}">
+        <div class="metric-label">Saldo</div>
+        <div class="metric-val" style="font-size:1.1rem;color:${saldo>=0?'var(--accent)':'var(--error)'}">${fmtMoeda(saldo)}</div>
+        <div class="metric-sub">Entradas - Saídas</div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-label">Entradas</div>
+        <div class="metric-val" style="font-size:1.1rem;color:var(--accent)">${fmtMoeda(entradas)}</div>
+        <div class="metric-sub">${lancs.filter(l=>l.tipo==='entrada').length} lançamentos</div>
+      </div>
+      <div class="metric-card red">
+        <div class="metric-label">Saídas</div>
+        <div class="metric-val" style="font-size:1.1rem;color:var(--error)">${fmtMoeda(saidas)}</div>
+        <div class="metric-sub">${lancs.filter(l=>l.tipo==='saida').length} lançamentos</div>
+      </div>
+      <div class="metric-card ${margem>=30?'green':margem>=20?'yellow':'red'}">
+        <div class="metric-label">Margem</div>
+        <div class="metric-val" style="font-size:1.1rem;color:${margem>=30?'var(--accent)':margem>=20?'var(--warning)':'var(--error)'}">${margem}%</div>
+        <div class="metric-sub">Lucro / Receita</div>
+      </div>
+    </div>
+
+    ${alertas.length>0?`
+    <div class="alerta-ia">
+      <div class="alerta-ia-title">🤖 Análise do Agente Financeiro</div>
+      ${alertas.map(a=>`<div class="alerta-ia-text" style="margin-bottom:.375rem">${a.emoji} ${a.txt}</div>`).join('')}
+      <div style="margin-top:.625rem"><button onclick="showTab('chat')" style="background:none;border:1px solid rgba(0,255,136,.2);color:var(--accent);font-size:.72rem;font-weight:600;padding:.3rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">💬 Conversar com o agente →</button></div>
+    </div>`:''}
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">📈 Entradas vs Saídas</div>
+      </div>
+      <canvas id="chartBar" height="200"></canvas>
+    </div>
+
+    ${cats.length>0?`
+    <div class="chart-card">
+      <div class="chart-header"><div class="chart-title">🥧 Gastos por categoria</div></div>
+      <div class="cat-grid">
+        ${cats.map(([cat,val])=>`
+          <div class="cat-card">
+            <div class="cat-name">${escHtml(cat)}</div>
+            <div class="cat-val" style="color:var(--error)">${fmtMoeda(val)}</div>
+            <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">${Math.round((val/saidas)*100)}% das saídas</div>
+          </div>`).join('')}
+      </div>
+    </div>`:''}
+  `;
+
+  // Renderizar gráfico de barras
+  setTimeout(()=>{
+    const ctx=document.getElementById('chartBar');
+    if(!ctx) return;
+    if(chartBar) chartBar.destroy();
+    chartBar=new Chart(ctx,{
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'Entradas',data:dataEnt,backgroundColor:'rgba(0,255,136,.3)',borderColor:'rgba(0,255,136,.7)',borderWidth:1.5,borderRadius:4},
+          {label:'Saídas',data:dataSai,backgroundColor:'rgba(255,61,107,.25)',borderColor:'rgba(255,61,107,.6)',borderWidth:1.5,borderRadius:4}
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{labels:{color:'#8B8B99',font:{size:11}}}},
+        scales:{
+          x:{ticks:{color:'#8B8B99',font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}},
+          y:{ticks:{color:'#8B8B99',font:{size:10},callback:v=>'R$'+v},grid:{color:'rgba(255,255,255,.05)'}}
+        }
+      }
+    });
+  },100);
+}
+
+// ── LANÇAMENTO ──
+function renderLancamento(){
+  // Produtos recentes para sugestão
+  const produtosSaida = [...new Set(S.lancamentos.filter(l=>l.tipo==='saida'&&l.produto).map(l=>l.produto))].slice(0,8);
+  const produtosEntrada = [...new Set(S.lancamentos.filter(l=>l.tipo==='entrada'&&l.produto).map(l=>l.produto))].slice(0,5);
+
+  const el=document.getElementById('content');
+  el.innerHTML=`
+    <div class="lanc-card">
+      <div style="font-size:.8rem;font-weight:700;margin-bottom:.875rem">Novo Lançamento</div>
+
+      <div class="lanc-tipo">
+        <button class="tipo-btn entrada ${S.tipoLanc==='entrada'?'active':''}" onclick="setTipo('entrada')">📈 Entrada</button>
+        <button class="tipo-btn saida ${S.tipoLanc==='saida'?'active':''}" onclick="setTipo('saida')">📉 Saída</button>
+      </div>
+
+      <div class="fg">
+        <label class="lbl">Valor *</label>
+        <input class="inp" id="l-valor" type="number" step="0.01" placeholder="0,00" style="font-family:var(--font);font-size:1.2rem;font-weight:700">
+      </div>
+
+      <div class="fg">
+        <label class="lbl">Descrição *</label>
+        <input class="inp" id="l-desc" placeholder="${S.tipoLanc==='saida'?'Ex: 100 reais de coco ralado':'Ex: Vendas do almoço'}" oninput="sugerirCategoria(this.value)">
+        ${(S.tipoLanc==='saida'?produtosSaida:produtosEntrada).length>0?`
+        <div class="sugestoes" id="sugestoes">
+          ${(S.tipoLanc==='saida'?produtosSaida:produtosEntrada).map(p=>`<div class="sugestao-chip" onclick="usarSugestao('${escHtml(p)}')">${escHtml(p)}</div>`).join('')}
+        </div>`:''}
+      </div>
+
+      <div class="fg">
+        <label class="lbl">Categoria</label>
+        <select class="inp" id="l-cat">
+          <option value="">Detectar automaticamente</option>
+          ${(S.tipoLanc==='saida'?CATS_SAIDA:CATS_ENTRADA).map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+
+      <button class="btn-lancar" id="btn-lancar" onclick="lancar()">
+        ${S.tipoLanc==='entrada'?'📈 Registrar Entrada':'📉 Registrar Saída'}
+      </button>
+    </div>
+  `;
+}
+
+function setTipo(tipo){
+  S.tipoLanc=tipo;
+  renderLancamento();
+}
+
+function usarSugestao(texto){
+  const inp=document.getElementById('l-desc');
+  if(inp){ inp.value=texto; sugerirCategoria(texto); }
+}
+
+function sugerirCategoria(texto){
+  const t=texto.toLowerCase();
+  const catInp=document.getElementById('l-cat');
+  if(!catInp) return;
+  const mapa={
+    'coco':'Ingredientes','açúcar':'Ingredientes','farinha':'Ingredientes','leite':'Ingredientes',
+    'carne':'Ingredientes','frango':'Ingredientes','peixe':'Ingredientes','legume':'Ingredientes',
+    'verdura':'Ingredientes','tempero':'Ingredientes','óleo':'Ingredientes','manteiga':'Ingredientes',
+    'refrigerante':'Bebidas','suco':'Bebidas','água':'Bebidas','cerveja':'Bebidas',
+    'caixa':'Embalagens','sacola':'Embalagens','pote':'Embalagens','embalagem':'Embalagens',
+    'salário':'Funcionários','funcionário':'Funcionários','vale':'Funcionários',
+    'aluguel':'Aluguel','luz':'Energia','energia':'Energia','gás':'Gás',
+    'detergente':'Limpeza','sabão':'Limpeza','limpeza':'Limpeza',
+    'venda':'Vendas','delivery':'Delivery','pix':'PIX','cartão':'Cartão','dinheiro':'Dinheiro'
+  };
+  for(const [key,cat] of Object.entries(mapa)){
+    if(t.includes(key)){
+      catInp.value=cat;
+      return;
+    }
+  }
+}
+
+async function lancar(){
+  const valor=parseFloat(document.getElementById('l-valor')?.value);
+  const desc=document.getElementById('l-desc')?.value.trim();
+  const catManual=document.getElementById('l-cat')?.value;
+  if(!valor||valor<=0){ toast('⚠️ Informe o valor',false); return; }
+  if(!desc){ toast('⚠️ Informe a descrição',false); return; }
+
+  const btn=document.getElementById('btn-lancar');
+  btn.disabled=true; btn.textContent='Registrando...';
+
+  // Detectar categoria se não selecionada
+  let cat=catManual;
+  if(!cat){
+    sugerirCategoria(desc);
+    cat=document.getElementById('l-cat')?.value||'Outros';
+  }
+
+  // Extrair produto da descrição
+  const produto=desc.replace(/r\$?\s*\d+[\d.,]*/gi,'').replace(/reais?/gi,'').trim()||desc;
+
+  const { data, error } = await sb.from('financeiro').insert({
+    company_id: S.company.id,
+    tipo: S.tipoLanc,
+    valor,
+    descricao: desc,
+    categoria: cat||'Outros',
+    produto: produto.slice(0,80)
+  }).select().single();
+
+  if(error){ toast('⚠️ Erro ao registrar',false); btn.disabled=false; btn.textContent=S.tipoLanc==='entrada'?'📈 Registrar Entrada':'📉 Registrar Saída'; return; }
+
+  S.lancamentos.unshift(data);
+  toast(`✅ ${S.tipoLanc==='entrada'?'Entrada':'Saída'} de ${fmtMoeda(valor)} registrada!`);
+  renderLancamento();
+}
+
+// ── HISTÓRICO ──
+function renderHistorico(){
+  const el=document.getElementById('content');
+  if(S.lancamentos.length===0){
+    el.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2.5rem;margin-bottom:.75rem">📋</div><div>Nenhum lançamento ainda.</div></div>`;
+    return;
+  }
+  el.innerHTML=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:1rem">Últimos 30 dias</div>
+      ${S.lancamentos.map(l=>`
+        <div class="lanc-row">
+          <div class="lanc-icon" style="background:${l.tipo==='entrada'?'rgba(0,255,136,.1)':'rgba(255,61,107,.1)'}">
+            ${l.tipo==='entrada'?'📈':'📉'}
+          </div>
+          <div class="lanc-info">
+            <div class="lanc-desc">${escHtml(l.descricao||'')}</div>
+            <div class="lanc-cat">${l.categoria||''} · ${fmtData(l.created_at)}</div>
+          </div>
+          <div class="lanc-val" style="color:${l.tipo==='entrada'?'var(--accent)':'var(--error)'}">
+            ${l.tipo==='entrada'?'+':'-'}${fmtMoeda(l.valor)}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ── CHAT IA ──
+function renderChat(){
+  const el=document.getElementById('content');
+  el.style.padding='0';
+  el.innerHTML=`
+    <div class="chat-wrap">
+      <div class="chat-msgs" id="chat-msgs">
+        ${S.chatMsgs.length===0?`
+          <div style="text-align:center;padding:2rem;color:var(--muted)">
+            <div style="font-size:2rem;margin-bottom:.5rem">💰</div>
+            <div style="font-size:.85rem;font-weight:600;color:var(--white);margin-bottom:.375rem">Agente Financeiro</div>
+            <div style="font-size:.78rem;line-height:1.6">Olá! Analiso seus dados financeiros e identifico oportunidades de melhora.<br>Pergunte qualquer coisa!</div>
+            <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1.25rem">
+              <button onclick="enviarMsg('Onde estou perdendo mais dinheiro?')" style="background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.75rem;padding:.5rem 1rem;border-radius:8px;cursor:pointer">📊 Onde estou perdendo mais dinheiro?</button>
+              <button onclick="enviarMsg('Como posso aumentar minha margem?')" style="background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.75rem;padding:.5rem 1rem;border-radius:8px;cursor:pointer">💡 Como posso aumentar minha margem?</button>
+              <button onclick="enviarMsg('Qual foi meu melhor dia de vendas?')" style="background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.75rem;padding:.5rem 1rem;border-radius:8px;cursor:pointer">📈 Qual foi meu melhor dia de vendas?</button>
+            </div>
+          </div>`
+          :S.chatMsgs.map(m=>chatBubble(m)).join('')}
+      </div>
+      <div class="chat-input-wrap">
+        <input class="chat-inp" id="chat-inp" placeholder="Pergunte sobre suas finanças..." onkeydown="if(event.key==='Enter')enviarMsg()">
+        <button class="btn-send" id="btn-send" onclick="enviarMsg()">→</button>
+      </div>
+    </div>
+  `;
+  setTimeout(()=>{ const el=document.getElementById('chat-msgs'); if(el) el.scrollTop=el.scrollHeight; },50);
+}
+
+function chatBubble(m){
+  const isUser=m.role==='user';
+  return`<div class="chat-msg ${isUser?'user':'ai'}">
+    <div class="chat-av">${isUser?'👤':'💰'}</div>
+    <div class="chat-bubble">${m.content.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')}</div>
+  </div>`;
+}
+
+async function enviarMsg(txt){
+  const inp=document.getElementById('chat-inp');
+  const msg=txt||inp?.value.trim();
+  if(!msg) return;
+  if(inp) inp.value='';
+  document.getElementById('btn-send').disabled=true;
+
+  S.chatMsgs.push({role:'user',content:msg});
+
+  // Preparar contexto financeiro
+  const lancs30=S.lancamentos;
+  const entradas=lancs30.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+Number(l.valor),0);
+  const saidas=lancs30.filter(l=>l.tipo==='saida').reduce((a,l)=>a+Number(l.valor),0);
+  const catMap={};
+  lancs30.filter(l=>l.tipo==='saida').forEach(l=>{ catMap[l.categoria||'Outros']=(catMap[l.categoria||'Outros']||0)+Number(l.valor); });
+  const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([c,v])=>`${c}: R$${v.toFixed(2)}`).join(', ');
+
+  const systemPrompt=`Você é o Agente Financeiro da empresa "${S.company?.nome}". Você é um especialista em gestão financeira para pequenas empresas brasileiras.
+
+DADOS REAIS DOS ÚLTIMOS 30 DIAS:
+- Total de entradas: R$${entradas.toFixed(2)}
+- Total de saídas: R$${saidas.toFixed(2)}
+- Saldo: R$${(entradas-saidas).toFixed(2)}
+- Margem: ${entradas>0?Math.round(((entradas-saidas)/entradas)*100):0}%
+- Principais gastos: ${topCats||'Nenhum registrado ainda'}
+- Total de lançamentos: ${lancs30.length}
+
+Sua função: identificar vazamentos financeiros, sugerir cortes de custos, analisar tendências e dar conselhos práticos.
+Responda sempre em português brasileiro, de forma direta, prática e com exemplos concretos.
+Use emojis para destacar pontos importantes. Seja como um contador experiente conversando com o dono.`;
+
+  // Show typing
+  const msgsEl=document.getElementById('chat-msgs');
+  if(msgsEl){
+    msgsEl.innerHTML=S.chatMsgs.map(m=>chatBubble(m)).join('')+
+      '<div class="chat-msg ai"><div class="chat-av">💰</div><div class="chat-bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>';
+    msgsEl.scrollTop=msgsEl.scrollHeight;
+  }
+
+  try{
+    const res=await fetch(API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:S.chatMsgs,systemPrompt})
+    });
+    const data=await res.json();
+    const reply=data.response||'Desculpe, não consegui processar.';
+    S.chatMsgs.push({role:'assistant',content:reply});
+  }catch(e){
+    S.chatMsgs.push({role:'assistant',content:'Desculpe, ocorreu um erro. Tente novamente.'});
+  }
+
+  document.getElementById('btn-send').disabled=false;
+  renderChat();
+}
+
+// ── BOOT ──
+(async()=>{
+  const { data } = await sb.auth.getSession();
+  if(data?.session?.user) await initApp(data.session.user);
+})();
+</script>
+</body>
+</html>
