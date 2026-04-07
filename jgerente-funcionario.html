@@ -489,26 +489,24 @@ async function confirmarConclusao(id){
   const btn = document.getElementById('btn-confirmar');
   btn.disabled=true; btn.textContent='Enviando...';
 
-  let fotoUrl = null;
-  const fotoInp = document.getElementById('foto-inp');
-
   try{
-    // Upload foto com timestamp se tiver
-    const fotoParaUpload = fotoComTimestamp || fotoInp?.files[0];
-    if(fotoParaUpload){
-      const path = `${S.company.id}/${id}-${Date.now()}.jpg`;
-      const { data: upData, error: upErr } = await sb.storage.from('provas').upload(path, fotoParaUpload);
+    // Upload múltiplas fotos
+    const fotosUrls = [];
+    for(let i=0; i<fotosColetadas.length; i++){
+      btn.textContent = `Enviando foto ${i+1}/${fotosColetadas.length}...`;
+      const path = `${S.company.id}/${id}-${Date.now()}-${i}.jpg`;
+      const { error: upErr } = await sb.storage.from('provas').upload(path, fotosColetadas[i]);
       if(!upErr){
         const { data: urlData } = sb.storage.from('provas').getPublicUrl(path);
-        fotoUrl = urlData.publicUrl;
+        fotosUrls.push(urlData.publicUrl);
       }
-      fotoComTimestamp = null;
     }
 
     await sb.from('tarefas').update({
       status: 'concluida',
       prova_comentario: comment,
-      prova_foto: fotoUrl,
+      prova_foto: fotosUrls[0]||null,
+      provas_fotos: fotosUrls.length>0 ? fotosUrls : null,
       concluido_por: S.usuario.id,
       concluido_em: new Date().toISOString()
     }).eq('id', id);
@@ -517,12 +515,14 @@ async function confirmarConclusao(id){
     if(t){
       t.status='concluida';
       t.prova_comentario=comment;
-      t.prova_foto=fotoUrl;
+      t.prova_foto=fotosUrls[0]||null;
+      t.provas_fotos=fotosUrls;
       t.concluido_em=new Date().toISOString();
     }
 
+    fotosColetadas = [];
     closeModal();
-    toast('✅ Tarefa concluída com prova enviada!');
+    toast(`✅ Tarefa concluída com ${fotosUrls.length} foto(s)!`);
     renderTarefas();
 
   }catch(e){
