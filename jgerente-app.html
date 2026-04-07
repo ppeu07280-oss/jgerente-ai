@@ -765,18 +765,30 @@ function tarefaRow(t){
       <div class="tarefa-check ${done?'done':''}" onclick="toggleTarefa('${t.id}','${done?'pendente':'concluida'}')">${done?'✓':''}</div>
       <div style="flex:1;min-width:0">
         <div class="tarefa-title ${done?'done':''}">${escHtml(t.titulo)}</div>
-        <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''} ${t.criado_por==='recorrente'?'· 🔁 Recorrente':t.recorrente?'· 🔁 Modelo':''}</div>
+        <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''} ${t.criado_por==='recorrente'?`· 🔁 ${t.repeticao_atual||1}/${t.repeticoes_dia||1}`:t.recorrente?'· 🔁 Modelo':''}</div>
       </div>
       <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
       <button onclick="deletarTarefa('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.25rem" title="Remover">✕</button>
     </div>
     ${temProva?`
     <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.875rem;margin-left:2rem">
-      ${t.prova_foto?`<img src="${t.prova_foto}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-bottom:.625rem;display:block" alt="Prova">`:''}
+      ${(t.provas_fotos?.length>0 ? t.provas_fotos : t.prova_foto ? [t.prova_foto] : []).length>0?`
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.625rem">
+          ${(t.provas_fotos?.length>0 ? t.provas_fotos : t.prova_foto ? [t.prova_foto] : []).map(url=>`
+            <img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;cursor:pointer" onclick="window.open('${url}','_blank')" alt="Prova">
+          `).join('')}
+        </div>`:''}
       ${t.prova_comentario?`<div style="font-size:.78rem;color:var(--muted);line-height:1.5">💬 ${escHtml(t.prova_comentario)}</div>`:''}
       ${t.concluido_em?`<div style="font-size:.68rem;color:var(--muted);margin-top:.375rem">✅ Concluído em ${fmtDate(t.concluido_em)}</div>`:''}
     </div>`:''}
   </div>`;
+}
+
+function adjustRep(delta){
+  const inp = document.getElementById('t-repeticoes');
+  if(!inp) return;
+  const val = Math.min(20, Math.max(1, (parseInt(inp.value)||1) + delta));
+  inp.value = val;
 }
 
 function toggleDiasSemana(){
@@ -805,7 +817,16 @@ function showAddTarefa(){
       </select>
     </div>
     <div class="fg"><label class="lbl">Prazo</label><input class="inp" id="t-prazo" type="date"></div>
-    
+    <div class="fg">
+      <label class="lbl">Repetições por dia</label>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <button type="button" onclick="adjustRep(-1)" style="width:36px;height:36px;border-radius:8px;background:var(--card2);border:1.5px solid var(--border2);color:var(--white);font-size:1.1rem;cursor:pointer;flex-shrink:0">−</button>
+        <input class="inp" id="t-repeticoes" type="number" value="1" min="1" max="20" style="text-align:center;font-family:var(--font);font-weight:700;font-size:1rem">
+        <button type="button" onclick="adjustRep(1)" style="width:36px;height:36px;border-radius:8px;background:var(--card2);border:1.5px solid var(--border2);color:var(--white);font-size:1.1rem;cursor:pointer;flex-shrink:0">+</button>
+      </div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:.375rem">Quantas vezes por dia o funcionário deve executar essa tarefa</div>
+    </div>
+
     <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:.5rem">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
         <div>
@@ -884,6 +905,8 @@ async function salvarTarefa(){
     if(diasSemana.length===0){ toast('⚠️ Selecione ao menos um dia',true); return; }
   }
 
+  const repeticoesDia = parseInt(document.getElementById('t-repeticoes')?.value)||1;
+
   const payload = {
     company_id: S.company.id,
     titulo,
@@ -894,7 +917,9 @@ async function salvarTarefa(){
     criado_por: 'dono',
     status: 'pendente',
     recorrente,
-    dias_semana: diasSemana
+    dias_semana: diasSemana,
+    repeticoes_dia: repeticoesDia,
+    repeticao_atual: 1
   };
 
   const { data, error } = await sb.from('tarefas').insert(payload).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').single();
@@ -1403,24 +1428,36 @@ async function criarTarefasRecorrentes(){
 
       if(jaExiste && jaExiste.length > 0) continue;
 
-      // Criar tarefa do dia
-      const { data: nova } = await sb.from('tarefas').insert({
-        company_id: t.company_id,
-        titulo: t.titulo,
-        descricao: t.descricao,
-        atribuido_para: t.atribuido_para,
-        prioridade: t.prioridade,
-        criado_por: 'recorrente',
-        status: 'pendente',
-        prazo: hojeStr + 'T23:59:59',
-        tarefa_pai: t.id,
-        recorrente: false
-      }).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').single();
+      // Criar todas as repetições do dia
+      const reps = t.repeticoes_dia || 1;
+      for(let rep=1; rep<=reps; rep++){
+        const jaExisteRep = await sb.from('tarefas')
+          .select('id')
+          .eq('company_id', S.company.id)
+          .eq('tarefa_pai', t.id)
+          .eq('repeticao_atual', rep)
+          .gte('created_at', hojeStr + 'T00:00:00')
+          .lte('created_at', hojeStr + 'T23:59:59')
+          .limit(1);
 
-      if(nova){
-        // Adicionar à lista se não existir ainda
-        const jaNaLista = S.tarefas.find(x=>x.tarefa_pai===t.id && x.created_at?.startsWith(hojeStr));
-        if(!jaNaLista) S.tarefas.unshift(nova);
+        if(jaExisteRep.data && jaExisteRep.data.length > 0) continue;
+
+        const { data: nova } = await sb.from('tarefas').insert({
+          company_id: t.company_id,
+          titulo: t.titulo,
+          descricao: t.descricao,
+          atribuido_para: t.atribuido_para,
+          prioridade: t.prioridade,
+          criado_por: 'recorrente',
+          status: 'pendente',
+          prazo: hojeStr + 'T23:59:59',
+          tarefa_pai: t.id,
+          recorrente: false,
+          repeticoes_dia: reps,
+          repeticao_atual: rep
+        }).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').single();
+
+        if(nova) S.tarefas.unshift(nova);
       }
     }
   }catch(e){
