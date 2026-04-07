@@ -1099,9 +1099,24 @@ async function salvarTarefa(){
     const cfg = horariosReps ? JSON.parse(payload.config) : null;
 
     for(let rep=1; rep<=repeticoesDia; rep++){
-      let prazoRep = hojeStr + 'T23:59:59';
+      // Usar horário local correto
+      const agora = new Date();
+      const hojeLocal = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+      
+      let prazoRep;
       if(cfg?.horarios?.[rep-1]){
-        prazoRep = hojeStr + 'T' + cfg.horarios[rep-1] + ':00';
+        const [hh, mm] = cfg.horarios[rep-1].split(':').map(Number);
+        // Criar data com hora local explícita
+        const prazoLocal = new Date(
+          agora.getFullYear(),
+          agora.getMonth(),
+          agora.getDate(),
+          hh, mm, 0, 0
+        );
+        prazoRep = prazoLocal.toISOString();
+      } else {
+        const fimDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 0);
+        prazoRep = fimDia.toISOString();
       }
       filhas.push({
         company_id: S.company.id,
@@ -1730,15 +1745,34 @@ async function criarTarefasRecorrentes(){
 
         if(jaExisteRep.data && jaExisteRep.data.length > 0) continue;
 
-        // Calcular prazo desta repetição
-        let prazoRep = hojeStr + 'T23:59:59';
+        // Calcular prazo desta repetição com timezone local
+        const agoraRec = new Date();
+        const hojeLocalRec = new Date(agoraRec.getFullYear(), agoraRec.getMonth(), agoraRec.getDate());
+        let prazoRep;
         if(t.config){
           try{
             const cfg = typeof t.config === 'string' ? JSON.parse(t.config) : t.config;
             if(cfg.horarios && cfg.horarios[rep-1]){
-              prazoRep = hojeStr + 'T' + cfg.horarios[rep-1] + ':00';
+              const [hh,mm] = cfg.horarios[rep-1].split(':').map(Number);
+              const prazoLocal = new Date(
+                agoraRec.getFullYear(), agoraRec.getMonth(), agoraRec.getDate(),
+                hh, mm, 0, 0
+              );
+              prazoRep = prazoLocal.toISOString();
+            } else {
+              const fimDia = new Date(hojeLocalRec);
+              fimDia.setHours(23,59,59,0);
+              prazoRep = fimDia.toISOString();
             }
-          }catch(e){}
+          }catch(e){
+            const fimDia = new Date(hojeLocalRec);
+            fimDia.setHours(23,59,59,0);
+            prazoRep = fimDia.toISOString();
+          }
+        } else {
+          const fimDia = new Date(hojeLocalRec);
+          fimDia.setHours(23,59,59,0);
+          prazoRep = fimDia.toISOString();
         }
 
         const { data: nova } = await sb.from('tarefas').insert({
