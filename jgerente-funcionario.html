@@ -391,82 +391,58 @@ function grupoCard(reps){
   const agora = new Date();
   const total = reps[0]?.repeticoes_dia || reps.length;
   const titulo = reps[0]?.titulo || '';
-  const concluidas = reps.filter(r=>r.status==='concluida').length;
-  const expiradas = reps.filter(r=>r.status==='expirada').length;
-
-  // Calcular horários das repetições
-  const horarios = reps.map(r=>r.prazo ? new Date(r.prazo) : null);
-
-  // Encontrar repetição ativa agora (±5 min antes do prazo, até 10 min depois)
-  const repAtiva = reps.find(r=>{
-    if(r.status==='concluida'||r.status==='expirada') return false;
-    if(!r.prazo) return r.status==='pendente';
-    const prazo = new Date(r.prazo);
-    const abertura = new Date(prazo.getTime() - 5*60*1000); // 5 min antes
-    const fechamento = new Date(prazo.getTime() + 10*60*1000); // 10 min depois
-    return agora >= abertura && agora <= fechamento;
-  });
 
   return`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem;margin-bottom:.75rem">
-    <div style="margin-bottom:.875rem">
-      <div style="font-size:.88rem;font-weight:700;margin-bottom:.375rem">${escHtml(titulo)}</div>
-      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.625rem">🔁 ${total} repetições hoje</div>
-
-      <!-- Bolinhas de status -->
-      <div style="display:flex;gap:.375rem;flex-wrap:wrap;margin-bottom:.625rem">
-        ${reps.map(r=>{
-          const prazo = r.prazo ? new Date(r.prazo) : null;
-          const abertura = prazo ? new Date(prazo.getTime()-5*60*1000) : null;
-          const isAtiva = repAtiva?.id === r.id;
-          const isBloqueada = !isAtiva && r.status==='pendente' && abertura && agora < abertura;
-          const cor = r.status==='concluida'?'var(--accent)':r.status==='expirada'?'var(--error)':isAtiva?'#FFD600':'var(--border2)';
-          const icone = r.status==='concluida'?'✓':r.status==='expirada'?'✕':isAtiva?'▶':'🔒';
-          return`<div style="display:flex;flex-direction:column;align-items:center;gap:.2rem">
-            <div style="width:28px;height:28px;border-radius:50%;background:${r.status==='concluida'?'rgba(0,255,136,.15)':r.status==='expirada'?'rgba(255,61,107,.15)':isAtiva?'rgba(255,214,0,.15)':'rgba(255,255,255,.04)'};border:1.5px solid ${cor};display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:${cor}">${icone}</div>
-            <div style="font-size:.55rem;color:var(--muted)">${prazo?prazo.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}</div>
-          </div>`;
-        }).join('')}
-      </div>
-
-      <!-- Progresso -->
-      <div style="font-size:.7rem;color:var(--muted);margin-bottom:.375rem">${concluidas} de ${total} concluídas · ${expiradas} expiradas</div>
-      <div style="height:4px;background:var(--border);border-radius:100px;overflow:hidden">
-        <div style="height:100%;width:${Math.round((concluidas/total)*100)}%;background:var(--accent);border-radius:100px"></div>
-      </div>
+    <!-- Header da tarefa -->
+    <div style="margin-bottom:1rem">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:.25rem">${escHtml(titulo)}</div>
+      <div style="font-size:.72rem;color:var(--muted)">🔁 ${total} repetições hoje</div>
     </div>
 
-    ${repAtiva ? `
-    <div style="background:rgba(255,214,0,.06);border:1px solid rgba(255,214,0,.2);border-radius:10px;padding:.875rem;margin-top:.5rem">
-      <div style="font-size:.72rem;font-weight:700;color:#FFD600;margin-bottom:.5rem">
-        ▶ ${repAtiva.repeticao_atual}ª repetição — Disponível agora!
-        ${repAtiva.prazo?`Expira às ${new Date(new Date(repAtiva.prazo).getTime()+10*60*1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`:''}
-      </div>
-      <div style="display:flex;gap:.5rem">
-        ${repAtiva.status!=='em_andamento'?`<button class="btn-action btn-andamento" onclick="marcarAndamento('${repAtiva.id}')" style="flex:1">▶ Em andamento</button>`:'<span style="font-size:.72rem;color:#FFD600;font-weight:600;padding:.5rem">▶ Em andamento</span>'}
-        <button class="btn-action btn-concluir" onclick="showConcluir('${repAtiva.id}')" style="flex:1">✅ Concluir</button>
-      </div>
+    <!-- Lista de todas as repetições -->
+    <div style="display:flex;flex-direction:column;gap:.5rem">
+      ${reps.map(r=>{
+        const prazo = r.prazo ? new Date(r.prazo) : null;
+        const abertura = prazo ? new Date(prazo.getTime() - 5*60*1000) : null;
+        const fechamento = prazo ? new Date(prazo.getTime() + 10*60*1000) : null;
+        const isAtiva = abertura && fechamento && agora >= abertura && agora <= fechamento && r.status !== 'concluida' && r.status !== 'expirada';
+        const isBloqueada = abertura && agora < abertura && r.status === 'pendente';
+        const isConcluida = r.status === 'concluida';
+        const isExpirada = r.status === 'expirada';
+
+        const corBorda = isConcluida ? 'rgba(0,255,136,.2)' : isExpirada ? 'rgba(255,61,107,.2)' : isAtiva ? 'rgba(255,214,0,.3)' : 'var(--border)';
+        const bgCard = isConcluida ? 'rgba(0,255,136,.04)' : isExpirada ? 'rgba(255,61,107,.04)' : isAtiva ? 'rgba(255,214,0,.04)' : 'var(--card2)';
+        const icone = isConcluida ? '✅' : isExpirada ? '⏰' : isAtiva ? '▶' : '🔒';
+        const horarioLabel = prazo ? prazo.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+
+        return`<div style="background:${bgCard};border:1.5px solid ${corBorda};border-radius:10px;padding:.75rem">
+          <div style="display:flex;align-items:center;gap:.625rem;margin-bottom:${isAtiva?'.625rem':'0'}">
+            <div style="font-size:1rem;flex-shrink:0">${icone}</div>
+            <div style="flex:1">
+              <div style="font-size:.8rem;font-weight:600;color:${isConcluida?'var(--accent)':isExpirada?'var(--error)':isAtiva?'#FFD600':'var(--muted)'}">
+                ${r.repeticao_atual}ª repetição
+                ${isBloqueada ? '· 🔒 Bloqueada' : ''}
+                ${isConcluida ? '· Concluída' : ''}
+                ${isExpirada ? '· Expirada' : ''}
+                ${isAtiva ? '· Disponível agora!' : ''}
+              </div>
+              <div style="font-size:.7rem;color:var(--muted)">
+                ${horarioLabel ? `Horário: ${horarioLabel}` : ''}
+                ${isBloqueada && abertura ? ` · Libera às ${abertura.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}` : ''}
+                ${isAtiva && fechamento ? ` · Expira às ${fechamento.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}` : ''}
+              </div>
+            </div>
+          </div>
+          ${isAtiva ? `
+          <div style="display:flex;gap:.5rem">
+            ${r.status!=='em_andamento'
+              ? `<button class="btn-action btn-andamento" onclick="marcarAndamento('${r.id}')" style="flex:1;font-size:.72rem">▶ Em andamento</button>`
+              : `<span style="font-size:.72rem;color:#FFD600;font-weight:600;padding:.4rem">▶ Em andamento</span>`}
+            <button class="btn-action btn-concluir" onclick="showConcluir('${r.id}')" style="flex:1;font-size:.72rem">✅ Concluir</button>
+          </div>` : ''}
+        </div>`;
+      }).join('')}
     </div>
-    ` : reps.every(r=>r.status==='concluida') ? `
-    <div style="text-align:center;padding:.75rem;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:10px;font-size:.8rem;font-weight:600;color:var(--accent)">
-      🎉 Todas as repetições concluídas!
-    </div>
-    ` : reps.every(r=>r.status==='concluida'||r.status==='expirada') ? `
-    <div style="text-align:center;padding:.75rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;font-size:.78rem;color:var(--muted)">
-      Tarefa encerrada para hoje
-    </div>
-    ` : `
-    <div style="text-align:center;padding:.75rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px">
-      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem">🔒 Próxima repetição</div>
-      <div style="font-size:.85rem;font-weight:600;color:var(--white)">
-        ${(()=>{
-          const prox = reps.find(r=>r.status==='pendente');
-          if(!prox||!prox.prazo) return 'Em breve';
-          const abertura = new Date(new Date(prox.prazo).getTime()-5*60*1000);
-          return 'Disponível às '+abertura.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-        })()}
-      </div>
-    </div>
-    `}
   </div>`;
 }
 
