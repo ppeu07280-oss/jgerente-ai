@@ -1,18 +1,12 @@
-export default async function handler(req, res) {
-  // CORS — permite qualquer origem
+module.exports = async function handler(req, res) {
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
 
-  // Preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const { messages, systemPrompt } = req.body;
@@ -22,7 +16,7 @@ export default async function handler(req, res) {
     }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,7 +35,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Gemini error:', data);
+      console.error('Gemini error:', JSON.stringify(data));
       return res.status(500).json({ error: 'Erro na API do Gemini', details: data });
     }
 
@@ -49,7 +43,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ response: text });
 
   } catch (e) {
-    console.error('Handler error:', e);
+    console.error('Handler error:', e.message);
     return res.status(500).json({ error: 'Erro interno: ' + e.message });
   }
 }
