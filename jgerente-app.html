@@ -578,7 +578,7 @@ async function initApp(user){
 async function loadData(){
   const cid = S.company.id;
   const [t, e, a, c] = await Promise.all([
-    sb.from('tarefas').select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)').eq('company_id',cid).order('created_at',{ascending:false}),
+    sb.from('tarefas').select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome), prova_foto, prova_comentario, concluido_em').eq('company_id',cid).order('created_at',{ascending:false}),
     sb.from('usuarios').select('*').eq('company_id',cid),
     sb.from('agentes').select('*').eq('company_id',cid),
     sb.from('customers').select('*').eq('company_id',cid),
@@ -745,14 +745,23 @@ function renderTarefas(){
 
 function tarefaRow(t){
   const done = t.status==='concluida';
-  return`<div class="tarefa-row">
-    <div class="tarefa-check ${done?'done':''}" onclick="toggleTarefa('${t.id}','${done?'pendente':'concluida'}')">${done?'✓':''}</div>
-    <div style="flex:1;min-width:0">
-      <div class="tarefa-title ${done?'done':''}">${escHtml(t.titulo)}</div>
-      <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''}</div>
+  const temProva = done && (t.prova_foto || t.prova_comentario);
+  return`<div class="tarefa-row" style="flex-direction:column;align-items:stretch;gap:.625rem">
+    <div style="display:flex;align-items:center;gap:.875rem">
+      <div class="tarefa-check ${done?'done':''}" onclick="toggleTarefa('${t.id}','${done?'pendente':'concluida'}')">${done?'✓':''}</div>
+      <div style="flex:1;min-width:0">
+        <div class="tarefa-title ${done?'done':''}">${escHtml(t.titulo)}</div>
+        <div class="tarefa-meta">${t.atribuido_para?.nome||'Sem responsável'} ${t.prazo?'· Prazo: '+fmtDate(t.prazo):''}</div>
+      </div>
+      <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
+      <button onclick="deletarTarefa('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.25rem" title="Remover">✕</button>
     </div>
-    <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
-    <button onclick="deletarTarefa('${t.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.25rem;margin-left:.25rem" title="Remover">✕</button>
+    ${temProva?`
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.875rem;margin-left:2rem">
+      ${t.prova_foto?`<img src="${t.prova_foto}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-bottom:.625rem;display:block" alt="Prova">`:''}
+      ${t.prova_comentario?`<div style="font-size:.78rem;color:var(--muted);line-height:1.5">💬 ${escHtml(t.prova_comentario)}</div>`:''}
+      ${t.concluido_em?`<div style="font-size:.68rem;color:var(--muted);margin-top:.375rem">✅ Concluído em ${fmtDate(t.concluido_em)}</div>`:''}
+    </div>`:''}
   </div>`;
 }
 
