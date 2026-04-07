@@ -311,9 +311,11 @@ function renderTab(tab){
 
 // ── TAREFAS ──
 function renderTarefas(){
-  const pendentes = S.tarefas.filter(t=>t.status==='pendente'||t.status==='em_andamento');
-  const concluidas = S.tarefas.filter(t=>t.status==='concluida');
-  const expiradas = S.tarefas.filter(t=>t.status==='expirada');
+  // Mostrar apenas tarefas filhas (repetições do dia) e tarefas normais — não modelos recorrentes
+  const todasVisiveis = S.tarefas.filter(t => !t.recorrente);
+  const pendentes = todasVisiveis.filter(t=>t.status==='pendente'||t.status==='em_andamento');
+  const concluidas = todasVisiveis.filter(t=>t.status==='concluida');
+  const expiradas = todasVisiveis.filter(t=>t.status==='expirada');
 
   const el = document.getElementById('content');
   el.innerHTML = `
@@ -361,6 +363,165 @@ function tarefaCard(t){
     </div>`:''}
   </div>`;
 }
+
+async function marcarAndamento(id){
+  await sb.from('tarefas').update({status:'em_andamento'}).eq('id',id);
+  const t = S.tarefas.find(x=>x.id===id);
+  if(t) t.status='em_andamento';
+  renderTarefas();
+}
+
+let fotosColetadas = [];
+
+function showConcluir(id){
+  fotosColetadas = [];
+  const t = S.tarefas.find(x=>x.id===id);
+  const repLabel = (t?.repeticoes_dia>1) ? ` (${t.repeticao_atual||1}/${t.repeticoes_dia})` : '';
+  openModal(`
+    <div class="modal-title">✅ Concluir tarefa</div>
+    <div style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem">${escHtml((t?.titulo||'')+repLabel)}</div>
+    <div class="fg">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+        <label class="lbl" style="margin:0">Fotos como prova</label>
+        <button type="button" onclick="adicionarFoto()" style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);color:var(--accent);font-size:.72rem;font-weight:600;padding:.3rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">+ Adicionar foto</button>
+      </div>
+      <input type="file" id="foto-inp-multi" capture="environment" style="display:none" onchange="processarFoto(this)">
+      <div id="fotos-grid" style="display:flex;flex-wrap:wrap;gap:.5rem;min-height:70px;background:var(--card2);border:1.5px dashed var(--border2);border-radius:12px;padding:.75rem;margin-bottom:.375rem;align-items:center">
+        <div id="fotos-empty" style="width:100%;text-align:center;color:var(--muted);font-size:.78rem;padding:.5rem 0">
+          📸 Toque em "+ Adicionar foto" para tirar foto
+        </div>
+      </div>
+      <div id="foto-err" style="display:none;background:rgba(255,61,107,.08);border:1px solid rgba(255,61,107,.2);border-radius:8px;padding:.625rem .875rem;margin-top:.375rem">
+        <div id="foto-err-text" style="font-size:.75rem;color:var(--error);line-height:1.5"></div>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="lbl">Comentário *</label>
+      <textarea class="inp" id="prova-comment" rows="3" placeholder="Descreva o que foi feito..." style="resize:none"></textarea>
+    </div>
+    <button class="btn-modal primary" id="btn-confirmar" onclick="confirmarConclusao('${id}')">✅ Confirmar conclusão</button>
+    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+function adicionarFoto(){
+  const inp = document.getElementById('foto-inp-multi');
+  if(inp){ inp.value=''; inp.click(); }
+}
+
+function processarFoto(input){
+  const file = input.files[0];
+  if(!file) return;
+
+  const diffMinutos = (Date.now() - file.lastModified) / 1000 / 60;
+  if(diffMinutos > 5){
+    const mins = Math.round(diffMinutos);
+    const tempo = mins > 60 ? Math.round(mins/60) + ' hora(s)' : mins + ' minuto(s)';
+    const errEl = document.getElementById('foto-err');
+    const errText = document.getElementById('foto-err-text');
+    if(errEl) errEl.style.display = 'block';
+    if(errText) errText.textContent = `⚠️ Foto tirada há ${tempo}. Tire uma nova foto agora.`;
+    return;
+  }
+
+  const errEl = document.getElementById('foto-err');
+  if(errEl) errEl.style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const agora = new Date();
+      const ts = agora.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      const label = `${S.usuario?.nome||'Funcionário'} · ${ts}`;
+      const fontSize = Math.max(16, Math.round(img.width * 0.03));
+      ctx.font = `bold ${fontSize}px monospace`;
+      const tw = ctx.measureText(label).width;
+      const pad = fontSize * 0.5;
+      const bh = fontSize + pad * 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillRect(0, img.height - bh, tw + pad * 2, bh);
+      ctx.fillStyle = '#00FF88';
+      ctx.fillText(label, pad, img.height - pad * 0.8);
+      canvas.toBlob(blob => {
+        const fotoFile = new File([blob], `prova_${Date.now()}.jpg`, {type:'image/jpeg'});
+        const idx = fotosColetadas.length;
+        fotosColetadas.push(fotoFile);
+        const url = canvas.toDataURL('image/jpeg', 0.85);
+        const grid = document.getElementById('fotos-grid');
+        const empty = document.getElementById('fotos-empty');
+        if(empty) empty.style.display = 'none';
+        const thumb = document.createElement('div');
+        thumb.style.cssText = 'position:relative;width:80px;height:80px;flex-shrink:0';
+        thumb.innerHTML = `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;display:block"><button onclick="removerFoto(${idx},this.parentElement)" style="position:absolute;top:-5px;right:-5px;width:22px;height:22px;border-radius:50%;background:var(--error);border:2px solid var(--black);color:white;font-size:.7rem;cursor:pointer;line-height:1;font-weight:700">✕</button>`;
+        if(grid) grid.appendChild(thumb);
+      }, 'image/jpeg', 0.85);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removerFoto(idx, el){
+  fotosColetadas.splice(idx, 1);
+  if(el) el.remove();
+  if(fotosColetadas.length === 0){
+    const empty = document.getElementById('fotos-empty');
+    if(empty) empty.style.display = 'block';
+  }
+}
+
+async function confirmarConclusao(id){
+  const comment = document.getElementById('prova-comment')?.value.trim();
+  if(!comment){ toast('⚠️ Escreva um comentário', false); return; }
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled=true; btn.textContent='Enviando...';
+
+  try{
+    const fotosUrls = [];
+    for(let i=0; i<fotosColetadas.length; i++){
+      btn.textContent = `Enviando foto ${i+1}/${fotosColetadas.length}...`;
+      const path = `${S.company.id}/${id}-${Date.now()}-${i}.jpg`;
+      const { error: upErr } = await sb.storage.from('provas').upload(path, fotosColetadas[i]);
+      if(!upErr){
+        const { data: urlData } = sb.storage.from('provas').getPublicUrl(path);
+        fotosUrls.push(urlData.publicUrl);
+      }
+    }
+
+    const updateData = {
+      status: 'concluida',
+      prova_comentario: comment,
+      prova_foto: fotosUrls[0]||null,
+      provas_fotos: fotosUrls.length>0 ? fotosUrls : null,
+      concluido_por: S.usuario.id,
+      concluido_em: new Date().toISOString()
+    };
+
+    const { error } = await sb.from('tarefas').update(updateData).eq('id', id);
+    if(error) throw error;
+
+    const t = S.tarefas.find(x=>x.id===id);
+    if(t) Object.assign(t, updateData);
+
+    fotosColetadas = [];
+    closeModal();
+    toast(`✅ Concluída com ${fotosUrls.length} foto(s)!`);
+    renderTarefas();
+
+  }catch(e){
+    console.error('Erro conclusão:', e);
+    toast('⚠️ Erro ao enviar. Tente novamente.', false);
+    btn.disabled=false; btn.textContent='✅ Confirmar conclusão';
+  }
+}
+
 
 async function marcarAndamento(id){
   await sb.from('tarefas').update({status:'em_andamento'}).eq('id',id);
