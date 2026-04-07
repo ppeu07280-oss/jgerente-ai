@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JgerenteAI — Funcionário</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#050508;--white:#F5F3EE;--accent:#00FF88;
+  --muted:#8B8B99;--card:#0D0D14;--card2:#111118;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.1);
+  --font:'Unbounded',sans-serif;--body:'DM Sans',sans-serif;
+  --error:#FF3D6B;--r:12px;
+}
+html,body{min-height:100vh}
+body{font-family:var(--body);background:var(--black);color:var(--white)}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;z-index:999;background:var(--black);display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.login-box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2rem}
+.login-logo{font-family:var(--font);font-weight:900;font-size:1rem;letter-spacing:-.02em;margin-bottom:1.5rem;text-align:center}
+.login-logo .j{color:var(--accent)}
+.login-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.15);color:var(--accent);padding:.3rem .875rem;border-radius:100px;font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:1.25rem}
+.login-title{font-family:var(--font);font-size:1.2rem;font-weight:900;letter-spacing:-.03em;margin-bottom:.375rem}
+.login-sub{font-size:.8rem;color:var(--muted);margin-bottom:1.5rem}
+.lbl{display:block;font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.375rem}
+.inp{width:100%;padding:.8rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:var(--r);font-size:.9rem;color:var(--white);font-family:var(--body);outline:none;transition:border-color .2s}
+.inp::placeholder{color:var(--muted)}
+.inp:focus{border-color:var(--accent)}
+.fg{margin-bottom:1rem}
+.btn-login{width:100%;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer;margin-top:.25rem;transition:all .2s}
+.btn-login:disabled{opacity:.5;cursor:not-allowed}
+.login-err{font-size:.75rem;color:var(--error);margin-top:.625rem;text-align:center;min-height:18px}
+
+/* APP */
+#app{display:none;min-height:100vh;flex-direction:column}
+#app.show{display:flex}
+
+/* HEADER */
+.app-header{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:1rem 1.25rem;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.header-logo{font-family:var(--font);font-size:.85rem;font-weight:900}
+.header-logo .j{color:var(--accent)}
+.header-user{display:flex;align-items:center;gap:.625rem}
+.header-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:var(--black);flex-shrink:0}
+.header-name{font-size:.8rem;font-weight:600}
+.header-company{font-size:.7rem;color:var(--muted)}
+.btn-sair{background:none;border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--card)}
+.tab-btn{flex:1;padding:.875rem;font-size:.75rem;font-weight:600;color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--body);border-bottom:2px solid transparent;transition:all .15s}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* CONTENT */
+.content{padding:1.25rem;flex:1}
+
+/* TAREFA CARD */
+.tarefa-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:1.125rem;margin-bottom:.75rem;
+  transition:border-color .15s;
+}
+.tarefa-card:hover{border-color:var(--border2)}
+.tarefa-card.urgente{border-left:3px solid var(--error)}
+.tarefa-card.alta{border-left:3px solid #FFD600}
+.tarefa-card.concluida{opacity:.55}
+.tarefa-card.expirada{border-left:3px solid var(--muted)}
+.tarefa-titulo{font-size:.88rem;font-weight:600;margin-bottom:.375rem}
+.tarefa-titulo.riscado{text-decoration:line-through;color:var(--muted)}
+.tarefa-meta{font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:.625rem;flex-wrap:wrap;margin-bottom:.875rem}
+.prio-badge{padding:.15rem .5rem;border-radius:100px;font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.prio-badge.urgente{background:rgba(255,61,107,.15);color:var(--error)}
+.prio-badge.alta{background:rgba(255,214,0,.1);color:#FFD600}
+.prio-badge.normal{background:rgba(0,255,136,.08);color:var(--accent)}
+.prio-badge.expirada{background:rgba(255,255,255,.05);color:var(--muted)}
+.tarefa-actions{display:flex;gap:.5rem}
+.btn-action{flex:1;padding:.625rem;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;border:none;font-family:var(--body);transition:all .15s}
+.btn-concluir{background:var(--accent);color:var(--black)}
+.btn-concluir:hover{opacity:.9}
+.btn-andamento{background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:#FFD600}
+.prova-preview{margin-top:.75rem;padding:.75rem;background:var(--card2);border-radius:10px;border:1px solid var(--border)}
+.prova-img{width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin-bottom:.5rem}
+.prova-comment{font-size:.78rem;color:var(--muted);line-height:1.5}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px)}
+.overlay.show{display:flex}
+.modal{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.5rem;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.modal-handle{width:36px;height:3px;background:var(--border2);border-radius:100px;margin:-.5rem auto 1.25rem}
+.modal-title{font-family:var(--font);font-size:1.1rem;font-weight:900;letter-spacing:-.03em;margin-bottom:1.25rem}
+.foto-upload{
+  width:100%;height:140px;border:2px dashed var(--border2);border-radius:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .15s;margin-bottom:1rem;position:relative;overflow:hidden;
+}
+.foto-upload:hover{border-color:var(--accent);background:rgba(0,255,136,.04)}
+.foto-upload input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.foto-preview{width:100%;height:100%;object-fit:cover;display:none}
+.foto-icon{font-size:2rem;margin-bottom:.5rem}
+.foto-text{font-size:.75rem;color:var(--muted)}
+.btn-modal{width:100%;padding:.875rem;border-radius:var(--r);font-family:var(--font);font-size:.8rem;font-weight:700;cursor:pointer;border:none;margin-top:.5rem;transition:all .2s}
+.btn-modal.primary{background:var(--accent);color:var(--black)}
+.btn-modal.outline{background:none;border:1px solid var(--border2);color:var(--white)}
+
+/* PERFORMANCE */
+.perf-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem}
+.perf-av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:800;color:var(--black);flex-shrink:0}
+.perf-name{font-family:var(--font);font-size:1rem;font-weight:900;letter-spacing:-.02em}
+.perf-role{font-size:.75rem;color:var(--muted)}
+.perf-score{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:1.25rem;margin-bottom:1rem;text-align:center;
+}
+.score-num{font-family:var(--font);font-size:2.5rem;font-weight:900;line-height:1;letter-spacing:-.04em}
+.score-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.25rem}
+.score-bar{height:8px;background:var(--border);border-radius:100px;overflow:hidden;margin-top:.875rem}
+.score-fill{height:100%;border-radius:100px;transition:width .8s ease}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem;margin-bottom:1rem}
+.chart-title{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem}
+.chart-bars{display:flex;align-items:flex-end;gap:.375rem;height:80px}
+.chart-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:.375rem}
+.chart-bar-wrap{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
+.bar-concluida{border-radius:3px 3px 0 0;background:var(--accent);min-height:2px;transition:height .5s}
+.bar-expirada{border-radius:3px 3px 0 0;background:var(--error);min-height:2px;transition:height .5s}
+.chart-day{font-size:.6rem;color:var(--muted);text-align:center}
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+.stat-mini{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem;text-align:center}
+.stat-mini-val{font-family:var(--font);font-size:1.5rem;font-weight:900;letter-spacing:-.03em;line-height:1}
+.stat-mini-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
+
+/* EMPTY */
+.empty{text-align:center;padding:3rem 1rem;color:var(--muted)}
+.empty-icon{font-size:2.5rem;margin-bottom:.75rem}
+.empty-text{font-size:.85rem;line-height:1.6}
+
+/* TOAST */
+.toast{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:9999;background:var(--card2);border:1px solid var(--border2);padding:.75rem 1.25rem;border-radius:100px;font-size:.8rem;font-weight:600;display:none;white-space:nowrap}
+.toast.show{display:block;animation:toastIn .3s ease}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo"><span class="j">J</span>gerenteAI</div>
+    <div style="text-align:center;margin-bottom:1.25rem">
+      <div class="login-badge">👷 Área do Funcionário</div>
+    </div>
+    <div class="login-title">Entrar no painel</div>
+    <div class="login-sub">Acesse com seu email e senha cadastrados</div>
+    <div class="fg"><label class="lbl">Email</label><input class="inp" id="l-email" type="email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')document.getElementById('l-pwd').focus()"></div>
+    <div class="fg"><label class="lbl">Senha</label><input class="inp" id="l-pwd" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn-login" id="l-btn" onclick="doLogin()">Entrar →</button>
+    <div class="login-err" id="l-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="app-header">
+    <div class="header-logo"><span class="j">J</span>gerenteAI</div>
+    <div class="header-user">
+      <div>
+        <div class="header-name" id="h-name">...</div>
+        <div class="header-company" id="h-company">...</div>
+      </div>
+      <div class="header-av" id="h-av">JG</div>
+      <button class="btn-sair" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('tarefas')">📋 Tarefas</button>
+    <button class="tab-btn" onclick="showTab('performance')">📊 Performance</button>
+  </div>
+
+  <div class="content" id="content">
+    <div style="text-align:center;padding:3rem;color:var(--muted)">Carregando...</div>
+  </div>
+</div>
+
+<!-- MODAL PROVA -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  'https://hnculphposmgfvaeliiw.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
+);
+
+let S = { usuario: null, company: null, tarefas: [], currentTab: 'tarefas' };
+const AV_COLORS = ['#00FF88','#3D6BFF','#FF3D6B','#FFD600','#A855F7'];
+function avColor(str){ let h=0; for(let i=0;i<(str||'').length;i++) h=(h*31+str.charCodeAt(i))&0xffff; return AV_COLORS[h%AV_COLORS.length]; }
+function initials(n){ const p=n?.trim().split(' ')||[]; return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n?.slice(0,2).toUpperCase()||'JG'; }
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(iso){ if(!iso) return ''; return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); }
+let toastTimer;
+function toast(msg, green=true){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.color=green?'var(--accent)':'var(--error)';
+  el.style.borderColor=green?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+function openModal(html){ document.getElementById('modal-body').innerHTML=html; document.getElementById('overlay').classList.add('show'); }
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+
+// ── LOGIN ──
+async function doLogin(){
+  const email=document.getElementById('l-email').value.trim();
+  const pwd=document.getElementById('l-pwd').value;
+  const btn=document.getElementById('l-btn');
+  const err=document.getElementById('l-err');
+  if(!email||!pwd){ err.textContent='⚠️ Preencha email e senha'; return; }
+  btn.disabled=true; btn.textContent='Entrando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if(error){ err.textContent='❌ Email ou senha incorretos'; btn.disabled=false; btn.textContent='Entrar →'; return; }
+  await initApp(data.user);
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function initApp(user){
+  try{
+    const { data: usr } = await sb.from('usuarios').select('*').eq('auth_id', user.id).single();
+    if(!usr){ document.getElementById('l-err').textContent='⚠️ Usuário não encontrado'; return; }
+    S.usuario = usr;
+
+    const { data: comp } = await sb.from('companies').select('*').eq('id', usr.company_id).single();
+    S.company = comp;
+
+    // Update header
+    document.getElementById('h-name').textContent = usr.nome;
+    document.getElementById('h-company').textContent = comp?.nome || '';
+    const av = document.getElementById('h-av');
+    av.textContent = initials(usr.nome);
+    av.style.background = avColor(usr.nome);
+
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('show');
+
+    await loadTarefas();
+    renderTab('tarefas');
+
+  }catch(e){
+    console.error(e);
+    document.getElementById('l-btn').disabled=false;
+    document.getElementById('l-btn').textContent='Entrar →';
+    document.getElementById('l-err').textContent='⚠️ Erro ao carregar. Tente novamente.';
+  }
+}
+
+async function loadTarefas(){
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await sb.from('tarefas')
+    .select('*')
+    .eq('company_id', S.company.id)
+    .eq('atribuido_para', S.usuario.id)
+    .order('created_at', {ascending: false});
+  
+  // Verificar expiradas (prazo passou e não concluiu)
+  const agora = new Date();
+  for(const t of (data||[])){
+    if(t.status === 'pendente' || t.status === 'em_andamento'){
+      if(t.prazo && new Date(t.prazo) < agora && new Date(t.prazo).toDateString() !== agora.toDateString()){
+        // Expirou — atualiza no banco
+        await sb.from('tarefas').update({status:'expirada'}).eq('id',t.id);
+        t.status = 'expirada';
+      }
+    }
+  }
+  S.tarefas = data || [];
+}
+
+// ── TABS ──
+function showTab(tab){
+  S.currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['tarefas','performance'][i]===tab));
+  renderTab(tab);
+}
+
+function renderTab(tab){
+  if(tab==='tarefas') renderTarefas();
+  else renderPerformance();
+}
+
+// ── TAREFAS ──
+function renderTarefas(){
+  const pendentes = S.tarefas.filter(t=>t.status==='pendente'||t.status==='em_andamento');
+  const concluidas = S.tarefas.filter(t=>t.status==='concluida');
+  const expiradas = S.tarefas.filter(t=>t.status==='expirada');
+
+  const el = document.getElementById('content');
+  el.innerHTML = `
+    ${pendentes.length===0&&concluidas.length===0
+      ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa atribuída a você ainda.<br>Aguarde seu gerente criar tarefas.</div></div>`
+      : ''}
+    ${pendentes.length>0?`
+      <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem">
+        Pendentes (${pendentes.length})
+      </div>
+      ${pendentes.map(t=>tarefaCard(t)).join('')}`:''}
+    ${concluidas.length>0?`
+      <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:.75rem 0;margin-top:1.25rem">
+        Concluídas hoje (${concluidas.length})
+      </div>
+      ${concluidas.map(t=>tarefaCard(t)).join('')}`:''}
+    ${expiradas.length>0?`
+      <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:.75rem 0;margin-top:1.25rem">
+        Expiradas (${expiradas.length})
+      </div>
+      ${expiradas.map(t=>tarefaCard(t)).join('')}`:''}
+  `;
+}
+
+function tarefaCard(t){
+  const done = t.status==='concluida';
+  const expired = t.status==='expirada';
+  return `<div class="tarefa-card ${t.prioridade} ${done?'concluida':''} ${expired?'expirada':''}">
+    <div class="tarefa-titulo ${done||expired?'riscado':''}">${escHtml(t.titulo)}</div>
+    <div class="tarefa-meta">
+      <span class="prio-badge ${expired?'expirada':t.prioridade||'normal'}">${expired?'⏰ Expirada':t.prioridade||'normal'}</span>
+      ${t.prazo?`<span>📅 ${fmtDate(t.prazo)}</span>`:''}
+      ${t.descricao?`<span>${escHtml(t.descricao.slice(0,50))}</span>`:''}
+    </div>
+    ${!done&&!expired?`
+    <div class="tarefa-actions">
+      ${t.status!=='em_andamento'?`<button class="btn-action btn-andamento" onclick="marcarAndamento('${t.id}')">▶ Em andamento</button>`:'<span style="font-size:.72rem;color:#FFD600;font-weight:600">▶ Em andamento</span>'}
+      <button class="btn-action btn-concluir" onclick="showConcluir('${t.id}')">✅ Concluir</button>
+    </div>`:''}
+    ${done&&t.prova_comentario?`
+    <div class="prova-preview">
+      ${t.prova_foto?`<img src="${t.prova_foto}" class="prova-img" alt="Prova">`:''}
+      <div class="prova-comment">✅ ${escHtml(t.prova_comentario)}</div>
+    </div>`:''}
+  </div>`;
+}
+
+async function marcarAndamento(id){
+  await sb.from('tarefas').update({status:'em_andamento'}).eq('id',id);
+  const t = S.tarefas.find(x=>x.id===id);
+  if(t) t.status='em_andamento';
+  renderTarefas();
+}
+
+function showConcluir(id){
+  const t = S.tarefas.find(x=>x.id===id);
+  openModal(`
+    <div class="modal-title">✅ Concluir tarefa</div>
+    <div style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem">${escHtml(t?.titulo||'')}</div>
+    <div class="fg">
+      <label class="lbl">Foto como prova</label>
+      <div class="foto-upload" id="foto-wrap" onclick="document.getElementById('foto-inp').click()">
+        <input type="file" id="foto-inp" accept="image/*" capture="environment" style="display:none" onchange="previewFoto(this)">
+        <img id="foto-preview" class="foto-preview">
+        <div id="foto-placeholder">
+          <div class="foto-icon">📸</div>
+          <div class="foto-text">Toque para tirar foto</div>
+        </div>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="lbl">Comentário *</label>
+      <textarea class="inp" id="prova-comment" rows="3" placeholder="Descreva o que foi feito..." style="resize:none"></textarea>
+    </div>
+    <button class="btn-modal primary" id="btn-confirmar" onclick="confirmarConclusao('${id}')">✅ Confirmar conclusão</button>
+    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+function previewFoto(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('foto-preview').src = e.target.result;
+    document.getElementById('foto-preview').style.display = 'block';
+    document.getElementById('foto-placeholder').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function confirmarConclusao(id){
+  const comment = document.getElementById('prova-comment')?.value.trim();
+  if(!comment){ toast('⚠️ Escreva um comentário', false); return; }
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled=true; btn.textContent='Enviando...';
+
+  let fotoUrl = null;
+  const fotoInp = document.getElementById('foto-inp');
+
+  try{
+    // Upload foto se tiver
+    if(fotoInp?.files[0]){
+      const file = fotoInp.files[0];
+      const ext = file.name.split('.').pop();
+      const path = `${S.company.id}/${id}-${Date.now()}.${ext}`;
+      const { data: upData, error: upErr } = await sb.storage.from('provas').upload(path, file);
+      if(!upErr){
+        const { data: urlData } = sb.storage.from('provas').getPublicUrl(path);
+        fotoUrl = urlData.publicUrl;
+      }
+    }
+
+    await sb.from('tarefas').update({
+      status: 'concluida',
+      prova_comentario: comment,
+      prova_foto: fotoUrl,
+      concluido_por: S.usuario.id,
+      concluido_em: new Date().toISOString()
+    }).eq('id', id);
+
+    const t = S.tarefas.find(x=>x.id===id);
+    if(t){
+      t.status='concluida';
+      t.prova_comentario=comment;
+      t.prova_foto=fotoUrl;
+      t.concluido_em=new Date().toISOString();
+    }
+
+    closeModal();
+    toast('✅ Tarefa concluída com prova enviada!');
+    renderTarefas();
+
+  }catch(e){
+    console.error(e);
+    toast('⚠️ Erro ao enviar. Tente novamente.', false);
+    btn.disabled=false; btn.textContent='✅ Confirmar conclusão';
+  }
+}
+
+// ── PERFORMANCE ──
+async function renderPerformance(){
+  const el = document.getElementById('content');
+  el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted)">Carregando...</div>`;
+
+  // Buscar tarefas dos últimos 7 dias
+  const from7 = new Date();
+  from7.setDate(from7.getDate()-6);
+  from7.setHours(0,0,0,0);
+
+  const { data: historico } = await sb.from('tarefas')
+    .select('*')
+    .eq('company_id', S.company.id)
+    .eq('atribuido_para', S.usuario.id)
+    .gte('created_at', from7.toISOString());
+
+  const tarefas = historico || [];
+  const concluidas = tarefas.filter(t=>t.status==='concluida').length;
+  const expiradas = tarefas.filter(t=>t.status==='expirada').length;
+  const total = concluidas + expiradas;
+  const score = total > 0 ? Math.round((concluidas/total)*100) : 0;
+  const scoreColor = score>=80?'var(--accent)':score>=50?'#FFD600':'var(--error)';
+
+  // Dados por dia
+  const dias = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
+    const next = new Date(d); next.setDate(next.getDate()+1);
+    const dayTasks = tarefas.filter(t=>{
+      const ct = new Date(t.created_at);
+      return ct >= d && ct < next;
+    });
+    dias.push({
+      label: d.toLocaleDateString('pt-BR',{weekday:'short'}).slice(0,3),
+      concluidas: dayTasks.filter(t=>t.status==='concluida').length,
+      expiradas: dayTasks.filter(t=>t.status==='expirada').length,
+      total: dayTasks.length
+    });
+  }
+  const maxVal = Math.max(...dias.map(d=>d.concluidas+d.expiradas), 1);
+
+  el.innerHTML = `
+    <div class="perf-header">
+      <div class="perf-av" style="background:${avColor(S.usuario?.nome||'')}">${initials(S.usuario?.nome||'')}</div>
+      <div>
+        <div class="perf-name">${escHtml(S.usuario?.nome||'')}</div>
+        <div class="perf-role">${S.usuario?.perfil||'funcionário'} · ${escHtml(S.company?.nome||'')}</div>
+      </div>
+    </div>
+
+    <div class="perf-score">
+      <div class="score-num" style="color:${scoreColor}">${score}%</div>
+      <div class="score-label">Taxa de conclusão — 7 dias</div>
+      <div class="score-bar">
+        <div class="score-fill" style="width:${score}%;background:${scoreColor}"></div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-mini">
+        <div class="stat-mini-val" style="color:var(--accent)">${concluidas}</div>
+        <div class="stat-mini-label">✅ Concluídas</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-val" style="color:var(--error)">${expiradas}</div>
+        <div class="stat-mini-label">⏰ Expiradas</div>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">Tarefas por dia</div>
+      <div class="chart-bars">
+        ${dias.map(d=>{
+          const hC = d.concluidas>0 ? Math.max(8, Math.round((d.concluidas/maxVal)*72)) : 0;
+          const hE = d.expiradas>0 ? Math.max(8, Math.round((d.expiradas/maxVal)*72)) : 0;
+          return`<div class="chart-col">
+            <div class="chart-bar-wrap">
+              ${hE>0?`<div class="bar-expirada" style="height:${hE}px"></div>`:''}
+              ${hC>0?`<div class="bar-concluida" style="height:${hC}px"></div>`:''}
+              ${hC===0&&hE===0?`<div style="height:2px;background:var(--border);border-radius:2px"></div>`:''}
+            </div>
+            <div class="chart-day">${d.label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:.875rem;justify-content:center">
+        <div style="display:flex;align-items:center;gap:.375rem;font-size:.68rem;color:var(--muted)"><div style="width:8px;height:8px;border-radius:2px;background:var(--accent)"></div>Concluída</div>
+        <div style="display:flex;align-items:center;gap:.375rem;font-size:.68rem;color:var(--muted)"><div style="width:8px;height:8px;border-radius:2px;background:var(--error)"></div>Expirada</div>
+      </div>
+    </div>
+
+    <div style="background:${score>=80?'rgba(0,255,136,.06)':score>=50?'rgba(255,214,0,.06)':'rgba(255,61,107,.06)'};border:1px solid ${score>=80?'rgba(0,255,136,.15)':score>=50?'rgba(255,214,0,.15)':'rgba(255,61,107,.15)'};border-radius:12px;padding:1rem;text-align:center">
+      <div style="font-size:1.5rem;margin-bottom:.375rem">${score>=80?'🌟':score>=50?'💪':'⚡'}</div>
+      <div style="font-size:.85rem;font-weight:600;margin-bottom:.25rem">${score>=80?'Excelente desempenho!':score>=50?'Bom trabalho, pode melhorar!':'Atenção: muitas tarefas expiradas'}</div>
+      <div style="font-size:.75rem;color:var(--muted)">${score>=80?'Continue assim! Você está entre os melhores.':score>=50?'Tente concluir as tarefas antes do prazo.':'Converse com seu gerente sobre os prazos.'}</div>
+    </div>
+  `;
+}
+
+// ── BOOT ──
+(async()=>{
+  const { data } = await sb.auth.getSession();
+  if(data?.session?.user) await initApp(data.session.user);
+})();
+</script>
+</body>
+</html>
