@@ -10,10 +10,10 @@ module.exports = async function handler(req, res) {
 
   const { messages, systemPrompt, generateImage, imagePrompt } = req.body;
 
-  // IMAGE GENERATION — Nano Banana (gemini-2.5-flash-image)
+  // IMAGE GENERATION — Nano Banana = gemini-2.5-flash-image
   if (generateImage && imagePrompt) {
     try {
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=' + GEMINI_API_KEY;
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + GEMINI_API_KEY;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,6 +37,7 @@ module.exports = async function handler(req, res) {
       }
       return res.status(500).json({ error: 'Sem imagem', details: data });
     } catch (e) {
+      console.error('Image error:', e);
       return res.status(500).json({ error: e.message });
     }
   }
