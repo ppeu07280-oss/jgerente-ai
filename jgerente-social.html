@@ -157,6 +157,7 @@ const sb = createClient(
 );
 
 const FAL_PROXY = 'https://jgerente-ai.vercel.app/api/fal';
+const IMAGE_PROXY = 'https://jgerente-ai.vercel.app/api/image';
 const GEMINI_URL = 'https://jgerente-ai.vercel.app/api/chat';
 const LIMITE_IMAGENS = 30;
 const LIMITE_VIDEOS = 10;
@@ -260,6 +261,19 @@ function renderAgente(){
       +'<button class="quick-btn" style="padding:.6rem 1rem;border-radius:10px" onclick="enviarMsg(\'Crie um calendário de conteúdo para essa semana para \'+( S.company&&S.company.nome||\'meu negócio\'))">📅 Calendário semanal</button>'
       +'</div></div>'
     : S.chatMsgs.map(function(m){
+        if(m.role==='image'){
+          return '<div class="chat-msg ai"><div class="chat-av">🖼️</div><div class="chat-bubble" style="padding:.5rem;max-width:300px"><img src="'+m.content+'" style="width:100%;border-radius:10px;display:block;margin-bottom:.5rem"><a href="'+m.content+'" download="post.jpg" style="display:block;padding:.5rem;background:linear-gradient(135deg,#FF6B9D,#9D6BFF);color:white;border-radius:8px;font-size:.72rem;font-weight:700;text-align:center;text-decoration:none">⬇️ Baixar imagem</a></div></div>';
+        }
+        if(m.role==='system'&&m.content==='image_loading'){
+          return '<div class="chat-msg ai"><div class="chat-av">🖼️</div><div class="chat-bubble"><div style="font-size:.75rem;color:var(--muted)">🎨 Gerando sua imagem...<div style="height:3px;background:var(--border);border-radius:100px;margin-top:.5rem;overflow:hidden"><div style="height:100%;width:60%;background:linear-gradient(90deg,#FF6B9D,#9D6BFF);border-radius:100px;animation:loading 1.5s ease-in-out infinite"></div></div></div></div></div>';
+        }
+        if(m.role==='image'){
+          return '<div class="chat-msg ai"><div class="chat-av">🖼️</div>'
+            +'<div class="chat-bubble" style="padding:.5rem">'
+            +'<img src="'+m.content+'" style="width:100%;max-width:280px;border-radius:10px;display:block;margin-bottom:.5rem">'
+            +'<a href="'+m.content+'" download="post.jpg" style="display:block;padding:.5rem;background:linear-gradient(135deg,#FF6B9D,#9D6BFF);color:white;border-radius:8px;font-size:.72rem;font-weight:700;text-align:center;text-decoration:none">⬇️ Baixar imagem</a>'
+            +'</div></div>';
+        }
         var isUser = m.role==='user';
         return '<div class="chat-msg '+(isUser?'user':'ai')+'">'
           +'<div class="chat-av">'+(isUser?'👤':'📱')+'</div>'
@@ -278,7 +292,7 @@ function renderAgente(){
     +'<button class="quick-btn" onclick="enviarMsg(\'Texto para anúncio no Facebook\')">📣 Anúncio</button>'
     +'</div>'
     +'<div class="chat-row">'
-    +'<textarea class="chat-inp" id="chat-inp" placeholder="Peça legendas, roteiros, hashtags..." rows="2" onkeydown="if(event.keyCode===13&&!event.shiftKey){event.preventDefault();enviarMsg()}"></textarea>'
+    +'<textarea class="chat-inp" id="chat-inp" placeholder="Descreva o post ou peça uma imagem..." rows="2" onkeydown="if(event.keyCode===13&&!event.shiftKey){event.preventDefault();enviarMsg()}"></textarea>'
     +'<button class="btn-send" id="btn-send" onclick="enviarMsg()">→</button>'
     +'</div>'
     +'</div></div>';
@@ -313,13 +327,19 @@ async function enviarMsg(txt){
 
   S.chatMsgs.push({role:'user', content:msg});
 
-  const systemPrompt = 'Você é o Agente Social Mídia da empresa "'+( S.company&&S.company.nome||'empresa')+'".'
-    +' Você é especialista em marketing digital, criação de conteúdo para redes sociais brasileiras.'
-    +' Cria legendas virais, roteiros para Reels/TikTok, hashtags estratégicas e calendários de conteúdo.'
-    +' Conhece as tendências do mercado brasileiro e fala de forma jovem e engajante.'
-    +' Sempre sugere CTAs (chamadas para ação) e pede para salvar, compartilhar ou seguir.'
-    +' Responda em português brasileiro, use emojis e seja criativo!';
+  // Detectar pedido de imagem
+  var msgL = msg.toLowerCase();
+  var isImg = msgL.indexOf('gere uma imagem')>=0 || msgL.indexOf('gerar imagem')>=0
+    || msgL.indexOf('crie uma imagem')>=0 || msgL.indexOf('criar imagem')>=0
+    || msgL.indexOf('gera uma foto')>=0 || msgL.indexOf('me manda uma foto')>=0
+    || msgL.indexOf('gera uma imagem')>=0 || msgL.indexOf('quero uma imagem')>=0
+    || (msgL.indexOf('imagem')>=0 && (msgL.indexOf('gere')>=0||msgL.indexOf('crie')>=0||msgL.indexOf('faz')>=0));
 
+  var systemPrompt = isImg
+    ? 'Você é especialista em criar prompts para geração de imagens com IA. Empresa: "'+( S.company&&S.company.nome||'empresa')+'". Crie UM prompt detalhado em inglês para o GPT Image 1.5. Inclua: produto, estilo fotográfico, iluminação, cores, fundo, composição, qualidade. RESPONDA APENAS com o prompt, sem explicações.'
+    : 'Você é o Agente Social Mídia da empresa "'+( S.company&&S.company.nome||'empresa')+'". Especialista em marketing digital brasileiro. Cria legendas virais, roteiros para Reels, hashtags. Use emojis e seja criativo! Responda em português.';
+
+  // Mostrar loading
   const msgs = document.getElementById('chat-msgs');
   if(msgs){
     msgs.innerHTML += '<div class="chat-msg ai"><div class="chat-av">📱</div><div class="chat-bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>';
@@ -334,14 +354,40 @@ async function enviarMsg(txt){
     });
     const data = await res.json();
     const reply = data.response || 'Desculpe, tente novamente.';
-    S.chatMsgs.push({role:'assistant', content:reply});
+    S.chatMsgs.push({role:'assistant', content: isImg ? '🎨 Criando prompt e gerando imagem...' : reply});
+    renderAgente();
+
+    if(isImg){
+      try{
+        var ir = await fetch(IMAGE_PROXY,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({prompt:reply, size:'1024x1024', quality:'high'})
+        });
+        var id = await ir.json();
+        S.chatMsgs = S.chatMsgs.filter(function(m){return m.content!=='🎨 Criando prompt e gerando imagem...';});
+        var imgUrl = id.data&&id.data[0]&&id.data[0].url ? id.data[0].url : (id.data&&id.data[0]&&id.data[0].b64_json ? 'data:image/png;base64,'+id.data[0].b64_json : null);
+        if(imgUrl){
+          S.usoMes.imagens=(S.usoMes.imagens||0)+1;
+          await salvarUso();
+          S.chatMsgs.push({role:'image',content:imgUrl,prompt:reply});
+        } else {
+          S.chatMsgs.push({role:'assistant',content:'Nao consegui gerar a imagem. Tente descrever de forma diferente.'});
+        }
+      }catch(imgErr){
+        S.chatMsgs = S.chatMsgs.filter(function(m){return m.content!=='🎨 Criando prompt e gerando imagem...';});
+        S.chatMsgs.push({role:'assistant',content:'Erro ao gerar imagem. Tente novamente.'});
+      }
+      renderAgente();
+    }
   }catch(e){
     S.chatMsgs.push({role:'assistant', content:'Erro ao conectar. Tente novamente.'});
+    renderAgente();
   }
 
   if(btn) btn.disabled=false;
-  renderAgente();
 }
+
 
 // ── GERAR IMAGEM ──
 function renderImagens(){
@@ -386,23 +432,24 @@ async function gerarImagem(){
   resultado.innerHTML = '<div class="progresso">Gerando sua imagem...<div class="progresso-bar"><div class="progresso-fill"></div></div></div>';
 
   try{
-    const res = await fetch(FAL_PROXY, {
+    // Map format to OpenAI size
+    var sizeMap = {'square_hd':'1024x1024','portrait_4_3':'1024x1536','landscape_4_3':'1536x1024'};
+    var openaiSize = sizeMap[format]||'1024x1024';
+
+    const res = await fetch(IMAGE_PROXY, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        endpoint: 'fal-ai/flux-pro/v1.1',
-        payload: {
-          prompt: prompt+', professional photography, high quality, ultra detailed, 8k',
-          image_size: format,
-          num_images: 1,
-          safety_tolerance: '2'
-        }
+        prompt: prompt+', professional photography, high quality, ultra detailed',
+        size: openaiSize,
+        quality: 'high'
       })
     });
 
     const data = await res.json();
-    if(data.images && data.images[0]){
-      const url = data.images[0].url;
+    var imgUrl = data.data&&data.data[0]&&data.data[0].url ? data.data[0].url : (data.data&&data.data[0]&&data.data[0].b64_json ? 'data:image/png;base64,'+data.data[0].b64_json : null);
+    if(imgUrl){
+      const url = imgUrl;
       S.usoMes.imagens = (S.usoMes.imagens||0) + 1;
       await salvarUso();
 
