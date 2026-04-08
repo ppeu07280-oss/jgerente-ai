@@ -1,5 +1,5 @@
-// api/image.js — Proxy para OpenAI GPT Image 1
-const OPENAI_KEY = process.env.OPENAI_KEY;
+// api/image.js — Proxy para Google Imagen 4 Fast via Gemini API
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -9,39 +9,42 @@ module.exports = async function handler(req, res) {
   if(req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try{
-    const { prompt, size, quality } = req.body;
+    const { prompt, aspectRatio } = req.body;
     if(!prompt) return res.status(400).json({ error: 'prompt required' });
-    if(!OPENAI_KEY) return res.status(500).json({ error: 'OPENAI_KEY not configured' });
+    if(!GEMINI_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
 
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict?key=' + GEMINI_KEY;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + OPENAI_KEY
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-image-1',
-        prompt: prompt,
-        n: 1,
-        size: size || '1024x1024',
-        quality: quality || 'medium'
+        instances: [{ prompt: prompt }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: aspectRatio || '1:1',
+          safetyFilterLevel: 'block_few'
+        }
       })
     });
 
     const data = await response.json();
-    console.log('OpenAI response status:', response.status);
-    console.log('OpenAI response keys:', Object.keys(data));
+    console.log('Imagen response status:', response.status);
 
     if(!response.ok){
-      return res.status(response.status).json({ error: data.error || 'OpenAI error', details: data });
+      return res.status(response.status).json({ error: data.error || 'Imagen error', details: data });
     }
 
-    // gpt-image-1 returns b64_json - convert to data URL for browser
-    if(data.data && data.data[0] && data.data[0].b64_json){
-      data.data[0].url = 'data:image/png;base64,' + data.data[0].b64_json;
+    // Imagen retorna base64 em predictions[0].bytesBase64Encoded
+    if(data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded){
+      const b64 = data.predictions[0].bytesBase64Encoded;
+      const mimeType = data.predictions[0].mimeType || 'image/png';
+      return res.status(200).json({
+        data: [{ url: 'data:'+mimeType+';base64,'+b64 }]
+      });
     }
 
-    return res.status(200).json(data);
+    return res.status(500).json({ error: 'No image in response', details: data });
 
   }catch(e){
     console.error('Image proxy error:', e);
