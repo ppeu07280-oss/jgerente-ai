@@ -935,6 +935,13 @@ function calcularHorarios(){
   preview.innerHTML = horarios.map(function(h,i){ return '<span style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.15);color:var(--accent);padding:.2rem .5rem;border-radius:100px;font-size:.7rem;font-weight:600">'+(i+1)+'ª '+h+'</span>'; }).join('');
 }
 
+function toggleDia(el){
+  el.classList.toggle('active');
+  var idx = el.dataset.idx;
+  var inp = document.getElementById('dia-'+idx);
+  if(inp) inp.checked = el.classList.contains('active');
+}
+
 function toggleDiasSemana(){
   const cb = document.getElementById('t-recorrente');
   const wrap = document.getElementById('dias-semana-wrap');
@@ -943,7 +950,7 @@ function toggleDiasSemana(){
 
 function showAddTarefa(){
   const membros = S.equipe.map(m=>`<option value="${m.id}">${escHtml(m.nome)}</option>`).join('');
-  window._diasHtml = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(function(d,i){ var chk=(i>0&&i<7)?'checked':''; var act=(i>0&&i<7)?'active':''; return '<label style="cursor:pointer"><input type="checkbox" value="'+i+'" class="dia-check" style="display:none" '+chk+'><div class="dia-btn '+act+'" data-idx="'+i+'" onclick="this.classList.toggle(\"active\")">'+d+'</div></label>'; }).join('');
+  window._diasHtml = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'].map(function(d,i){ var chk=(i>0&&i<7)?'checked':''; var act=(i>0&&i<7)?'active':''; return '<label style="cursor:pointer"><input type="checkbox" value="'+i+'" class="dia-check" id="dia-'+i+'" style="display:none" '+chk+'><div class="dia-btn '+act+'" data-idx="'+i+'" onclick="toggleDia(this)">'+d+'</div></label>'; }).join('');
   openModal(`
     <div class="modal-title">📋 Nova Tarefa</div>
     <div class="fg"><label class="lbl">Título *</label><input class="inp" id="t-titulo" placeholder="Ex: Limpar o salão antes das 18h"></div>
