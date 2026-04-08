@@ -736,9 +736,9 @@ function renderDashboard(){
         <button class="btn-add" onclick="navTo('tarefas')">Ver todas →</button>
       </div>
       <div class="sec-card-body">
-        ${S.tarefas.slice(0,4).length===0
+        ${S.tarefas.filter(function(t){return !t.tarefa_pai;}).slice(0,4).length===0
           ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa ainda.<br>Crie a primeira para sua equipe.</div></div>`
-          : S.tarefas.slice(0,4).map(function(t){ return `
+          : S.tarefas.filter(function(t){return !t.tarefa_pai;}).slice(0,4).map(function(t){ return `
             <div class="activity-row">
               <div class="activity-icon" style="background:${t.status==='concluida'?'rgba(0,255,136,.1)':t.prioridade==='urgente'?'rgba(255,61,107,.1)':'rgba(61,107,255,.1)'}">
                 ${t.status==='concluida'?'✅':t.prioridade==='urgente'?'🔴':'📌'}
@@ -1245,6 +1245,8 @@ function renderConfig(){
   const trialAte = S.company?.trial_ate ? new Date(S.company.trial_ate) : null;
   const diasTrial = trialAte ? Math.max(0,Math.ceil((trialAte-Date.now())/86400000)) : 0;
   const pct = Math.min(100, Math.round(((14-diasTrial)/14)*100));
+  const planoAtual = S.company?.plano || 'trial';
+  const isTrialOrExpired = planoAtual === 'trial';
 
   // Equipe section
   const membros = S.equipe.filter(function(m){ return m.id!==S.usuario?.id; });
@@ -1945,6 +1947,37 @@ function renderMarkdown(text){
   return result;
 }
 
+
+// ── PAGAMENTO ──────────────────────────────────────
+async function assinar(plano){
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Aguarde...';
+
+  try{
+    const res = await fetch('https://jgerente-ai.vercel.app/api/pagamento', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action: 'criar',
+        plano: plano,
+        email: S.usuario.email,
+        nome: S.usuario.nome,
+        company_id: S.company.id
+      })
+    });
+    const data = await res.json();
+    if(data.url){
+      window.open(data.url, '_blank');
+    } else {
+      toast('⚠️ Erro ao gerar link de pagamento', false);
+    }
+  }catch(e){
+    toast('⚠️ Erro: '+e.message, false);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Assinar';
+}
 
 // ── BOOT ──
 (async()=>{
