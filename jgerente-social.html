@@ -156,7 +156,7 @@ const sb = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
 );
 
-const FAL_KEY = '925a87d1-6a7b-495e-b569-2bea6333132a:02c196077d9cb12b1cafdce67f499527';
+const FAL_PROXY = 'https://jgerente-ai.vercel.app/api/fal';
 const GEMINI_URL = 'https://jgerente-ai.vercel.app/api/chat';
 const LIMITE_IMAGENS = 30;
 const LIMITE_VIDEOS = 10;
@@ -386,17 +386,17 @@ async function gerarImagem(){
   resultado.innerHTML = '<div class="progresso">Gerando sua imagem...<div class="progresso-bar"><div class="progresso-fill"></div></div></div>';
 
   try{
-    const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
+    const res = await fetch(FAL_PROXY, {
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Key '+FAL_KEY
-      },
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        prompt: prompt+', professional photography, high quality, 8k',
-        image_size: format,
-        num_images: 1,
-        num_inference_steps: 4
+        endpoint: 'fal-ai/flux/schnell',
+        payload: {
+          prompt: prompt+', professional photography, high quality, 8k',
+          image_size: format,
+          num_images: 1,
+          num_inference_steps: 4
+        }
       })
     });
 
@@ -470,17 +470,17 @@ async function gerarVideo(){
 
   try{
     // Usar Kling via fal.ai
-    const res = await fetch('https://fal.run/fal-ai/kling-video/v1.6/standard/text-to-video', {
+    const res = await fetch(FAL_PROXY, {
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Key '+FAL_KEY
-      },
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        prompt: prompt+', cinematic, professional, high quality',
-        duration: duration === 5 ? '5' : '10',
-        aspect_ratio: ratio,
-        negative_prompt: 'blurry, low quality, distorted'
+        endpoint: 'fal-ai/kling-video/v1.6/standard/text-to-video',
+        payload: {
+          prompt: prompt+', cinematic, professional, high quality',
+          duration: duration === 5 ? '5' : '10',
+          aspect_ratio: ratio,
+          negative_prompt: 'blurry, low quality, distorted'
+        }
       })
     });
 
