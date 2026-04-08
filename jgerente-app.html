@@ -664,7 +664,7 @@ function renderView(view){
   } else {
     if(result) m.innerHTML = result;
   }
-  if(view === 'chat' && chatMessages.length === 0) loadChatHistory(currentAgent);
+  if(view === 'chat' && currentAgent) loadChatHistory(currentAgent);
 }
 
 // ══════════════════════════════════════════
@@ -1174,23 +1174,28 @@ function renderPresencaDono(){
 // CHAT IA
 // ══════════════════════════════════════════
 function renderChat(){
+  // Se ja tem agente selecionado, vai direto pro chat
+  if(currentAgent && chatMessages.length > 0){
+    renderChatView();
+    return;
+  }
+  // Caso contrario mostra selecao de agente
   const el = document.getElementById('main');
+  const btnStyle = 'padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body);text-align:left';
   el.innerHTML = '<div class="main-header"><div><div class="page-title">IA Gerente</div>'
-    +'<div class="page-sub">Converse com seus agentes de IA</div></div></div>'
+    +'<div class="page-sub">Escolha um agente para conversar</div></div></div>'
     +'<div class="content">'
-    +'<div class="sec-card">'
-    +'<div class="sec-card-body" style="text-align:center;padding:2rem">'
-    +'<div style="font-size:2rem;margin-bottom:.75rem">🤖</div>'
-    +'<div style="font-size:.85rem;font-weight:600;margin-bottom:.375rem">Escolha um agente:</div>'
-    +'<div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem">'
-    +'<button data-agent="gestor" onclick="selectAgent(this.dataset.agent)" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">👔 Agente Gestor</button>'
-    +'<button data-agent="fidelidade" onclick="selectAgent(this.dataset.agent)" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">🎯 Agente Fidelidade</button>'
-    +'<button data-agent="estrategista" onclick="selectAgent(this.dataset.agent)" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">📊 Agente Estrategista</button>'
-    +'</div></div></div></div>';
+    +'<div class="sec-card"><div class="sec-card-body" style="display:flex;flex-direction:column;gap:.75rem;padding:1.25rem">'
+    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem">Seus assistentes especializados:</div>'
+    +'<button data-agent="gestor" onclick="selectAgent(this.dataset.agent)" style="'+btnStyle+'">👔 <b>Agente Gestor</b><div style=\"font-size:.72rem;color:var(--muted);margin-top:.25rem\">Tarefas, equipe e operações</div></button>'
+    +'<button data-agent="fidelidade" onclick="selectAgent(this.dataset.agent)" style="'+btnStyle+'">🎯 <b>Agente Fidelidade</b><div style=\"font-size:.72rem;color:var(--muted);margin-top:.25rem\">Clientes, pontos e retenção</div></button>'
+    +'<button data-agent="estrategista" onclick="selectAgent(this.dataset.agent)" style="'+btnStyle+'">📊 <b>Agente Estrategista</b><div style=\"font-size:.72rem;color:var(--muted);margin-top:.25rem\">Crescimento e estratégia</div></button>'
+    +'</div></div></div>';
 }
 
 function selectAgent(tipo){
   currentAgent = tipo;
+  chatMessages = [];
   loadChatHistory(tipo);
 }
 
