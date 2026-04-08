@@ -1625,6 +1625,99 @@ function filtrarAuditLogs(){
   }).join('');
 }
 
+// ── CHAT IA ──────────────────────────────────────
+
+
+async function loadChatHistory(agente){
+  currentAgent = agente||'gestor';
+  const { data } = await sb.from('conversas')
+    .select('*')
+    .eq('company_id', S.company.id)
+    .eq('agente', currentAgent)
+    .order('created_at', {ascending: true})
+    .limit(30);
+  chatMessages = (data||[]).map(function(m){ return {role:m.role, content:m.content}; });
+  renderChatView();
+}
+
+function renderChatView(){
+  const ag = AGENTS[currentAgent]||AGENTS.gestor;
+  const main = document.getElementById('main');
+  
+  const msgsHtml = chatMessages.length===0
+    ? '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.82rem">Nenhuma mensagem ainda. Comece a conversa!</div>'
+    : chatMessages.map(function(m){
+        const isUser = m.role==='user';
+        return '<div style="display:flex;gap:.625rem;max-width:85%;'+(isUser?'align-self:flex-end;flex-direction:row-reverse':'align-self:flex-start')+';margin-bottom:.875rem">'
+          +'<div style="width:28px;height:28px;border-radius:50%;background:'+(isUser?'var(--accent)':'var(--card2)')+';border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;margin-top:.2rem">'+(isUser?'👤':ag.icon)+'</div>'
+          +'<div style="padding:.75rem 1rem;border-radius:14px;font-size:.83rem;line-height:1.6;background:'+(isUser?'var(--accent)':'var(--card2)')+';color:'+(isUser?'var(--black)':'var(--white)')+';border:1px solid '+(isUser?'transparent':'var(--border)')+'">'+escHtml(m.content).replace(/\n/g,'<br>')+'</div>'
+          +'</div>';
+      }).join('');
+
+  main.innerHTML = '<div style="display:flex;flex-direction:column;height:calc(100vh - 60px)">'
+    +'<div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem;flex-shrink:0">'
+    +'<div style="font-size:1.5rem">'+ag.icon+'</div>'
+    +'<div><div style="font-family:var(--font);font-size:.9rem;font-weight:700">'+ag.nome+'</div>'
+    +'<div style="font-size:.72rem;color:var(--muted)">Agente especializado • '+S.company.nome+'</div></div>'
+    +'<button onclick="clearChat()" style="margin-left:auto;background:none;border:1px solid var(--border2);color:var(--muted);font-size:.7rem;padding:.3rem .625rem;border-radius:6px;cursor:pointer;font-family:var(--body)">Limpar</button>'
+    +'</div>'
+    +'<div id="chat-msgs" style="flex:1;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column">'
+    +msgsHtml
+    +'</div>'
+    +'<div style="padding:.875rem 1rem;border-top:1px solid var(--border);display:flex;gap:.625rem;background:var(--black);flex-shrink:0">'
+    +'<input class="inp" id="chat-inp" placeholder="Mensagem para '+ag.nome+'..." onkeydown="if(event.keyCode===13)sendMessage()" style="flex:1">'
+    +'<button onclick="sendMessage()" id="btn-send" style="width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--black);border:none;cursor:pointer;font-size:.9rem;flex-shrink:0">→</button>'
+    +'</div>'
+    +'</div>';
+
+  const msgs = document.getElementById('chat-msgs');
+  if(msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function sendMessage(){
+  const inp = document.getElementById('chat-inp');
+  const msg = inp&&inp.value.trim();
+  if(!msg) return;
+  if(inp) inp.value='';
+  
+  const btn = document.getElementById('btn-send');
+  if(btn) btn.disabled=true;
+
+  chatMessages.push({role:'user', content:msg});
+  renderChatView();
+
+  const ag = AGENTS[currentAgent]||AGENTS.gestor;
+  const systemPrompt = ag.prompt(S.company, S.tarefas, S.equipe, S.customers);
+
+  try{
+    const res = await fetch('https://jgerente-ai.vercel.app/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({messages: chatMessages, systemPrompt})
+    });
+    const data = await res.json();
+    const reply = data.response||'Desculpe, não consegui processar.';
+    chatMessages.push({role:'assistant', content:reply});
+
+    // Salvar no banco
+    await sb.from('conversas').insert([
+      {company_id:S.company.id, agente:currentAgent, role:'user', content:msg},
+      {company_id:S.company.id, agente:currentAgent, role:'assistant', content:reply}
+    ]);
+  }catch(e){
+    chatMessages.push({role:'assistant', content:'Desculpe, ocorreu um erro. Tente novamente.'});
+  }
+
+  if(btn) btn.disabled=false;
+  renderChatView();
+}
+
+async function clearChat(){
+  await sb.from('conversas').delete().eq('company_id',S.company.id).eq('agente',currentAgent);
+  chatMessages=[];
+  renderChatView();
+}
+
 // ── BOOT ──
 (async()=>{
   // Verificar sessão ativa
