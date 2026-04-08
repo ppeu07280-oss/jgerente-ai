@@ -958,7 +958,7 @@ function toggleDiasSemana(){
 function showAddTarefa(){
   const membros = S.equipe.map(m=>`<option value="${m.id}">${escHtml(m.nome)}</option>`).join('');
   openModal(`
-    <div class="modal-title">📋 Nova Tarefa</div>
+    <div class="modal-title">Nova Tarefa</div>
     <div class="fg"><label class="lbl">Título *</label><input class="inp" id="t-titulo" placeholder="Ex: Limpar o salão antes das 18h"></div>
     <div class="fg"><label class="lbl">Descrição</label><input class="inp" id="t-desc" placeholder="Detalhes da tarefa..."></div>
     <div class="fg"><label class="lbl">Responsável</label>
@@ -1024,7 +1024,7 @@ function showAddTarefa(){
       </div>
     </div>
 
-    <button class="btn-modal primary" onclick="salvarTarefa()">✅ Criar Tarefa</button>
+    <button class="btn-modal primary" onclick="salvarTarefa()">Criar Tarefa</button>
     <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
   \`;
 
@@ -1181,14 +1181,14 @@ function renderConfig(){
 
 // ── EDITAR EMPRESA ──
 function editarEmpresa(){
-  openModal(`
-    <div class="modal-title">🏪 Editar Empresa</div>
-    <div class="fg"><label class="lbl">Nome da empresa *</label>
-      <input class="inp" id="edit-empresa-nome" value="${escHtml(S.company?.nome||'')}">
-    </div>
-    <button class="btn-modal primary" onclick="salvarEmpresa()">💾 Salvar</button>
-    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
-  `);
+  const nomeAtual = escHtml(S.company?.nome||'');
+  openModal(
+    '<div class="modal-title">🏪 Editar Empresa</div>'
+    +'<div class="fg"><label class="lbl">Nome da empresa *</label>'
+    +'<input class="inp" id="edit-empresa-nome" value="'+nomeAtual+'"></div>'
+    +'<button class="btn-modal primary" onclick="salvarEmpresa()">💾 Salvar</button>'
+    +'<button class="btn-modal outline" onclick="closeModal()">Cancelar</button>'
+  );
 }
 
 async function salvarEmpresa(){
@@ -1206,14 +1206,14 @@ async function salvarEmpresa(){
 
 // ── EDITAR PERFIL DONO ──
 function editarPerfil(){
-  openModal(`
-    <div class="modal-title">👤 Editar Meu Perfil</div>
-    <div class="fg"><label class="lbl">Seu nome *</label>
-      <input class="inp" id="edit-dono-nome" value="${escHtml(S.usuario?.nome||'')}">
-    </div>
-    <button class="btn-modal primary" onclick="salvarPerfil()">💾 Salvar</button>
-    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
-  `);
+  const nomeAtual = escHtml(S.usuario?.nome||'');
+  openModal(
+    '<div class="modal-title">👤 Editar Meu Perfil</div>'
+    +'<div class="fg"><label class="lbl">Seu nome *</label>'
+    +'<input class="inp" id="edit-dono-nome" value="'+nomeAtual+'"></div>'
+    +'<button class="btn-modal primary" onclick="salvarPerfil()">💾 Salvar</button>'
+    +'<button class="btn-modal outline" onclick="closeModal()">Cancelar</button>'
+  );
 }
 
 async function salvarPerfil(){
@@ -1235,20 +1235,21 @@ async function salvarPerfil(){
 function editarFuncionario(id){
   const m = S.equipe.find(x=>x.id===id);
   if(!m) return;
-  openModal(`
-    <div class="modal-title">✏️ Editar Funcionário</div>
-    <div class="fg"><label class="lbl">Nome *</label>
-      <input class="inp" id="edit-func-nome" value="${escHtml(m.nome||'')}">
-    </div>
-    <div class="fg"><label class="lbl">Perfil</label>
-      <select class="inp" id="edit-func-perfil">
-        <option value="funcionario" ${m.perfil==='funcionario'?'selected':''}>Funcionário</option>
-        <option value="gerente" ${m.perfil==='gerente'?'selected':''}>Gerente</option>
-      </select>
-    </div>
-    <button class="btn-modal primary" onclick="salvarFuncionario('${id}')">💾 Salvar</button>
-    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
-  `);
+  const nomeFunc = escHtml(m.nome||'');
+  const selFunc = m.perfil==='funcionario'?'selected':'';
+  const selGer = m.perfil==='gerente'?'selected':'';
+  openModal(
+    '<div class="modal-title">✏️ Editar Funcionário</div>'
+    +'<div class="fg"><label class="lbl">Nome *</label>'
+    +'<input class="inp" id="edit-func-nome" value="'+nomeFunc+'"></div>'
+    +'<div class="fg"><label class="lbl">Perfil</label>'
+    +'<select class="inp" id="edit-func-perfil">'
+    +'<option value="funcionario" '+selFunc+'>Funcionário</option>'
+    +'<option value="gerente" '+selGer+'>Gerente</option>'
+    +'</select></div>'
+    +'<button class="btn-modal primary" onclick="salvarFuncionario(''+id+'')">💾 Salvar</button>'
+    +'<button class="btn-modal outline" onclick="closeModal()">Cancelar</button>'
+  );
 }
 
 async function salvarFuncionario(id){
