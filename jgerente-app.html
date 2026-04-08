@@ -1718,6 +1718,86 @@ async function clearChat(){
   renderChatView();
 }
 
+// ── FUNÇÕES DE TAREFA ────────────────────────────
+async function deletarTarefa(id){
+  const t = S.tarefas.find(function(x){return x.id===id;});
+  const isModelo = t&&t.recorrente;
+  if(isModelo){
+    await sb.from('tarefas').delete().eq('tarefa_pai', id);
+  }
+  await sb.from('tarefas').delete().eq('id', id);
+  S.tarefas = S.tarefas.filter(function(x){return x.id!==id && x.tarefa_pai!==id;});
+  logAuditoria('tarefa_deletada', 'Removeu tarefa: "'+(t&&t.titulo||id)+'"');
+  toast(isModelo?'Tarefa recorrente removida!':'Tarefa removida');
+  renderView('tarefas');
+}
+
+async function marcarConcluida(id){
+  const { error } = await sb.from('tarefas').update({status:'concluida', concluido_em:new Date().toISOString()}).eq('id',id);
+  if(!error){
+    const t = S.tarefas.find(function(x){return x.id===id;});
+    if(t) t.status='concluida';
+    renderView('tarefas');
+  }
+}
+
+// ── FUNÇÕES DE EQUIPE ────────────────────────────
+function showAddMembro(){
+  window._addMembroModal = true;
+  const html = '<div class="modal-title">👤 Novo Funcionário</div>'
+    +'<div class="fg"><label class="lbl">Nome *</label><input class="inp" id="m-nome" placeholder="Nome completo"></div>'
+    +'<div class="fg"><label class="lbl">Email *</label><input class="inp" id="m-email" type="email" placeholder="email@exemplo.com"></div>'
+    +'<div class="fg"><label class="lbl">Perfil</label>'
+    +'<select class="inp" id="m-perfil">'
+    +'<option value="funcionario">Funcionário</option>'
+    +'<option value="gerente">Gerente</option>'
+    +'</select></div>'
+    +'<button class="btn-modal primary" onclick="salvarMembro()">✅ Adicionar</button>'
+    +'<button class="btn-modal outline" onclick="closeModal()">Cancelar</button>';
+  openModal(html);
+}
+
+async function salvarMembro(){
+  const nome = (document.getElementById('m-nome')||{}).value&&document.getElementById('m-nome').value.trim();
+  const email = (document.getElementById('m-email')||{}).value&&document.getElementById('m-email').value.trim();
+  const perfil = (document.getElementById('m-perfil')||{}).value||'funcionario';
+  if(!nome||!email){ toast('⚠️ Preencha nome e email', false); return; }
+  
+  const senha = Math.random().toString(36).slice(-8);
+  
+  try{
+    const { data: authData, error: authErr } = await sb.auth.admin 
+      ? await sb.auth.signUp({email, password:senha})
+      : {data:null, error:'no-admin'};
+    
+    // Criar usuário diretamente na tabela
+    const { data, error } = await sb.from('usuarios').insert({
+      company_id: S.company.id,
+      nome, email, perfil, ativo: true,
+      auth_id: authData&&authData.user&&authData.user.id||null
+    }).select().single();
+    
+    if(error) throw error;
+    S.equipe.push(data);
+    logAuditoria('membro_adicionado', 'Adicionou funcionário: "'+nome+'"');
+    closeModal();
+    toast('✅ Funcionário adicionado! Senha: '+senha);
+    renderView('equipe');
+  }catch(e){
+    console.error(e);
+    toast('⚠️ Erro ao adicionar: '+e.message, false);
+  }
+}
+
+async function removerMembro(id, nome){
+  if(!confirm('Remover '+nome+'?')) return;
+  await sb.from('usuarios').delete().eq('id', id);
+  S.equipe = S.equipe.filter(function(m){return m.id!==id;});
+  logAuditoria('membro_removido', 'Removeu funcionário: "'+nome+'"');
+  toast('Membro removido');
+  renderView('equipe');
+}
+
 // ── BOOT ──
 (async()=>{
   // Verificar sessão ativa
