@@ -460,6 +460,7 @@ option{background:var(--card2)}
       <button class="sb-btn" onclick="window.open('jgerente-financeiro.html','_blank')"><span class="sb-icon">💰</span>Financeiro ↗</button>
       <div class="sb-section">Conta</div>
       <button class="sb-btn" onclick="navTo('auditoria')"><span class="sb-icon">🔍</span>Auditoria</button>
+      <button class="sb-btn" onclick="navTo('auditoria')"><span class="sb-icon">🔍</span>Auditoria</button>
       <button class="sb-btn" onclick="navTo('config')"><span class="sb-icon">⚙️</span>Configurações</button>
     </div>
     <div class="sb-footer">
@@ -596,6 +597,11 @@ async function initApp(user){
     await loadData();
     await criarTarefasRecorrentes();
     renderView('dashboard');
+    // Log login uma vez por sessão
+    if(!sessionStorage.getItem('jg_logged')){
+      sessionStorage.setItem('jg_logged','1');
+      logAuditoria('login','Entrou no painel');
+    }
     
     // Log de login — apenas uma vez por sessão
     if(!sessionStorage.getItem('jg_logged')){
@@ -1417,6 +1423,106 @@ async function criarTarefasRecorrentes(){
   }catch(e){
     console.error('Erro ao criar tarefas recorrentes:', e);
   }
+}
+
+// ── AUDITORIA ──────────────────────────────────────
+async function logAuditoria(acao, detalhes){
+  if(!S.company?.id || !S.usuario?.id) return;
+  try{
+    await sb.from('auditoria').insert({
+      company_id: S.company.id,
+      usuario_id: S.usuario.id,
+      usuario_nome: S.usuario.nome,
+      acao: acao,
+      detalhes: detalhes||''
+    });
+  }catch(e){ /* silencioso */ }
+}
+
+async function renderAuditoriaDono(){
+  const main = document.getElementById('main');
+  main.innerHTML = '<div class="main-header"><div><div class="page-title">Log de Auditoria</div>'
+    +'<div class="page-sub">Histórico completo de ações no sistema</div></div>'
+    +'<button class="btn-add" onclick="renderAuditoriaDono()">↻ Atualizar</button></div>'
+    +'<div class="content"><div style="text-align:center;padding:2rem;color:var(--muted)">Carregando...</div></div>';
+
+  const { data: logs } = await sb.from('auditoria')
+    .select('*')
+    .eq('company_id', S.company.id)
+    .order('created_at', {ascending: false})
+    .limit(200);
+
+  const icons = {
+    login:'🔐', logout:'🚪', tarefa_criada:'📋', tarefa_deletada:'🗑️',
+    tarefa_andamento:'▶️', tarefa_concluida:'✅', membro_adicionado:'👤',
+    membro_removido:'❌', empresa_editada:'🏪', perfil_editado:'✏️',
+    funcionario_editado:'✏️', funcionario_status:'🔄', presenca:'🕐'
+  };
+
+  const allLogs = logs||[];
+  const nomes = [...new Set(allLogs.map(function(l){return l.usuario_nome;}).filter(Boolean))];
+
+  const filtersHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.875rem">'
+    +'<div><div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Pessoa</div>'
+    +'<select class="inp" id="f-nome"><option value="">Todos</option>'
+    +nomes.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('')
+    +'</select></div>'
+    +'<div><div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Ação</div>'
+    +'<select class="inp" id="f-tipo"><option value="">Todas</option>'
+    +'<option value="login">🔐 Login</option><option value="logout">🚪 Logout</option>'
+    +'<option value="tarefa_criada">📋 Tarefa criada</option>'
+    +'<option value="tarefa_concluida">✅ Tarefa concluída</option>'
+    +'<option value="tarefa_deletada">🗑️ Tarefa deletada</option>'
+    +'<option value="membro_adicionado">👤 Membro adicionado</option>'
+    +'<option value="presenca">🕐 Presença</option>'
+    +'</select></div></div>'
+    +'<button onclick="filtrarAuditLogs()" style="width:100%;padding:.625rem;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.15);color:var(--accent);border-radius:10px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:var(--body);margin-bottom:1rem">🔍 Filtrar</button>';
+
+  window._auditAllLogs = allLogs;
+  window._auditIcons = icons;
+
+  const contentEl = main.querySelector('.content');
+  contentEl.innerHTML = filtersHtml
+    + '<div class="sec-card"><div id="audit-lista" style="padding:0"></div></div>';
+
+  filtrarAuditLogs();
+}
+
+function filtrarAuditLogs(){
+  const logs = window._auditAllLogs||[];
+  const icons = window._auditIcons||{};
+  const fn = (document.getElementById('f-nome')||{}).value||'';
+  const ft = (document.getElementById('f-tipo')||{}).value||'';
+  const lista = document.getElementById('audit-lista');
+  if(!lista) return;
+
+  const filtrados = logs.filter(function(l){
+    if(fn && l.usuario_nome !== fn) return false;
+    if(ft && l.acao !== ft) return false;
+    return true;
+  });
+
+  if(filtrados.length===0){
+    lista.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.82rem">Nenhum registro encontrado.</div>';
+    return;
+  }
+
+  lista.innerHTML = filtrados.map(function(log, i){
+    const icon = icons[log.acao]||'📌';
+    const nome = escHtml(log.usuario_nome||'Sistema');
+    const det = escHtml(log.detalhes||log.acao);
+    const data = new Date(log.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+    const hora = new Date(log.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const border = i < filtrados.length-1 ? '1px solid rgba(255,255,255,.07)' : 'none';
+    return '<div style="display:flex;align-items:flex-start;gap:.875rem;padding:1rem 1.25rem;border-bottom:'+border+'">'
+      +'<div style="width:36px;height:36px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">'+icon+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:.82rem;font-weight:600">'+nome+'</div>'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">'+det+'</div>'
+      +'</div>'
+      +'<div style="font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;text-align:right">'
+      +'<div>'+data+'</div><div>'+hora+'</div></div></div>';
+  }).join('');
 }
 
 // ── BOOT ──
