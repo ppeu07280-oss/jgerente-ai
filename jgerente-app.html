@@ -597,8 +597,11 @@ async function initApp(user){
     await criarTarefasRecorrentes();
     renderView('dashboard');
     
-    // Log de login
-    logAuditoria('login', 'Entrou no painel');
+    // Log de login — apenas uma vez por sessão
+    if(!sessionStorage.getItem('jg_logged')){
+      sessionStorage.setItem('jg_logged', '1');
+      logAuditoria('login', 'Entrou no painel');
+    }
 
   }catch(e){
     console.error(e);
@@ -1606,7 +1609,7 @@ async function renderAuditoria(){
       </div>
       <button class="btn-add" onclick="renderAuditoria()">↻ Atualizar</button>
     </div>
-    <div class="content">
+    <div class="content" id="audit-content">
       <div style="text-align:center;padding:2rem;color:var(--muted)">Carregando...</div>
     </div>`;
 
@@ -1615,41 +1618,124 @@ async function renderAuditoria(){
     .select('*')
     .eq('company_id', S.company.id)
     .order('created_at', {ascending: false})
-    .limit(100);
+    .limit(200);
 
   const acaoIcon = {
     'login': '🔐', 'logout': '🚪',
     'tarefa_criada': '📋', 'tarefa_deletada': '🗑️',
+    'tarefa_andamento': '▶️', 'tarefa_concluida': '✅',
     'membro_adicionado': '👤', 'membro_removido': '❌',
     'empresa_editada': '🏪', 'perfil_editado': '✏️',
     'funcionario_editado': '✏️', 'funcionario_status': '🔄',
-    'tarefa_concluida': '✅', 'presenca': '🕐',
+    'presenca': '🕐',
   };
 
-  const content = el.querySelector('.content');
-  content.innerHTML = `
-    ${!logs||logs.length===0
-      ? `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum registro ainda.<br>As ações aparecerão aqui.</div></div>`
-      : `<div class="sec-card">
-          <div class="sec-card-body" style="padding:0">
-            ${logs.map((log,i)=>`
-              <div style="display:flex;align-items:flex-start;gap:.875rem;padding:1rem 1.25rem;border-bottom:${i<logs.length-1?'1px solid var(--border)':'none'}">
-                <div style="width:36px;height:36px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">
-                  ${acaoIcon[log.acao]||'📌'}
-                </div>
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:.82rem;font-weight:600">${escHtml(log.usuario_nome||'Sistema')}</div>
-                  <div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">${escHtml(log.detalhes||log.acao)}</div>
-                </div>
-                <div style="font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;text-align:right">
-                  <div>${new Date(log.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
-                  <div>${new Date(log.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
-                </div>
-              </div>`).join('')}
+  // Nomes únicos para filtro
+  const nomes = [...new Set((logs||[]).map(l=>l.usuario_nome).filter(Boolean))];
+  const tipos = [...new Set((logs||[]).map(l=>l.acao).filter(Boolean))];
+
+  const auditContent = document.getElementById('audit-content');
+  if(!auditContent) return;
+
+  function filtrarEExibir(){
+    const filtroNome = document.getElementById('filtro-nome')?.value||'';
+    const filtroTipo = document.getElementById('filtro-tipo')?.value||'';
+    
+    const filtrados = (logs||[]).filter(l=>{
+      if(filtroNome && l.usuario_nome !== filtroNome) return false;
+      if(filtroTipo && l.acao !== filtroTipo) return false;
+      return true;
+    });
+
+    document.getElementById('audit-lista').innerHTML = filtrados.length===0
+      ? `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum registro encontrado.</div></div>`
+      : filtrados.map((log,i)=>`
+        <div style="display:flex;align-items:flex-start;gap:.875rem;padding:1rem 1.25rem;border-bottom:${i<filtrados.length-1?'1px solid var(--border)':'none'}">
+          <div style="width:36px;height:36px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">
+            ${acaoIcon[log.acao]||'📌'}
           </div>
-        </div>`}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.82rem;font-weight:600">${escHtml(log.usuario_nome||'Sistema')}</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">${escHtml(log.detalhes||log.acao)}</div>
+          </div>
+          <div style="font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;text-align:right">
+            <div>${new Date(log.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
+            <div>${new Date(log.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+        </div>`).join('');
+  }
+
+  auditContent.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
+      <div>
+        <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Filtrar por pessoa</div>
+        <select class="inp" id="filtro-nome" onchange="document.getElementById('audit-lista')&&(()=>{const fn=document.getElementById('filtro-nome')?.value||'';const ft=document.getElementById('filtro-tipo')?.value||'';const f=(${JSON.stringify(logs||[])}).filter(l=>{if(fn&&l.usuario_nome!==fn)return false;if(ft&&l.acao!==ft)return false;return true;});document.getElementById('audit-lista').innerHTML=f.length===0?'<div style=\'text-align:center;padding:2rem;color:var(--muted)\'>Nenhum resultado</div>':f.map((l,i)=>\`<div style=\"display:flex;align-items:flex-start;gap:.875rem;padding:1rem 1.25rem;border-bottom:\${i<f.length-1?\'1px solid rgba(255,255,255,.07)\':\'none\'}\">\${JSON.stringify(l)}</div>\`).join('')})()">
+          <option value="">Todos</option>
+          ${nomes.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Filtrar por ação</div>
+        <select class="inp" id="filtro-tipo" onchange="void 0">
+          <option value="">Todas</option>
+          <option value="login">🔐 Login</option>
+          <option value="logout">🚪 Logout</option>
+          <option value="tarefa_criada">📋 Tarefa criada</option>
+          <option value="tarefa_concluida">✅ Tarefa concluída</option>
+          <option value="tarefa_deletada">🗑️ Tarefa deletada</option>
+          <option value="membro_adicionado">👤 Membro adicionado</option>
+          <option value="presenca">🕐 Presença</option>
+          <option value="empresa_editada">🏪 Empresa editada</option>
+        </select>
+      </div>
+    </div>
+    <button onclick="filtrarAuditoria()" style="width:100%;padding:.625rem;background:var(--accent-dim,rgba(0,255,136,.08));border:1px solid rgba(0,255,136,.15);color:var(--accent);border-radius:10px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:var(--body);margin-bottom:1rem">🔍 Filtrar</button>
+    <div class="sec-card">
+      <div id="audit-lista" style="padding:0"></div>
+    </div>
   `;
+
+  // Guardar logs globalmente para o filtro
+  window._auditLogs = logs||[];
+  window._auditIcons = acaoIcon;
+  filtrarAuditoria();
 }
+
+function filtrarAuditoria(){
+  const logs = window._auditLogs||[];
+  const acaoIcon = window._auditIcons||{};
+  const filtroNome = document.getElementById('filtro-nome')?.value||'';
+  const filtroTipo = document.getElementById('filtro-tipo')?.value||'';
+  
+  const filtrados = logs.filter(l=>{
+    if(filtroNome && l.usuario_nome !== filtroNome) return false;
+    if(filtroTipo && l.acao !== filtroTipo) return false;
+    return true;
+  });
+
+  const lista = document.getElementById('audit-lista');
+  if(!lista) return;
+
+  lista.innerHTML = filtrados.length===0
+    ? `<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.82rem">Nenhum registro encontrado.</div>`
+    : filtrados.map((log,i)=>`
+      <div style="display:flex;align-items:flex-start;gap:.875rem;padding:1rem 1.25rem;border-bottom:${i<filtrados.length-1?'1px solid var(--border)':'none'}">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">
+          ${acaoIcon[log.acao]||'📌'}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.82rem;font-weight:600">${escHtml(log.usuario_nome||'Sistema')}</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">${escHtml(log.detalhes||log.acao)}</div>
+        </div>
+        <div style="font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;text-align:right">
+          <div>${new Date(log.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
+          <div>${new Date(log.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      </div>`).join('');
+}
+
+// dummy closing - the real function was above
+function _dummy(){
 
 // ══════════════════════════════════════════
 // AGENTES
