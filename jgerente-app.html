@@ -1183,9 +1183,9 @@ function renderChat(){
     +'<div style="font-size:2rem;margin-bottom:.75rem">🤖</div>'
     +'<div style="font-size:.85rem;font-weight:600;margin-bottom:.375rem">Escolha um agente:</div>'
     +'<div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem">'
-    +'<button onclick="selectAgent(\"gestor\")" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">👔 Agente Gestor</button>'
-    +'<button onclick="selectAgent(\"fidelidade\")" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">🎯 Agente Fidelidade</button>'
-    +'<button onclick="selectAgent(\"estrategista\")" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">📊 Agente Estrategista</button>'
+    +'<button data-agent="gestor" onclick="selectAgent(this.dataset.agent)" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">👔 Agente Gestor</button>'
+    +'<button data-agent="fidelidade" onclick="selectAgent(this.dataset.agent)" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">🎯 Agente Fidelidade</button>'
+    +'<button data-agent="estrategista" onclick="selectAgent(this.dataset.agent)" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">📊 Agente Estrategista</button>'
     +'</div></div></div></div>';
 }
 
