@@ -1821,16 +1821,20 @@ async function salvarTarefa(){
 
   if(!titulo){ toast('⚠️ Informe o título', false); return; }
 
-  // Calcular horários das repetições
+  // Calcular horários das repetições usando hora local
   let horariosReps = null;
-  if(horaInicio && horaFim && repeticoesDia > 1){
+  if(horaInicio){
     const hI = parseInt(horaInicio.split(':')[0])*60 + parseInt(horaInicio.split(':')[1]);
-    const hF = parseInt(horaFim.split(':')[0])*60 + parseInt(horaFim.split(':')[1]);
-    const interval = Math.floor((hF-hI)/(repeticoesDia-1));
+    const hF = horaFim ? parseInt(horaFim.split(':')[0])*60 + parseInt(horaFim.split(':')[1]) : hI;
     horariosReps = [];
-    for(var i=0;i<repeticoesDia;i++){
-      const mins = hI+(interval*i);
-      horariosReps.push(String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'));
+    if(repeticoesDia === 1){
+      horariosReps.push(horaInicio);
+    } else {
+      const interval = Math.floor((hF-hI)/(repeticoesDia-1));
+      for(var i=0;i<repeticoesDia;i++){
+        const mins = hI+(interval*i);
+        horariosReps.push(String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'));
+      }
     }
   }
 
@@ -1866,12 +1870,16 @@ async function salvarTarefa(){
     for(var rep=1;rep<=repeticoesDia;rep++){
       var prazoRep;
       if(horariosReps&&horariosReps[rep-1]){
-        const parts = horariosReps[rep-1].split(':');
-        const d = new Date(); d.setHours(parseInt(parts[0]),parseInt(parts[1]),0,0);
+        var parts = horariosReps[rep-1].split(':');
+        var h = parseInt(parts[0]), m = parseInt(parts[1]);
+        // Usar new Date(ano,mes,dia,h,m) para garantir hora local correta
+        var now = new Date();
+        var d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
         prazoRep = d.toISOString();
       } else {
-        const d = new Date(); d.setHours(23,59,59,0);
-        prazoRep = d.toISOString();
+        var now2 = new Date();
+        var d2 = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate(), 23, 59, 59, 0);
+        prazoRep = d2.toISOString();
       }
       filhas.push({
         company_id: S.company.id, titulo, descricao:desc||null,
