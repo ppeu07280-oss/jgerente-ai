@@ -1798,6 +1798,101 @@ async function removerMembro(id, nome){
   renderView('equipe');
 }
 
+// ── SALVAR TAREFA ────────────────────────────────
+async function salvarTarefa(){
+  const titulo = (document.getElementById('t-titulo')||{}).value&&document.getElementById('t-titulo').value.trim();
+  const desc = (document.getElementById('t-desc')||{}).value&&document.getElementById('t-desc').value.trim();
+  const resp = (document.getElementById('t-resp')||{}).value||null;
+  const prio = (document.getElementById('t-prio')||{}).value||'normal';
+  const prazo = (document.getElementById('t-prazo')||{}).value||null;
+  const repeticoesDia = parseInt((document.getElementById('t-repeticoes')||{}).value)||1;
+  const recorrente = (document.getElementById('t-recorrente')||{}).checked||false;
+  const horaInicio = (document.getElementById('t-hora-inicio')||{}).value||'08:00';
+  const horaFim = (document.getElementById('t-hora-fim')||{}).value||'18:00';
+
+  if(!titulo){ toast('⚠️ Informe o título', false); return; }
+
+  // Calcular horários das repetições
+  let horariosReps = null;
+  if(horaInicio && horaFim && repeticoesDia > 1){
+    const hI = parseInt(horaInicio.split(':')[0])*60 + parseInt(horaInicio.split(':')[1]);
+    const hF = parseInt(horaFim.split(':')[0])*60 + parseInt(horaFim.split(':')[1]);
+    const interval = Math.floor((hF-hI)/(repeticoesDia-1));
+    horariosReps = [];
+    for(var i=0;i<repeticoesDia;i++){
+      const mins = hI+(interval*i);
+      horariosReps.push(String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'));
+    }
+  }
+
+  // Dias da semana se recorrente
+  const diasChecks = document.querySelectorAll('.dia-check:checked');
+  const diasSemana = diasChecks.length>0 ? Array.from(diasChecks).map(function(c){return parseInt(c.value);}) : null;
+
+  const payload = {
+    company_id: S.company.id,
+    titulo, descricao: desc||null,
+    atribuido_para: resp||null,
+    prioridade: prio,
+    prazo: prazo ? new Date(prazo+'T23:59:59').toISOString() : null,
+    criado_por: S.usuario.id,
+    status: 'pendente',
+    recorrente: repeticoesDia>1 ? true : recorrente,
+    repeticoes_dia: repeticoesDia,
+    dias_semana: diasSemana,
+    config: horariosReps ? JSON.stringify({horaInicio,horaFim,horarios:horariosReps}) : null
+  };
+
+  const { data, error } = await sb.from('tarefas')
+    .insert(payload)
+    .select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)')
+    .single();
+
+  if(error){ toast('⚠️ Erro: '+error.message, false); return; }
+  S.tarefas.unshift(data);
+
+  // Criar filhas para hoje se tem repetições
+  if(repeticoesDia > 1){
+    const filhas = [];
+    for(var rep=1;rep<=repeticoesDia;rep++){
+      var prazoRep;
+      if(horariosReps&&horariosReps[rep-1]){
+        const parts = horariosReps[rep-1].split(':');
+        const d = new Date(); d.setHours(parseInt(parts[0]),parseInt(parts[1]),0,0);
+        prazoRep = d.toISOString();
+      } else {
+        const d = new Date(); d.setHours(23,59,59,0);
+        prazoRep = d.toISOString();
+      }
+      filhas.push({
+        company_id: S.company.id, titulo, descricao:desc||null,
+        atribuido_para: resp||null, prioridade: prio,
+        criado_por: 'recorrente', status: 'pendente',
+        prazo: prazoRep, tarefa_pai: data.id,
+        recorrente: false, repeticoes_dia: repeticoesDia, repeticao_atual: rep
+      });
+    }
+    const { data: filhasData } = await sb.from('tarefas').insert(filhas).select('*, atribuido_para:usuarios!tarefas_atribuido_para_fkey(nome)');
+    if(filhasData) filhasData.forEach(function(f){S.tarefas.unshift(f);});
+    await sb.from('tarefas').update({recorrente:true}).eq('id',data.id);
+    data.recorrente = true;
+  }
+
+  logAuditoria('tarefa_criada','Criou tarefa: "'+titulo+'"');
+  closeModal();
+  toast(repeticoesDia>1?'🔁 Tarefa criada com '+repeticoesDia+' repetições!':'✅ Tarefa criada!');
+  renderView('tarefas');
+}
+
+async function toggleTarefa(id){
+  const t = S.tarefas.find(function(x){return x.id===id;});
+  if(!t) return;
+  const novoStatus = t.status==='concluida'?'pendente':'concluida';
+  await sb.from('tarefas').update({status:novoStatus}).eq('id',id);
+  t.status = novoStatus;
+  renderView('tarefas');
+}
+
 // ── BOOT ──
 (async()=>{
   // Verificar sessão ativa
