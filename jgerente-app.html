@@ -634,7 +634,7 @@ async function loadData(){
 function navTo(view){
   S.view = view;
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
-  const map={dashboard:0,tarefas:1,equipe:2,chat:3,agentes:4,config:6};
+  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,auditoria:6,config:7};
   const btns=document.querySelectorAll('.sb-btn');
   if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
   renderView(view);
@@ -1652,7 +1652,7 @@ function renderChatView(){
         const isUser = m.role==='user';
         return '<div style="display:flex;gap:.625rem;max-width:85%;'+(isUser?'align-self:flex-end;flex-direction:row-reverse':'align-self:flex-start')+';margin-bottom:.875rem">'
           +'<div style="width:28px;height:28px;border-radius:50%;background:'+(isUser?'var(--accent)':'var(--card2)')+';border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;margin-top:.2rem">'+(isUser?'👤':ag.icon)+'</div>'
-          +'<div style="padding:.75rem 1rem;border-radius:14px;font-size:.83rem;line-height:1.6;background:'+(isUser?'var(--accent)':'var(--card2)')+';color:'+(isUser?'var(--black)':'var(--white)')+';border:1px solid '+(isUser?'transparent':'var(--border)')+'">'+escHtml(m.content).replace(/\n/g,'<br>')+'</div>'
+          +'<div style="padding:.75rem 1rem;border-radius:14px;font-size:.83rem;line-height:1.6;background:'+(isUser?'var(--accent)':'var(--card2)')+';color:'+(isUser?'var(--black)':'var(--white)')+';border:1px solid '+(isUser?'transparent':'var(--border)')+'">'+renderMarkdown(m.content)+'</div>'
           +'</div>';
       }).join('');
 
@@ -1894,6 +1894,41 @@ async function toggleTarefa(id){
   t.status = novoStatus;
   renderView('tarefas');
 }
+
+// ── MARKDOWN RENDERER ────────────────────────────
+function renderMarkdown(text){
+  if(!text) return '';
+  var t = text
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+  
+  // Process line by line
+  var lines = t.split('\n');
+  var result = lines.map(function(line){
+    // Headers
+    if(line.startsWith('### ')) return '<div style="font-weight:700;font-size:.85rem;margin:.5rem 0 .2rem">'+line.slice(4)+'</div>';
+    if(line.startsWith('## ')) return '<div style="font-weight:700;font-size:.9rem;margin:.625rem 0 .25rem">'+line.slice(3)+'</div>';
+    if(line.startsWith('# ')) return '<div style="font-weight:800;font-size:.95rem;margin:.75rem 0 .25rem">'+line.slice(2)+'</div>';
+    // Bullet
+    if(line.startsWith('* ') || line.startsWith('- ')) return '<div style="padding-left:.75rem;margin:.15rem 0">&bull; '+line.slice(2)+'</div>';
+    // Numbered
+    var numMatch = line.match(/^(\d+)\. (.+)$/);
+    if(numMatch) return '<div style="padding-left:.75rem;margin:.15rem 0"><b>'+numMatch[1]+'.</b> '+numMatch[2]+'</div>';
+    // HR
+    if(line === '---') return '<hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:.5rem 0">';
+    // Normal line
+    return line ? '<div>'+line+'</div>' : '<div style="height:.4rem"></div>';
+  }).join('');
+  
+  // Bold and italic inline
+  result = result
+    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+    .replace(/\*(.+?)\*/g,'<i>$1</i>');
+    
+  return result;
+}
+
 
 // ── BOOT ──
 (async()=>{
