@@ -1,82 +1,68 @@
+// api/chat.js — Gemini chat + Image generation
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  try {
-    const { messages, systemPrompt } = req.body;
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ error: 'messages é obrigatório' });
-    }
+  const { messages, systemPrompt, generateImage, imagePrompt, aspectRatio } = req.body;
 
-    const systemMsg = systemPrompt || 'Você é um assistente de gestão empresarial brasileiro. Responda sempre em português.';
-
-    const contents = [
-      { role: 'user', parts: [{ text: `[SISTEMA]: ${systemMsg}` }] },
-      { role: 'model', parts: [{ text: 'Entendido! Pronto para ajudar.' }] },
-      ...messages.map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      }))
-    ];
-
-    // Modelos em ordem de prioridade
-    const attempts = [
-      { version: 'v1beta', model: 'gemini-3-flash-preview' },
-      { version: 'v1beta', model: 'gemini-2.0-flash' },
-      { version: 'v1beta', model: 'gemini-2.0-flash-lite' },
-      { version: 'v1beta', model: 'gemini-1.5-flash' },
-      { version: 'v1', model: 'gemini-2.0-flash' },
-      { version: 'v1', model: 'gemini-1.5-flash' },
-    ];
-
-    for (const { version, model } of attempts) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-        console.log(`Tentando: ${url}`);
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents })
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-          const text = data.candidates[0].content.parts[0].text;
-          console.log(`✅ Sucesso: ${version}/${model}`);
-          return res.status(200).json({ response: text });
-        }
-
-        console.error(`❌ ${version}/${model}:`, data?.error?.message);
-
-      } catch (e) {
-        console.error(`❌ ${version}/${model} erro:`, e.message);
-      }
-    }
-
-    // Lista modelos disponíveis para debug
+  // IMAGE GENERATION MODE
+  if (generateImage && imagePrompt) {
     try {
-      const listRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`
-      );
-      const listData = await listRes.json();
-      const modelNames = listData.models?.map(m => m.name) || [];
-      console.log('Modelos disponíveis:', modelNames.join(', '));
-      return res.status(500).json({ 
-        error: 'Todos os modelos falharam',
-        modelos_disponiveis: modelNames
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=' + GEMINI_API_KEY;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instances: [{ prompt: imagePrompt }],
+          parameters: { sampleCount: 1, aspectRatio: aspectRatio || '1:1' }
+        })
       });
-    } catch(e) {
-      return res.status(500).json({ error: 'Falha total. Chave inválida.' });
+      const data = await response.json();
+      console.log('Imagen status:', response.status, JSON.stringify(data).slice(0, 300));
+
+      if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
+        const b64 = data.predictions[0].bytesBase64Encoded;
+        const mimeType = data.predictions[0].mimeType || 'image/png';
+        return res.status(200).json({ imageUrl: 'data:' + mimeType + ';base64,' + b64 });
+      }
+      return res.status(500).json({ error: 'No image', details: data });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // CHAT MODE
+  try {
+    const contents = [];
+    if (systemPrompt) {
+      contents.push({ role: 'user', parts: [{ text: systemPrompt }] });
+      contents.push({ role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar.' }] });
+    }
+    for (const msg of (messages || [])) {
+      contents.push({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
+      });
     }
 
+    const response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents })
+      }
+    );
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Erro ao processar resposta.';
+    return res.status(200).json({ response: text });
   } catch (e) {
-    console.error('Handler error:', e.message);
-    return res.status(500).json({ error: 'Erro interno: ' + e.message });
+    return res.status(500).json({ error: e.message });
   }
-}
+};
