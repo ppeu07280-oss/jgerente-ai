@@ -209,28 +209,17 @@ async function initApp(user){
 
 async function carregarUso(){
   const mesAtual = new Date().toISOString().slice(0,7);
-  const { data } = await sb.from('financeiro')
-    .select('config')
-    .eq('company_id', S.company.id)
-    .eq('categoria', 'social_uso')
-    .gte('created_at', mesAtual+'-01')
-    .limit(1)
-    .maybeSingle();
-  if(data && data.config){
-    try{ S.usoMes = JSON.parse(data.config); }catch(e){ S.usoMes = {imagens:0, videos:0}; }
-  }
+  const key = 'social_uso_'+S.company.id+'_'+mesAtual;
+  try{
+    const saved = localStorage.getItem(key);
+    if(saved) S.usoMes = JSON.parse(saved);
+  }catch(e){ S.usoMes = {imagens:0, videos:0}; }
 }
 
 async function salvarUso(){
   const mesAtual = new Date().toISOString().slice(0,7);
-  await sb.from('financeiro').upsert({
-    company_id: S.company.id,
-    tipo: 'saida',
-    valor: 0,
-    descricao: 'Uso Social Mídia '+mesAtual,
-    categoria: 'social_uso',
-    config: JSON.stringify(S.usoMes)
-  });
+  const key = 'social_uso_'+S.company.id+'_'+mesAtual;
+  try{ localStorage.setItem(key, JSON.stringify(S.usoMes)); }catch(e){}
 }
 
 // ── TABS ──
