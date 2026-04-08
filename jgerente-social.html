@@ -390,12 +390,12 @@ async function gerarImagem(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        endpoint: 'fal-ai/flux/schnell',
+        endpoint: 'fal-ai/flux-pro/v1.1',
         payload: {
-          prompt: prompt+', professional photography, high quality, 8k',
+          prompt: prompt+', professional photography, high quality, ultra detailed, 8k',
           image_size: format,
           num_images: 1,
-          num_inference_steps: 4
+          safety_tolerance: '2'
         }
       })
     });
