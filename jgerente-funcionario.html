@@ -272,8 +272,22 @@ async function doLogin(){
 }
 
 async function doLogout(){
+  await logAuditoria('logout', 'Saiu do painel');
   await sb.auth.signOut();
   location.reload();
+}
+
+async function logAuditoria(acao, detalhes=''){
+  if(!S.company?.id || !S.usuario?.id) return;
+  try{
+    await sb.from('auditoria').insert({
+      company_id: S.company.id,
+      usuario_id: S.usuario.id,
+      usuario_nome: S.usuario.nome,
+      acao,
+      detalhes
+    });
+  }catch(e){}
 }
 
 async function initApp(user){
@@ -298,6 +312,7 @@ async function initApp(user){
     await loadTarefas();
     await loadPresencas();
     renderTab('tarefas');
+    logAuditoria('login', 'Entrou no painel do funcionário');
     
     // Solicitar permissão de notificação
     await solicitarPermissaoNotificacao();
@@ -497,7 +512,7 @@ function tarefaCard(t){
 async function marcarAndamento(id){
   await sb.from('tarefas').update({status:'em_andamento'}).eq('id',id);
   const t = S.tarefas.find(x=>x.id===id);
-  if(t) t.status='em_andamento';
+  if(t){ t.status='em_andamento'; logAuditoria('tarefa_andamento', `Iniciou tarefa: "${t.titulo}"`); }
   renderTarefas();
 }
 
@@ -641,6 +656,8 @@ async function confirmarConclusao(id){
     if(t) Object.assign(t, updateData);
 
     fotosColetadas = [];
+    const t2 = S.tarefas.find(x=>x.id===id);
+    logAuditoria('tarefa_concluida', `Concluiu tarefa: "${t2?.titulo||id}" com ${fotosUrls.length} foto(s)`);
     closeModal();
     toast(`✅ Concluída com ${fotosUrls.length} foto(s)!`);
     renderTarefas();
@@ -656,7 +673,7 @@ async function confirmarConclusao(id){
 async function marcarAndamento(id){
   await sb.from('tarefas').update({status:'em_andamento'}).eq('id',id);
   const t = S.tarefas.find(x=>x.id===id);
-  if(t) t.status='em_andamento';
+  if(t){ t.status='em_andamento'; logAuditoria('tarefa_andamento', `Iniciou tarefa: "${t.titulo}"`); }
   renderTarefas();
 }
 
@@ -688,6 +705,7 @@ async function registrarPresenca(tipo){
     if(error) throw error;
     S.presencas.push(data);
     S.presencaHoje = data;
+    logAuditoria('presenca', `Registrou ${tipo} às ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`);
     toast(tipo === 'entrada' ? '✅ Entrada registrada!' : '👋 Saída registrada!');
     renderPresenca();
   }catch(e){
