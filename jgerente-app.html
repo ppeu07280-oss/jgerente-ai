@@ -459,6 +459,7 @@ option{background:var(--card2)}
       <button class="sb-btn" onclick="abrirFidelidade()"><span class="sb-icon">🎯</span>Fidelidade ↗</button>
       <button class="sb-btn" onclick="window.open('jgerente-financeiro.html','_blank')"><span class="sb-icon">💰</span>Financeiro ↗</button>
       <div class="sb-section">Conta</div>
+      <button class="sb-btn" onclick="navTo('auditoria')"><span class="sb-icon">🔍</span>Auditoria</button>
       <button class="sb-btn" onclick="navTo('config')"><span class="sb-icon">⚙️</span>Configurações</button>
     </div>
     <div class="sb-footer">
@@ -548,9 +549,23 @@ async function doLogin(){
 }
 
 async function doLogout(){
+  await logAuditoria('logout', 'Saiu do painel');
   await sb.auth.signOut();
   localStorage.removeItem('jg_company_id');
   location.reload();
+}
+
+async function logAuditoria(acao, detalhes=''){
+  if(!S.company?.id || !S.usuario?.id) return;
+  try{
+    await sb.from('auditoria').insert({
+      company_id: S.company.id,
+      usuario_id: S.usuario.id,
+      usuario_nome: S.usuario.nome,
+      acao,
+      detalhes
+    });
+  }catch(e){ console.error('Log auditoria erro:', e); }
 }
 
 // ── INIT APP ──
@@ -581,6 +596,9 @@ async function initApp(user){
     await loadData();
     await criarTarefasRecorrentes();
     renderView('dashboard');
+    
+    // Log de login
+    logAuditoria('login', 'Entrou no painel');
 
   }catch(e){
     console.error(e);
@@ -630,6 +648,7 @@ function renderView(view){
     tarefas: renderTarefas,
     equipe: renderEquipe,
     presenca: renderPresencaDono,
+    auditoria: renderAuditoria,
     chat: renderChat,
     agentes: renderAgentes,
     config: renderConfig,
@@ -1144,6 +1163,7 @@ async function salvarTarefa(){
   }
 
   closeModal();
+  logAuditoria('tarefa_criada', `Criou tarefa: "${titulo}"${repeticoesDia>1?' ('+repeticoesDia+'x/dia)':''}`);
   toast(repeticoesDia > 1 ? `🔁 Tarefa criada com ${repeticoesDia} repetições!` : '✅ Tarefa criada!');
   renderView('tarefas');
 }
@@ -1171,6 +1191,7 @@ async function deletarTarefa(id){
 
   await sb.from('tarefas').delete().eq('id',id);
   S.tarefas = S.tarefas.filter(t=>t.id!==id);
+  logAuditoria('tarefa_deletada', `Removeu tarefa: "${t?.titulo||id}"`);
   toast(isModelo ? 'Tarefa recorrente removida!' : 'Tarefa removida');
   renderView('tarefas');
 }
@@ -1302,6 +1323,7 @@ async function salvarMembro(){
     </div>
     <button class="btn-modal primary" onclick="closeModal();renderView('equipe')">✅ Entendido, anotei!</button>
   `;
+  logAuditoria('membro_adicionado', `Adicionou funcionário: "${nome}" (${perfil})`);
   toast('✅ Membro adicionado!');
 }
 
@@ -1309,6 +1331,7 @@ async function removerMembro(id, nome){
   if(!confirm(`Remover ${nome} da equipe?`)) return;
   await sb.from('usuarios').delete().eq('id',id);
   S.equipe = S.equipe.filter(m=>m.id!==id);
+  logAuditoria('membro_removido', `Removeu funcionário: "${nome}"`);
   toast('Membro removido');
   renderView('equipe');
 }
@@ -1564,6 +1587,64 @@ function renderPresencaDono(){
 }
 
 // ══════════════════════════════════════════
+// AUDITORIA
+// ══════════════════════════════════════════
+async function renderAuditoria(){
+  const el = document.getElementById('main');
+  el.innerHTML = `
+    <div class="main-header">
+      <div>
+        <div class="page-title">Log de Auditoria</div>
+        <div class="page-sub">Histórico completo de ações no sistema</div>
+      </div>
+      <button class="btn-add" onclick="renderAuditoria()">↻ Atualizar</button>
+    </div>
+    <div class="content">
+      <div style="text-align:center;padding:2rem;color:var(--muted)">Carregando...</div>
+    </div>`;
+
+  // Buscar logs
+  const { data: logs } = await sb.from('auditoria')
+    .select('*')
+    .eq('company_id', S.company.id)
+    .order('created_at', {ascending: false})
+    .limit(100);
+
+  const acaoIcon = {
+    'login': '🔐', 'logout': '🚪',
+    'tarefa_criada': '📋', 'tarefa_deletada': '🗑️',
+    'membro_adicionado': '👤', 'membro_removido': '❌',
+    'empresa_editada': '🏪', 'perfil_editado': '✏️',
+    'funcionario_editado': '✏️', 'funcionario_status': '🔄',
+    'tarefa_concluida': '✅', 'presenca': '🕐',
+  };
+
+  const content = el.querySelector('.content');
+  content.innerHTML = `
+    ${!logs||logs.length===0
+      ? `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum registro ainda.<br>As ações aparecerão aqui.</div></div>`
+      : `<div class="sec-card">
+          <div class="sec-card-body" style="padding:0">
+            ${logs.map((log,i)=>`
+              <div style="display:flex;align-items:flex-start;gap:.875rem;padding:1rem 1.25rem;border-bottom:${i<logs.length-1?'1px solid var(--border)':'none'}">
+                <div style="width:36px;height:36px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">
+                  ${acaoIcon[log.acao]||'📌'}
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:.82rem;font-weight:600">${escHtml(log.usuario_nome||'Sistema')}</div>
+                  <div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">${escHtml(log.detalhes||log.acao)}</div>
+                </div>
+                <div style="font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;text-align:right">
+                  <div>${new Date(log.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
+                  <div>${new Date(log.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`}
+  `;
+}
+
+// ══════════════════════════════════════════
 // AGENTES
 // ══════════════════════════════════════════
 function renderAgentes(){
@@ -1711,6 +1792,7 @@ async function salvarEmpresa(){
   S.company.nome = nome;
   document.getElementById('sb-company-name').textContent = nome;
   closeModal();
+  logAuditoria('empresa_editada', `Alterou nome da empresa para: "${nome}"`);
   toast('✅ Empresa atualizada!');
   renderView('config');
 }
@@ -1737,6 +1819,7 @@ async function salvarPerfil(){
   const av = document.getElementById('sb-avatar');
   av.textContent = initials(nome);
   closeModal();
+  logAuditoria('perfil_editado', `Alterou seu nome para: "${nome}"`);
   toast('✅ Perfil atualizado!');
   renderView('config');
 }
@@ -1770,6 +1853,7 @@ async function salvarFuncionario(id){
   const m = S.equipe.find(x=>x.id===id);
   if(m){ m.nome=nome; m.perfil=perfil; }
   closeModal();
+  logAuditoria('funcionario_editado', `Editou funcionário: "${nome}" → perfil: ${perfil}`);
   toast('✅ Funcionário atualizado!');
   renderView('config');
 }
@@ -1783,6 +1867,7 @@ async function toggleAtivoFuncionario(id, nome, ativoAtual){
   if(error){ toast('⚠️ Erro ao atualizar',true); return; }
   const m = S.equipe.find(x=>x.id===id);
   if(m) m.ativo = novoStatus;
+  logAuditoria('funcionario_status', `${novoStatus?'Ativou':'Desativou'} funcionário: "${nome}"`);
   toast(`✅ ${nome} ${novoStatus?'ativado':'desativado'}!`);
   renderView('config');
 }
