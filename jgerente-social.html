@@ -157,7 +157,7 @@ const sb = createClient(
 );
 
 const FAL_PROXY = 'https://jgerente-ai.vercel.app/api/fal';
-const IMAGE_PROXY = 'https://jgerente-ai.vercel.app/api/gerar';
+const IMAGE_PROXY = 'https://jgerente-ai.vercel.app/api/chat';
 const GEMINI_URL = 'https://jgerente-ai.vercel.app/api/chat';
 const LIMITE_IMAGENS = 30;
 const LIMITE_VIDEOS = 10;
@@ -440,13 +440,14 @@ async function gerarImagem(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        prompt: prompt+', professional photography, high quality, ultra detailed',
+        generateImage: true,
+        imagePrompt: prompt+', professional photography, high quality, ultra detailed',
         aspectRatio: aspectRatio
       })
     });
 
     const data = await res.json();
-    var imgUrl = data.data&&data.data[0]&&data.data[0].url ? data.data[0].url : (data.data&&data.data[0]&&data.data[0].b64_json ? 'data:image/png;base64,'+data.data[0].b64_json : null);
+    var imgUrl = data.imageUrl || null;
     if(imgUrl){
       const url = imgUrl;
       S.usoMes.imagens = (S.usoMes.imagens||0) + 1;
