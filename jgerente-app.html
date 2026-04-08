@@ -942,6 +942,7 @@ function toggleDiasSemana(){
 
 function showAddTarefa(){
   const membros = S.equipe.map(m=>`<option value="${m.id}">${escHtml(m.nome)}</option>`).join('');
+  window._diasHtml = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(function(d,i){ var chk=(i>0&&i<7)?'checked':''; var act=(i>0&&i<7)?'active':''; return '<label style="cursor:pointer"><input type="checkbox" value="'+i+'" class="dia-check" style="display:none" '+chk+'><div class="dia-btn '+act+'" data-idx="'+i+'" onclick="this.classList.toggle(\"active\")">'+d+'</div></label>'; }).join('');
   openModal(`
     <div class="modal-title">📋 Nova Tarefa</div>
     <div class="fg"><label class="lbl">Título *</label><input class="inp" id="t-titulo" placeholder="Ex: Limpar o salão antes das 18h"></div>
@@ -999,14 +1000,14 @@ function showAddTarefa(){
       <div id="dias-semana-wrap" style="display:none">
         <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem">Dias da semana</div>
         <div style="display:flex;gap:.375rem;flex-wrap:wrap">
-          ${(function(){ return ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(function(d,i){ var chk=(i>0&&i<7)?'checked':''; var act=(i>0&&i<7)?'active':''; return '<label style="cursor:pointer"><input type="checkbox" value="'+i+'" class="dia-check" style="display:none" '+chk+'><div class="dia-btn '+act+'" data-idx="'+i+'">'+d+'</div></label>'; }).join(''); })()}
+          ${window._diasHtml||''}
         </div>
       </div>
     </div>
 
     <button class="btn-modal primary" onclick="salvarTarefa()">✅ Criar Tarefa</button>
     <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
-  \`;
+  `);
 
   // Guardar logs globalmente para o filtro
   window._auditLogs = logs||[];
@@ -1110,8 +1111,8 @@ function renderConfig(){
           +'<div style="margin-top:.375rem"><span style="font-size:.7rem;font-weight:600;color:'+corAtivo+'">'+txtAtivo+'</span></div>'
           +'</div>'
           +'<div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">'
-          +'<button onclick="editarFuncionario(''+m.id+'')" style="background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">✏️ Editar</button>'
-          +'<button onclick="toggleAtivoFuncionario(''+m.id+'',''+escHtml(m.nome)+'','+String(m.ativo!==false)+')" style="background:'+bgBtn+';border:1px solid '+bdBtn+';color:'+clrBtn+';font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">'+txtBtn+'</button>'
+          +'<button onclick="editarFuncionario(\''+m.id+'\')" style="background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">✏️ Editar</button>'
+          +'<button onclick="toggleAtivoFuncionario(\''+m.id+'\',\''+escHtml(m.nome)+'\','+String(m.ativo!==false)+')" style="background:'+bgBtn+';border:1px solid '+bdBtn+';color:'+clrBtn+';font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">'+txtBtn+'</button>'
           +'</div></div>';
       }).join('');
 
@@ -1161,14 +1162,12 @@ function renderConfig(){
 
 // ── EDITAR EMPRESA ──
 function editarEmpresa(){
-  openModal(`
-    <div class="modal-title">🏪 Editar Empresa</div>
-    <div class="fg"><label class="lbl">Nome da empresa *</label>
-      <input class="inp" id="edit-empresa-nome" value="${escHtml(S.company?.nome||'')}">
-    </div>
-    <button class="btn-modal primary" onclick="salvarEmpresa()">💾 Salvar</button>
-    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
-  `);
+  var n = escHtml(S.company&&S.company.nome||'');
+  openModal('<div class="modal-title">🏪 Editar Empresa</div>'
+    +'<div class="fg"><label class="lbl">Nome da empresa *</label>'
+    +'<input class="inp" id="edit-empresa-nome" value="'+n+'"></div>'
+    +'<button class="btn-modal primary" onclick="salvarEmpresa()">💾 Salvar</button>'
+    +'<button class="btn-modal outline" onclick="closeModal()">Cancelar</button>');
 }
 
 async function salvarEmpresa(){
@@ -1186,14 +1185,12 @@ async function salvarEmpresa(){
 
 // ── EDITAR PERFIL DONO ──
 function editarPerfil(){
-  openModal(`
-    <div class="modal-title">👤 Editar Meu Perfil</div>
-    <div class="fg"><label class="lbl">Seu nome *</label>
-      <input class="inp" id="edit-dono-nome" value="${escHtml(S.usuario?.nome||'')}">
-    </div>
-    <button class="btn-modal primary" onclick="salvarPerfil()">💾 Salvar</button>
-    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
-  `);
+  var n = escHtml(S.usuario&&S.usuario.nome||'');
+  openModal('<div class="modal-title">👤 Editar Meu Perfil</div>'
+    +'<div class="fg"><label class="lbl">Seu nome *</label>'
+    +'<input class="inp" id="edit-dono-nome" value="'+n+'"></div>'
+    +'<button class="btn-modal primary" onclick="salvarPerfil()">💾 Salvar</button>'
+    +'<button class="btn-modal outline" onclick="closeModal()">Cancelar</button>');
 }
 
 async function salvarPerfil(){
@@ -1213,24 +1210,23 @@ async function salvarPerfil(){
 
 // ── EDITAR FUNCIONARIO ──
 function editarFuncionario(id){
-  const m = S.equipe.find(x=>x.id===id);
+  var m = S.equipe.find(function(x){return x.id===id;});
   if(!m) return;
-  openModal(`
-    <div class="modal-title">✏️ Editar Funcionário</div>
-    <div class="fg"><label class="lbl">Nome *</label>
-      <input class="inp" id="edit-func-nome" value="${escHtml(m.nome||'')}">
-    </div>
-    <div class="fg"><label class="lbl">Perfil</label>
-      <select class="inp" id="edit-func-perfil">
-        <option value="funcionario" ${m.perfil==='funcionario'?'selected':''}>Funcionário</option>
-        <option value="gerente" ${m.perfil==='gerente'?'selected':''}>Gerente</option>
-      </select>
-    </div>
-    <button class="btn-modal primary" onclick="salvarFuncionario('${id}')">💾 Salvar</button>
-    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
-  `);
+  var n = escHtml(m.nome||'');
+  var sf = m.perfil==='funcionario'?'selected':'';
+  var sg = m.perfil==='gerente'?'selected':'';
+  window._editFuncId = id;
+  openModal('<div class="modal-title">✏️ Editar Funcionário</div>'
+    +'<div class="fg"><label class="lbl">Nome *</label>'
+    +'<input class="inp" id="edit-func-nome" value="'+n+'"></div>'
+    +'<div class="fg"><label class="lbl">Perfil</label>'
+    +'<select class="inp" id="edit-func-perfil">'
+    +'<option value="funcionario" '+sf+'>Funcionário</option>'
+    +'<option value="gerente" '+sg+'>Gerente</option>'
+    +'</select></div>'
+    +'<button class="btn-modal primary" onclick="salvarFuncionario(window._editFuncId)">💾 Salvar</button>'
+    +'<button class="btn-modal outline" onclick="closeModal()">Cancelar</button>');
 }
-
 async function salvarFuncionario(id){
   const nome = document.getElementById('edit-func-nome')?.value.trim();
   const perfil = document.getElementById('edit-func-perfil')?.value;
