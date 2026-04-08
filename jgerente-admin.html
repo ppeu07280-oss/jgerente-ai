@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JgerenteAI — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#050508;--white:#F5F3EE;--accent:#00FF88;
+  --muted:#8B8B99;--card:#0D0D14;--card2:#111118;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);
+  --font:'Unbounded',sans-serif;--body:'DM Sans',sans-serif;
+  --error:#FF3D6B;--warning:#FFD600;--green:#00FF88;
+}
+body{background:var(--black);color:var(--white);font-family:var(--body);min-height:100vh}
+
+/* LOGIN */
+#login{position:fixed;inset:0;background:var(--black);display:flex;align-items:center;justify-content:center;z-index:999}
+.login-box{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2.5rem;width:100%;max-width:360px}
+.login-logo{font-family:var(--font);font-weight:900;font-size:1rem;text-align:center;margin-bottom:2rem}
+.login-logo span{color:var(--accent)}
+.inp{width:100%;padding:.8rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:10px;font-size:.88rem;color:var(--white);font-family:var(--body);outline:none;margin-bottom:.875rem}
+.inp:focus{border-color:var(--accent)}
+.btn-login{width:100%;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:10px;font-family:var(--font);font-size:.8rem;font-weight:700;cursor:pointer}
+.login-err{font-size:.75rem;color:var(--error);text-align:center;margin-top:.5rem;min-height:18px}
+
+/* APP */
+#app{display:none}
+#app.show{display:block}
+
+/* HEADER */
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-logo{font-family:var(--font);font-size:.85rem;font-weight:900}
+.header-logo span{color:var(--accent)}
+.header-badge{font-size:.68rem;padding:.25rem .625rem;background:rgba(255,61,107,.12);color:var(--error);border-radius:100px;font-weight:700}
+
+/* CONTENT */
+.content{padding:1.5rem;max-width:1200px;margin:0 auto}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.75rem}
+.metric{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem}
+.metric-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem}
+.metric-value{font-family:var(--font);font-size:1.75rem;font-weight:900}
+.metric-sub{font-size:.72rem;color:var(--muted);margin-top:.25rem}
+.metric.green .metric-value{color:var(--accent)}
+.metric.yellow .metric-value{color:var(--warning)}
+.metric.red .metric-value{color:var(--error)}
+
+/* TABLE */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.table-header{padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.table-title{font-size:.88rem;font-weight:700}
+.search-inp{padding:.5rem .875rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px;font-size:.78rem;color:var(--white);font-family:var(--body);outline:none;width:220px}
+.search-inp:focus{border-color:var(--accent)}
+table{width:100%;border-collapse:collapse}
+th{padding:.875rem 1.25rem;text-align:left;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+td{padding:.875rem 1.25rem;font-size:.82rem;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:.375rem;padding:.25rem .625rem;border-radius:100px;font-size:.68rem;font-weight:700}
+.badge.trial{background:rgba(255,214,0,.12);color:var(--warning)}
+.badge.pago{background:rgba(0,255,136,.12);color:var(--accent)}
+.badge.expirado{background:rgba(255,61,107,.12);color:var(--error)}
+.badge.inativo{background:rgba(255,255,255,.06);color:var(--muted)}
+
+/* DAYS BAR */
+.days-bar{width:100px;height:6px;background:var(--border);border-radius:100px;overflow:hidden}
+.days-fill{height:100%;border-radius:100px;transition:width .3s}
+
+/* ACTIONS */
+.btn-action{padding:.375rem .75rem;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:var(--body);border:none;transition:all .2s}
+.btn-extend{background:rgba(0,255,136,.1);color:var(--accent)}
+.btn-extend:hover{background:rgba(0,255,136,.2)}
+.btn-pago{background:rgba(0,204,255,.1);color:#00CCFF}
+.btn-pago:hover{background:rgba(0,204,255,.2)}
+.btn-ver{background:var(--card2);color:var(--white)}
+.btn-ver:hover{background:var(--border2)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal-title{font-family:var(--font);font-size:.9rem;font-weight:700;margin-bottom:1.5rem}
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:.625rem 0;border-bottom:1px solid var(--border);font-size:.82rem}
+.detail-row:last-child{border-bottom:none}
+.detail-label{color:var(--muted)}
+.detail-value{font-weight:600;text-align:right}
+.modal-actions{display:flex;gap:.625rem;margin-top:1.5rem;flex-wrap:wrap}
+.btn-modal{flex:1;padding:.75rem;border-radius:10px;font-family:var(--font);font-size:.75rem;font-weight:700;cursor:pointer;border:none;min-width:120px}
+.btn-modal.green{background:var(--accent);color:var(--black)}
+.btn-modal.blue{background:rgba(0,204,255,.15);color:#00CCFF;border:1px solid rgba(0,204,255,.2)}
+.btn-modal.red{background:rgba(255,61,107,.1);color:var(--error);border:1px solid rgba(255,61,107,.2)}
+.btn-modal.outline{background:transparent;color:var(--muted);border:1px solid var(--border2)}
+
+/* TOAST */
+.toast{position:fixed;top:1rem;right:1rem;z-index:999;background:var(--card2);border:1px solid var(--border2);padding:.75rem 1.25rem;border-radius:12px;font-size:.8rem;font-weight:600;display:none;max-width:280px}
+.toast.show{display:block}
+
+/* LOADING */
+.loading{text-align:center;padding:3rem;color:var(--muted);font-size:.85rem}
+.empty{text-align:center;padding:3rem;color:var(--muted);font-size:.82rem}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <div class="login-logo"><span>J</span>gerenteAI · Admin</div>
+    <input class="inp" id="l-email" type="email" placeholder="Email admin">
+    <input class="inp" id="l-pwd" type="password" placeholder="Senha" onkeydown="if(event.keyCode===13)doLogin()">
+    <button class="btn-login" onclick="doLogin()">Entrar →</button>
+    <div class="login-err" id="l-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="header-logo"><span>J</span>gerenteAI · <span style="color:var(--error)">Admin</span></div>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <span class="header-badge">🔐 Painel Interno</span>
+      <button onclick="loadData()" style="background:none;border:1px solid var(--border2);color:var(--muted);padding:.375rem .75rem;border-radius:8px;cursor:pointer;font-size:.72rem;font-family:var(--body)">↻ Atualizar</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- METRICS -->
+    <div class="metrics" id="metrics">
+      <div class="metric"><div class="metric-label">Total Empresas</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">cadastradas</div></div>
+      <div class="metric green"><div class="metric-label">Em Trial</div><div class="metric-value" id="m-trial">—</div><div class="metric-sub">testando agora</div></div>
+      <div class="metric green"><div class="metric-label">Pagantes</div><div class="metric-value" id="m-pagantes">—</div><div class="metric-sub">clientes ativos</div></div>
+      <div class="metric yellow"><div class="metric-label">MRR</div><div class="metric-value" id="m-mrr">—</div><div class="metric-sub">receita mensal</div></div>
+      <div class="metric red"><div class="metric-label">Expirados</div><div class="metric-value" id="m-expirados">—</div><div class="metric-sub">trial vencido</div></div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <div class="table-header">
+        <div class="table-title">📋 Clientes</div>
+        <input class="search-inp" id="search" placeholder="🔍 Buscar empresa..." oninput="filtrarClientes()">
+      </div>
+      <div id="table-body">
+        <div class="loading">Carregando clientes...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHES -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Detalhes da Empresa</div>
+    <div id="modal-content"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  'https://hnculphposmgfvaeliiw.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
+);
+
+// ADMIN EMAIL — só você tem acesso
+const ADMIN_EMAIL = 'ppeu07280@gmail.com';
+
+let allEmpresas = [];
+let toastTimer;
+
+function toast(msg, ok=true){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--accent)' : 'var(--error)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
+}
+
+async function doLogin(){
+  const email = document.getElementById('l-email').value.trim();
+  const pwd = document.getElementById('l-pwd').value;
+  const err = document.getElementById('l-err');
+
+  if(email !== ADMIN_EMAIL){ err.textContent = '⛔ Acesso negado'; return; }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if(error){ err.textContent = '❌ Senha incorreta'; return; }
+
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  await loadData();
+}
+
+async function loadData(){
+  document.getElementById('table-body').innerHTML = '<div class="loading">Carregando...</div>';
+
+  const { data: empresas } = await sb.from('companies').select('*').order('created_at', {ascending: false});
+  if(!empresas){ document.getElementById('table-body').innerHTML = '<div class="empty">Erro ao carregar dados.</div>'; return; }
+
+  // Buscar usuários para cada empresa
+  const { data: usuarios } = await sb.from('usuarios').select('company_id, nome, email, perfil');
+
+  allEmpresas = empresas.map(function(e){
+    const usrs = (usuarios||[]).filter(function(u){ return u.company_id === e.id; });
+    const dono = usrs.find(function(u){ return u.perfil === 'dono'; });
+    return { ...e, usuarios: usrs, dono };
+  });
+
+  renderMetrics();
+  renderTable(allEmpresas);
+}
+
+function renderMetrics(){
+  const total = allEmpresas.length;
+  const agora = new Date();
+  const trials = allEmpresas.filter(function(e){
+    return e.plano === 'trial' && e.trial_ate && new Date(e.trial_ate) > agora;
+  });
+  const expirados = allEmpresas.filter(function(e){
+    return e.plano === 'trial' && e.trial_ate && new Date(e.trial_ate) <= agora;
+  });
+  const pagantes = allEmpresas.filter(function(e){
+    return e.plano !== 'trial';
+  });
+
+  // MRR simples
+  const precos = { essencial: 97, profissional: 197, empresarial: 397 };
+  const mrr = pagantes.reduce(function(acc, e){
+    return acc + (precos[e.plano] || 0);
+  }, 0);
+
+  document.getElementById('m-total').textContent = total;
+  document.getElementById('m-trial').textContent = trials.length;
+  document.getElementById('m-pagantes').textContent = pagantes.length;
+  document.getElementById('m-mrr').textContent = 'R$' + mrr.toLocaleString('pt-BR');
+  document.getElementById('m-expirados').textContent = expirados.length;
+}
+
+function diasRestantes(trialAte){
+  if(!trialAte) return null;
+  const diff = new Date(trialAte) - new Date();
+  return Math.ceil(diff / (1000*60*60*24));
+}
+
+function getBadge(e){
+  const agora = new Date();
+  if(e.plano !== 'trial') return '<span class="badge pago">💳 Pago</span>';
+  if(!e.ativo) return '<span class="badge inativo">⛔ Inativo</span>';
+  if(!e.trial_ate || new Date(e.trial_ate) <= agora) return '<span class="badge expirado">❌ Expirado</span>';
+  return '<span class="badge trial">⚡ Trial</span>';
+}
+
+function getDaysBar(e){
+  const dias = diasRestantes(e.trial_ate);
+  if(e.plano !== 'trial' || dias === null) return '—';
+  const pct = Math.max(0, Math.min(100, (dias/14)*100));
+  const color = dias > 7 ? 'var(--accent)' : dias > 3 ? 'var(--warning)' : 'var(--error)';
+  return '<div class="days-bar"><div class="days-fill" style="width:'+pct+'%;background:'+color+'"></div></div>'
+    +'<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">'+(dias > 0 ? dias+' dias' : 'Expirado')+'</div>';
+}
+
+function renderTable(list){
+  if(list.length === 0){
+    document.getElementById('table-body').innerHTML = '<div class="empty">Nenhuma empresa encontrada.</div>';
+    return;
+  }
+
+  const rows = list.map(function(e){
+    const dono = e.dono;
+    const created = new Date(e.created_at).toLocaleDateString('pt-BR');
+    return '<tr>'
+      +'<td><div style="font-weight:700">'+escHtml(e.nome)+'</div>'
+      +'<div style="font-size:.72rem;color:var(--muted)">'+escHtml(e.slug)+'</div></td>'
+      +'<td>'+(dono ? escHtml(dono.nome) : '—')+'<div style="font-size:.72rem;color:var(--muted)">'+(dono ? escHtml(dono.email) : '')+'</div></td>'
+      +'<td>'+getBadge(e)+'</td>'
+      +'<td>'+getDaysBar(e)+'</td>'
+      +'<td>'+created+'</td>'
+      +'<td style="display:flex;gap:.375rem;flex-wrap:wrap">'
+      +'<button class="btn-action btn-ver" onclick="verDetalhes(\''+e.id+'\')">👁️ Ver</button>'
+      +'<button class="btn-action btn-extend" onclick="extenderTrial(\''+e.id+'\',\''+escHtml(e.nome)+'\')">+7 dias</button>'
+      +'<button class="btn-action btn-pago" onclick="marcarPago(\''+e.id+'\',\''+escHtml(e.nome)+'\')">💳 Pago</button>'
+      +'</td>'
+      +'</tr>';
+  }).join('');
+
+  document.getElementById('table-body').innerHTML = '<table>'
+    +'<thead><tr>'
+    +'<th>Empresa</th><th>Dono</th><th>Status</th><th>Trial</th><th>Cadastro</th><th>Ações</th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table>';
+}
+
+function filtrarClientes(){
+  const q = document.getElementById('search').value.toLowerCase();
+  const filtered = allEmpresas.filter(function(e){
+    return e.nome.toLowerCase().includes(q)
+      || (e.dono && e.dono.email.toLowerCase().includes(q))
+      || (e.dono && e.dono.nome.toLowerCase().includes(q));
+  });
+  renderTable(filtered);
+}
+
+function verDetalhes(id){
+  const e = allEmpresas.find(function(x){ return x.id === id; });
+  if(!e) return;
+
+  const dias = diasRestantes(e.trial_ate);
+  const dono = e.dono;
+
+  document.getElementById('modal-title').textContent = '🏪 '+e.nome;
+  document.getElementById('modal-content').innerHTML = '<div>'
+    +'<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">'+getBadge(e)+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">Plano</span><span class="detail-value">'+e.plano+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">Trial até</span><span class="detail-value">'+(e.trial_ate ? new Date(e.trial_ate).toLocaleDateString('pt-BR') : '—')+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">Dias restantes</span><span class="detail-value">'+(dias !== null ? dias+' dias' : '—')+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">Funcionários</span><span class="detail-value">'+e.usuarios.length+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">Dono</span><span class="detail-value">'+(dono ? dono.nome : '—')+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">'+(dono ? dono.email : '—')+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">Cadastro</span><span class="detail-value">'+new Date(e.created_at).toLocaleDateString('pt-BR')+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">Slug</span><span class="detail-value">'+e.slug+'</span></div>'
+    +'</div>';
+
+  document.getElementById('modal-actions').innerHTML = '<button class="btn-modal green" onclick="extenderTrial(\''+id+'\',\''+escHtml(e.nome)+'\');closeModal()">+7 dias trial</button>'
+    +'<button class="btn-modal blue" onclick="marcarPago(\''+id+'\',\''+escHtml(e.nome)+'\');closeModal()">💳 Marcar pago</button>'
+    +'<button class="btn-modal red" onclick="desativar(\''+id+'\',\''+escHtml(e.nome)+'\');closeModal()">⛔ Desativar</button>'
+    +'<button class="btn-modal outline" onclick="closeModal()">Fechar</button>';
+
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('show');
+}
+
+async function extenderTrial(id, nome){
+  const e = allEmpresas.find(function(x){ return x.id === id; });
+  if(!e) return;
+  const atual = e.trial_ate ? new Date(e.trial_ate) : new Date();
+  const nova = new Date(Math.max(atual, new Date()));
+  nova.setDate(nova.getDate() + 7);
+
+  await sb.from('companies').update({ trial_ate: nova.toISOString() }).eq('id', id);
+  toast('✅ Trial de '+nome+' estendido por 7 dias!');
+  await loadData();
+}
+
+async function marcarPago(id, nome){
+  const plano = prompt('Qual plano? (essencial / profissional / empresarial)', 'profissional');
+  if(!plano) return;
+  await sb.from('companies').update({ plano: plano, ativo: true }).eq('id', id);
+  toast('✅ '+nome+' marcada como paga! Plano: '+plano);
+  await loadData();
+}
+
+async function desativar(id, nome){
+  if(!confirm('Desativar '+nome+'?')) return;
+  await sb.from('companies').update({ ativo: false }).eq('id', id);
+  toast('⛔ '+nome+' desativada', false);
+  await loadData();
+}
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Fechar modal clicando fora
+document.getElementById('modal').addEventListener('click', function(e){
+  if(e.target === this) closeModal();
+});
+
+// Verificar sessão
+(async function(){
+  const { data } = await sb.auth.getSession();
+  if(data && data.session && data.session.user && data.session.user.email === ADMIN_EMAIL){
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('app').classList.add('show');
+    await loadData();
+  }
+})();
+</script>
+</body>
+</html>
