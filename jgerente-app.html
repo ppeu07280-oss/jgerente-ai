@@ -635,7 +635,7 @@ async function loadData(){
 function navTo(view){
   S.view = view;
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
-  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,auditoria:6,config:7};
+  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,auditoria:9,config:10};
   const btns=document.querySelectorAll('.sb-btn');
   if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
   renderView(view);
@@ -1287,6 +1287,32 @@ function renderConfig(){
     '<div class="config-sub" style="color:var(--accent);font-weight:600">⚡ Trial — '+diasTrial+' dias restantes</div>',
     '<div class="trial-bar" style="margin-top:.5rem;max-width:200px"><div class="trial-fill" style="width:'+(100-pct)+'%"></div></div>',
     '</div></div></div></div>',
+
+    // Plano e Assinatura
+    '<div class="sec-card" style="border-color:rgba(0,255,136,.15)">',
+    '<div class="sec-card-header"><div class="sec-card-title">💳 Plano e Assinatura</div></div>',
+    '<div class="sec-card-body">',
+    isTrialOrExpired
+      ? '<div style="margin-bottom:.75rem;font-size:.78rem;color:var(--muted)">Plano atual: <b style="color:var(--warning)">Trial — '+diasTrial+' dias restantes</b></div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.625rem">'
+        +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:.875rem;text-align:center">'
+        +'<div style="font-family:var(--font);font-weight:900;font-size:1rem">R$97</div>'
+        +'<div style="font-size:.68rem;color:var(--muted);margin:.2rem 0 .5rem">/mês · Essencial</div>'
+        +'<button data-plano="essencial" onclick="assinar(this.dataset.plano)" style="width:100%;padding:.4rem;background:var(--accent);color:var(--black);border:none;border-radius:6px;font-family:var(--font);font-size:.65rem;font-weight:700;cursor:pointer">Assinar</button>'
+        +'</div>'
+        +'<div style="background:var(--card2);border:1.5px solid rgba(0,255,136,.3);border-radius:12px;padding:.875rem;text-align:center">'
+        +'<div style="font-size:.58rem;color:var(--accent);font-weight:700;margin-bottom:.2rem">⭐ POPULAR</div>'
+        +'<div style="font-family:var(--font);font-weight:900;font-size:1rem">R$197</div>'
+        +'<div style="font-size:.68rem;color:var(--muted);margin:.2rem 0 .5rem">/mês · Profissional</div>'
+        +'<button data-plano="profissional" onclick="assinar(this.dataset.plano)" style="width:100%;padding:.4rem;background:var(--accent);color:var(--black);border:none;border-radius:6px;font-family:var(--font);font-size:.65rem;font-weight:700;cursor:pointer">Assinar</button>'
+        +'</div>'
+        +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:.875rem;text-align:center">'
+        +'<div style="font-family:var(--font);font-weight:900;font-size:1rem">R$397</div>'
+        +'<div style="font-size:.68rem;color:var(--muted);margin:.2rem 0 .5rem">/mês · Empresarial</div>'
+        +'<button data-plano="empresarial" onclick="assinar(this.dataset.plano)" style="width:100%;padding:.4rem;background:var(--card2);color:var(--white);border:1px solid var(--border2);border-radius:6px;font-family:var(--font);font-size:.65rem;font-weight:700;cursor:pointer">Assinar</button>'
+        +'</div></div>'
+      : '<div style="font-size:.82rem;color:var(--accent);font-weight:600">✅ Plano '+planoAtual+' ativo</div>',
+    '</div></div>',
 
     // Meu Perfil
     '<div class="sec-card">',
