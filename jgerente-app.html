@@ -1055,6 +1055,149 @@ function filtrarAuditoria(){
 }
 
 // ══════════════════════════════════════════
+// EQUIPE
+// ══════════════════════════════════════════
+function renderEquipe(){
+  const el = document.getElementById('main');
+  const membros = S.equipe.filter(function(m){ return m.id !== S.usuario?.id; });
+
+  function rankingHtml(){
+    const sorted = [...S.equipe].map(function(m){
+      const tarefas = S.tarefas.filter(function(t){ return t.atribuido_para===m.id; });
+      const concluidas = tarefas.filter(function(t){ return t.status==='concluida'; }).length;
+      const total = tarefas.filter(function(t){ return t.status!=='pendente'||t.prazo; }).length;
+      const score = total>0 ? Math.round((concluidas/total)*100) : 0;
+      return Object.assign({}, m, {score, concluidas, total});
+    }).sort(function(a,b){ return b.score-a.score; });
+
+    if(sorted.length===0) return '<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Nenhum funcionário cadastrado.</div></div>';
+
+    return sorted.map(function(m,i){
+      return '<div class="member-row">'
+        +'<div class="member-rank">#'+(i+1)+'</div>'
+        +'<div class="member-av" style="background:'+avColor(m.nome)+'">'+initials(m.nome)+'</div>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div class="member-name">'+escHtml(m.nome)+'</div>'
+        +'<div class="member-role" style="text-transform:capitalize">'+m.perfil+'</div>'
+        +'</div>'
+        +'<div style="text-align:right">'
+        +'<div style="font-family:var(--font);font-size:1rem;font-weight:900;color:var(--accent)">'+m.score+'%</div>'
+        +'<div style="font-size:.68rem;color:var(--muted)">'+m.concluidas+' tarefas</div>'
+        +'</div></div>';
+    }).join('');
+  }
+
+  el.innerHTML = '<div class="main-header"><div><div class="page-title">Equipe</div>'
+    +'<div class="page-sub">'+S.equipe.length+' membro(s) cadastrado(s)</div></div>'
+    +'<button class="btn-add" onclick="showAddMembro()">+ Membro</button></div>'
+    +'<div class="content">'
+    +'<div class="sec-card">'
+    +'<div class="sec-card-header"><div class="sec-card-title">🏆 Ranking de Performance</div></div>'
+    +'<div class="sec-card-body">'+rankingHtml()+'</div></div>'
+
+    +'<div class="sec-card">'
+    +'<div class="sec-card-header"><div class="sec-card-title">📋 Tarefas Recentes por Funcionário</div></div>'
+    +'<div class="sec-card-body">'
+    +S.equipe.map(function(m){
+        const provas = S.tarefas.filter(function(t){ return t.atribuido_para===m.id && t.status==='concluida' && (t.prova_foto||t.provas_fotos?.length); });
+        if(!provas.length) return '';
+        return '<div style="margin-bottom:1rem">'
+          +'<div style="font-size:.78rem;font-weight:700;margin-bottom:.5rem">'+escHtml(m.nome)+'</div>'
+          +'<div style="display:flex;gap:.5rem;flex-wrap:wrap">'
+          +provas.slice(0,4).map(function(t){
+            const fotos = t.provas_fotos&&t.provas_fotos.length>0?t.provas_fotos:t.prova_foto?[t.prova_foto]:[];
+            return fotos.map(function(url){
+              return '<img src="'+url+'" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.07)" title="'+escHtml(t.titulo)+'">';
+            }).join('');
+          }).join('')
+          +'</div></div>';
+      }).join('')
+    +'</div></div></div>';
+}
+
+// ══════════════════════════════════════════
+// PRESENÇA DONO
+// ══════════════════════════════════════════
+function renderPresencaDono(){
+  const el = document.getElementById('main');
+  const hoje = new Date().toISOString().split('T')[0];
+
+  const statusFuncionarios = S.equipe.map(function(m){
+    const presM = (S.presencas||[]).filter(function(p){ return p.usuario_id===m.id; });
+    const ultima = presM[0];
+    const presente = ultima&&ultima.tipo==='entrada';
+    const presOrdem = [...presM].reverse();
+    let minutos = 0;
+    for(let i=0;i<presOrdem.length-1;i++){
+      if(presOrdem[i].tipo==='entrada'&&presOrdem[i+1].tipo==='saida'){
+        minutos += (new Date(presOrdem[i+1].hora)-new Date(presOrdem[i].hora))/1000/60;
+      }
+    }
+    if(presente&&ultima) minutos += (Date.now()-new Date(ultima.hora))/1000/60;
+    const h=Math.floor(minutos/60), mn=Math.round(minutos%60);
+    return Object.assign({},m,{presente,ultima,horas:minutos>0?h+'h'+String(mn).padStart(2,'0'):'—'});
+  });
+
+  const presentes = statusFuncionarios.filter(function(m){ return m.presente; }).length;
+
+  el.innerHTML = '<div class="main-header"><div><div class="page-title">Presença</div>'
+    +'<div class="page-sub">'+presentes+' de '+S.equipe.length+' presente(s) agora</div></div>'
+    +'<button class="btn-add" onclick="navTo(\"presenca\")" >↻ Atualizar</button></div>'
+    +'<div class="content">'
+    +'<div class="sec-card"><div class="sec-card-header"><div class="sec-card-title">👥 Status da equipe hoje</div></div>'
+    +'<div class="sec-card-body">'
+    +statusFuncionarios.map(function(m){
+      return '<div class="member-row">'
+        +'<div class="member-av" style="background:'+avColor(m.nome)+'">'+initials(m.nome)+'</div>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div class="member-name">'+escHtml(m.nome)+'</div>'
+        +'<div class="member-role">'+(m.ultima?'Último: '+m.ultima.tipo+' às '+new Date(m.ultima.hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'Sem registro hoje')+'</div>'
+        +'</div>'
+        +'<div style="text-align:right">'
+        +'<div style="font-size:.72rem;font-weight:700;color:'+(m.presente?'var(--accent)':'var(--error)')+';">'+(m.presente?'🟢 Presente':'🔴 Ausente')+'</div>'
+        +'<div style="font-size:.7rem;color:var(--muted)">'+m.horas+' hoje</div>'
+        +'</div></div>';
+    }).join('')
+    +'</div></div>'
+
+    +'<div class="sec-card"><div class="sec-card-header"><div class="sec-card-title">📋 Registros de hoje</div></div>'
+    +'<div class="sec-card-body">'
+    +((S.presencas||[]).length===0?'<div class="empty"><div class="empty-icon">🕐</div><div class="empty-text">Nenhum registro hoje.</div></div>'
+    :(S.presencas||[]).map(function(p){
+      return '<div class="activity-row">'
+        +'<div class="activity-icon" style="background:'+(p.tipo==='entrada'?'rgba(0,255,136,.1)':'rgba(255,61,107,.1)')+';">'+(p.tipo==='entrada'?'✅':'🚪')+'</div>'
+        +'<div class="activity-text"><b>'+(p.usuarios&&p.usuarios.nome||'Funcionário')+'</b> registrou <b>'+p.tipo+'</b></div>'
+        +'<div class="activity-time">'+new Date(p.hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</div>'
+        +'</div>';
+    }).join(''))
+    +'</div></div></div>';
+}
+
+// ══════════════════════════════════════════
+// CHAT IA
+// ══════════════════════════════════════════
+function renderChat(){
+  const el = document.getElementById('main');
+  el.innerHTML = '<div class="main-header"><div><div class="page-title">IA Gerente</div>'
+    +'<div class="page-sub">Converse com seus agentes de IA</div></div></div>'
+    +'<div class="content">'
+    +'<div class="sec-card">'
+    +'<div class="sec-card-body" style="text-align:center;padding:2rem">'
+    +'<div style="font-size:2rem;margin-bottom:.75rem">🤖</div>'
+    +'<div style="font-size:.85rem;font-weight:600;margin-bottom:.375rem">Escolha um agente:</div>'
+    +'<div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem">'
+    +'<button onclick="selectAgent(\"gestor\")" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">👔 Agente Gestor</button>'
+    +'<button onclick="selectAgent(\"fidelidade\")" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">🎯 Agente Fidelidade</button>'
+    +'<button onclick="selectAgent(\"estrategista\")" style="padding:.875rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">📊 Agente Estrategista</button>'
+    +'</div></div></div></div>';
+}
+
+function selectAgent(tipo){
+  currentAgent = tipo;
+  loadChatHistory(tipo);
+}
+
+// ══════════════════════════════════════════
 // AGENTES
 // ══════════════════════════════════════════
 function renderAgentes(){
