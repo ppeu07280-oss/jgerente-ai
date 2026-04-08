@@ -298,6 +298,12 @@ async function initApp(user){
     await loadTarefas();
     await loadPresencas();
     renderTab('tarefas');
+    
+    // Solicitar permissão de notificação
+    await solicitarPermissaoNotificacao();
+    
+    // Iniciar monitor de notificações
+    iniciarMonitorNotificacoes();
 
   }catch(e){
     console.error(e);
@@ -351,6 +357,9 @@ function renderTab(tab){
 function renderTarefas(){
   const agora = new Date();
   const el = document.getElementById('content');
+  
+  // Alertas de notificação visuais
+  const alertasHtml = renderAlertas();
 
   // Separar normais e grupos recorrentes
   const normais = S.tarefas.filter(t=>!t.recorrente && !t.tarefa_pai);
@@ -374,6 +383,7 @@ function renderTarefas(){
   const temTarefas = normais.length>0 || Object.keys(grupos).length>0;
 
   el.innerHTML = `
+    ${alertasHtml}
     ${!temTarefas?`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa para hoje.<br>Bom descanso! 😄</div></div>`:''}
 
     ${normais.map(t=>tarefaCard(t)).join('')}
@@ -386,7 +396,19 @@ function renderTarefas(){
 
   // Auto-refresh a cada minuto para desbloquear próximas repetições
   clearTimeout(window._refreshTimer);
-  window._refreshTimer = setTimeout(()=>renderTarefas(), 60000);
+  window._refreshTimer = setTimeout(()=>renderTarefas(), 30000);
+
+  // Atualizar contadores regressivos a cada segundo
+  clearInterval(window._cdTimer);
+  window._cdTimer = setInterval(()=>{
+    _alertasVisiveis.forEach(a=>{
+      const el = document.getElementById('cd_'+a.id);
+      if(!el) return;
+      const diff = Math.max(0, Math.round((a.prazo - new Date()) / 60000));
+      const secs = Math.max(0, Math.round((a.prazo - new Date()) / 1000) % 60);
+      el.textContent = diff > 0 ? `${diff}min ${secs}s` : `${Math.max(0,Math.round((a.prazo - new Date())/1000))}s`;
+    });
+  }, 1000);
 }
 
 function grupoCard(reps){
@@ -815,6 +837,110 @@ function renderPresenca(){
       `).join('')}
     </div>`:''}
   `;
+}
+
+// ── NOTIFICAÇÕES ──────────────────────────────────────
+async function solicitarPermissaoNotificacao(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'default'){
+    await Notification.requestPermission();
+  }
+}
+
+function enviarNotificacaoPush(titulo, corpo, tag='tarefa'){
+  if(!('Notification' in window)) return;
+  if(Notification.permission !== 'granted') return;
+  try{
+    new Notification(titulo, {
+      body: corpo,
+      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏰</text></svg>',
+      tag,
+      requireInteraction: true
+    });
+  }catch(e){ console.log('Push notification failed:', e); }
+}
+
+let _notifTimer = null;
+let _notificacoesEnviadas = new Set();
+let _alertasVisiveis = [];
+
+function iniciarMonitorNotificacoes(){
+  // Verificar a cada 30 segundos
+  _notifTimer = setInterval(verificarNotificacoes, 30000);
+  verificarNotificacoes(); // Verificar imediatamente
+}
+
+function verificarNotificacoes(){
+  const agora = new Date();
+  const alertas = [];
+
+  S.tarefas.filter(t=>!t.recorrente && (t.status==='pendente'||t.status==='em_andamento')).forEach(t=>{
+    if(!t.prazo) return;
+    const prazo = new Date(t.prazo);
+    const diffMs = prazo - agora;
+    const diffMin = Math.round(diffMs / 60000);
+
+    // Alertas: 15min, 10min, 5min antes de expirar
+    const marcos = [15, 10, 5];
+    marcos.forEach(min=>{
+      const key = `${t.id}_${min}`;
+      if(diffMin <= min && diffMin > 0 && !_notificacoesEnviadas.has(key)){
+        _notificacoesEnviadas.add(key);
+        
+        // Push notification
+        enviarNotificacaoPush(
+          `⏰ Tarefa expira em ${diffMin} minuto${diffMin!==1?'s':''}!`,
+          `"${t.titulo}" — Conclua agora antes que expire!`,
+          t.id
+        );
+
+        // Alerta visual
+        alertas.push({
+          id: t.id,
+          titulo: t.titulo,
+          minutos: diffMin,
+          prazo
+        });
+      }
+    });
+
+    // Alerta para tarefa já expirada recentemente (até 2 min atrás)
+    if(diffMs < 0 && diffMs > -120000){
+      const key = `${t.id}_expired`;
+      if(!_notificacoesEnviadas.has(key)){
+        _notificacoesEnviadas.add(key);
+        enviarNotificacaoPush(
+          '❌ Tarefa expirada!',
+          `"${t.titulo}" expirou. Isso impacta sua performance.`,
+          t.id+'_exp'
+        );
+      }
+    }
+  });
+
+  _alertasVisiveis = alertas;
+
+  // Atualizar UI se estiver na aba tarefas
+  if(S.currentTab === 'tarefas'){
+    renderTarefas();
+  }
+}
+
+function renderAlertas(){
+  if(_alertasVisiveis.length === 0) return '';
+  
+  return _alertasVisiveis.map(a=>`
+    <div class="alerta-tarefa">
+      <div class="alerta-tarefa-title">
+        ⏰ Atenção! Tarefa expira em breve
+      </div>
+      <div class="alerta-tarefa-text">
+        <b>${escHtml(a.titulo)}</b> expira em 
+        <span class="countdown" id="cd_${a.id}">${a.minutos} min</span>
+      </div>
+      <button onclick="showConcluir('${a.id}')" style="margin-top:.625rem;background:#FFD600;color:#000;border:none;border-radius:8px;padding:.4rem .875rem;font-size:.75rem;font-weight:700;cursor:pointer;font-family:var(--body)">✅ Concluir agora</button>
+    </div>
+  `).join('');
 }
 
 // ── BOOT ──
