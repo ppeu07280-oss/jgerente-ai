@@ -1,5 +1,5 @@
 // api/image.js — Proxy para OpenAI GPT Image 1.5
-const OPENAI_KEY = process.env.OPENAI_KEY || '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';
+const OPENAI_KEY = process.env.OPENAI_KEY;
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
