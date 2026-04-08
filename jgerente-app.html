@@ -724,14 +724,7 @@ function renderDashboard(){
         <div class="sec-card-title">🔔 Alertas Inteligentes</div>
       </div>
       <div class="sec-card-body">
-        ${alertas.map(a=>`
-          <div class="alert-item">
-            <div class="alert-dot ${a.dot}"></div>
-            <div>
-              <div class="alert-title">${a.icon} ${a.title}</div>
-              <div class="alert-text">${a.text}</div>
-            </div>
-          </div>`).join('')}
+        ${alertas.map(function(a){ return '<div class="alert-item"><div class="alert-dot '+a.dot+'"></div><div><div class="alert-title">'+a.icon+' '+a.title+'</div><div class="alert-text">'+a.text+'</div></div></div>'; }).join('')}
       </div>
     </div>
 
@@ -743,14 +736,14 @@ function renderDashboard(){
       <div class="sec-card-body">
         ${S.tarefas.slice(0,4).length===0
           ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma tarefa ainda.<br>Crie a primeira para sua equipe.</div></div>`
-          : S.tarefas.slice(0,4).map(t=>`
+          : S.tarefas.slice(0,4).map(function(t){ return `
             <div class="activity-row">
               <div class="activity-icon" style="background:${t.status==='concluida'?'rgba(0,255,136,.1)':t.prioridade==='urgente'?'rgba(255,61,107,.1)':'rgba(61,107,255,.1)'}">
                 ${t.status==='concluida'?'✅':t.prioridade==='urgente'?'🔴':'📌'}
               </div>
               <div class="activity-text"><b>${escHtml(t.titulo)}</b><div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">${(typeof t.atribuido_para === 'object' ? t.atribuido_para?.nome : null)||'Sem responsável'} · ${fmtDate(t.created_at)}</div></div>
               <span class="prio-badge ${t.prioridade||'normal'}">${t.prioridade||'normal'}</span>
-            </div>`).join('')}
+            </div>`; }).join('')}
       </div>
     </div>
   </div>`;
@@ -858,11 +851,7 @@ function renderTarefas(){
               <button onclick="deletarTarefa('${m.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem" title="Remover">✕</button>
             </div>
             <div style="display:flex;gap:.5rem;padding-left:2rem;flex-wrap:wrap">
-              ${filhas.map(f=>`
-                <div style="background:${f.status==='concluida'?'rgba(0,255,136,.08)':f.status==='expirada'?'rgba(255,61,107,.08)':' rgba(255,214,0,.08)'};border:1px solid ${f.status==='concluida'?'rgba(0,255,136,.15)':f.status==='expirada'?'rgba(255,61,107,.15)':' rgba(255,214,0,.15)'};border-radius:8px;padding:.3rem .625rem;font-size:.68rem;font-weight:600;color:${f.status==='concluida'?'var(--accent)':f.status==='expirada'?'var(--error)':' #FFD600'}">
-                  ${f.repeticao_atual}ª ${f.prazo?new Date(f.prazo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}
-                  ${f.status==='concluida'?'✅':f.status==='expirada'?'⏰':' ▶'}
-                </div>`).join('')}
+              ${filhas.map(function(f){var bg=f.status==='concluida'?'rgba(0,255,136,.08)':f.status==='expirada'?'rgba(255,61,107,.08)':'rgba(255,214,0,.08)';var bd=f.status==='concluida'?'rgba(0,255,136,.15)':f.status==='expirada'?'rgba(255,61,107,.15)':'rgba(255,214,0,.15)';var cl=f.status==='concluida'?'var(--accent)':f.status==='expirada'?'var(--error)':'#FFD600';var hr=f.prazo?new Date(f.prazo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';var ic=f.status==='concluida'?'✅':f.status==='expirada'?'⏰':'▶';return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:8px;padding:.3rem .625rem;font-size:.68rem;font-weight:600;color:'+cl+'">'+f.repeticao_atual+'ª '+hr+' '+ic+'</div>';}).join('')}
               ${filhas.length===0?`<span style="font-size:.7rem;color:var(--muted)">Abrindo hoje ao recarregar...</span>`:''}
             </div>
           </div>`;
@@ -905,9 +894,7 @@ function tarefaRow(t){
     <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.875rem;margin-left:2rem">
       ${(t.provas_fotos?.length>0 ? t.provas_fotos : t.prova_foto ? [t.prova_foto] : []).length>0?`
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.625rem">
-          ${(t.provas_fotos?.length>0 ? t.provas_fotos : t.prova_foto ? [t.prova_foto] : []).map(url=>`
-            <img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;cursor:pointer" onclick="window.open('${url}','_blank')" alt="Prova">
-          `).join('')}
+          ${(t.provas_fotos&&t.provas_fotos.length>0?t.provas_fotos:t.prova_foto?[t.prova_foto]:[]).map(function(url){return '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:8px;cursor:pointer" onclick="window.open(this.src,\'_blank\')" alt="Prova">';}).join('')}
         </div>`:''}
       ${t.prova_comentario?`<div style="font-size:.78rem;color:var(--muted);line-height:1.5">💬 ${escHtml(t.prova_comentario)}</div>`:''}
       ${t.concluido_em?`<div style="font-size:.68rem;color:var(--muted);margin-top:.375rem">✅ Concluído em ${fmtDate(t.concluido_em)}</div>`:''}
@@ -944,9 +931,7 @@ function calcularHorarios(){
     horarios.push(`${h}:${m}`);
   }
 
-  preview.innerHTML = horarios.map((h,i)=>`
-    <span style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.15);color:var(--accent);padding:.2rem .5rem;border-radius:6px;font-size:.7rem;font-weight:600">${i+1}ª ${h}</span>
-  `).join('');
+  preview.innerHTML = horarios.map(function(h,i){ return '<span style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.15);color:var(--accent);padding:.2rem .5rem;border-radius:100px;font-size:.7rem;font-weight:600">'+(i+1)+'ª '+h+'</span>'; }).join('');
 }
 
 function toggleDiasSemana(){
