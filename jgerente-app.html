@@ -986,34 +986,47 @@ function showAddTarefa(){
     </div>
     <div class="fg">
       <label class="lbl">Horário da tarefa</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
-      <div>
-        <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Filtrar por pessoa</div>
-        <select class="inp" id="filtro-nome">
-          <option value="">Todos</option>
-          ${nomes.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('')}
-        </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div>
+          <div style="font-size:.68rem;color:var(--muted);margin-bottom:.375rem">Início</div>
+          <input class="inp" id="t-hora-inicio" type="time" value="08:00" onchange="calcularHorarios()">
+        </div>
+        <div>
+          <div style="font-size:.68rem;color:var(--muted);margin-bottom:.375rem">Fim</div>
+          <input class="inp" id="t-hora-fim" type="time" value="18:00" onchange="calcularHorarios()">
+        </div>
       </div>
-      <div>
-        <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Filtrar por ação</div>
-        <select class="inp" id="filtro-tipo">
-          <option value="">Todas</option>
-          <option value="login">🔐 Login</option>
-          <option value="logout">🚪 Logout</option>
-          <option value="tarefa_criada">📋 Tarefa criada</option>
-          <option value="tarefa_concluida">✅ Tarefa concluída</option>
-          <option value="tarefa_deletada">🗑️ Tarefa deletada</option>
-          <option value="membro_adicionado">👤 Membro adicionado</option>
-          <option value="presenca">🕐 Presença</option>
-          <option value="empresa_editada">🏪 Empresa editada</option>
-        </select>
+      <div id="horarios-preview" style="margin-top:.625rem;display:flex;flex-wrap:wrap;gap:.375rem"></div>
+    </div>
+    
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:.5rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+        <div>
+          <div style="font-size:.78rem;font-weight:600">🔁 Repetir automaticamente</div>
+          <div style="font-size:.7rem;color:var(--muted)">Cria essa tarefa todo dia automaticamente</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
+          <input type="checkbox" id="t-recorrente" onchange="toggleDiasSemana()" style="opacity:0;width:0;height:0">
+          <span style="position:absolute;inset:0;background:var(--border2);border-radius:100px;transition:.2s" id="toggle-track"></span>
+          <span style="position:absolute;left:2px;top:2px;width:18px;height:18px;background:white;border-radius:50%;transition:.2s" id="toggle-thumb"></span>
+        </label>
+      </div>
+      <div id="dias-semana-wrap" style="display:none">
+        <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem">Dias da semana</div>
+        <div style="display:flex;gap:.375rem;flex-wrap:wrap">
+          ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d,i)=>`
+            <label style="cursor:pointer">
+              <input type="checkbox" value="${i}" class="dia-check" style="display:none" ${i>0&&i<7?'checked':''}>
+              <div class="dia-btn ${i>0&&i<7?'active':''}" data-idx="${i}">${d}</div>
+            </label>
+          `).join('')}
+        </div>
       </div>
     </div>
-        <button onclick="filtrarAuditoria()" style="width:100%;padding:.625rem;background:var(--accent-dim,rgba(0,255,136,.08));border:1px solid rgba(0,255,136,.15);color:var(--accent);border-radius:10px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:var(--body);margin-bottom:1rem">🔍 Filtrar</button>
-    <div class="sec-card">
-      <div id="audit-lista" style="padding:0"></div>
-    </div>
-  `;
+
+    <button class="btn-modal primary" onclick="salvarTarefa()">✅ Criar Tarefa</button>
+    <button class="btn-modal outline" onclick="closeModal()">Cancelar</button>
+  \`;
 
   // Guardar logs globalmente para o filtro
   window._auditLogs = logs||[];
@@ -1036,26 +1049,29 @@ function filtrarAuditoria(){
   const lista = document.getElementById('audit-lista');
   if(!lista) return;
 
-  lista.innerHTML = filtrados.length===0
-    ? `<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.82rem">Nenhum registro encontrado.</div>`
-    : filtrados.map((log,i)=>`
-      <div style="display:flex;align-items:flex-start;gap:.875rem;padding:1rem 1.25rem;border-bottom:${i<filtrados.length-1?'1px solid var(--border)':'none'}">
-        <div style="width:36px;height:36px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">
-          ${acaoIcon[log.acao]||'📌'}
-        </div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.82rem;font-weight:600">${escHtml(log.usuario_nome||'Sistema')}</div>
-          <div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">${escHtml(log.detalhes||log.acao)}</div>
-        </div>
-        <div style="font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;text-align:right">
-          <div>${new Date(log.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
-          <div>${new Date(log.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
-        </div>
-      </div>`).join('');
+  if(filtrados.length===0){
+    lista.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.82rem">Nenhum registro encontrado.</div>';
+    return;
+  }
+  
+  lista.innerHTML = filtrados.map(function(log,i){
+    const icon = (acaoIcon[log.acao]||'📌');
+    const border = i<filtrados.length-1 ? '1px solid rgba(255,255,255,.07)' : 'none';
+    const nome = escHtml(log.usuario_nome||'Sistema');
+    const det = escHtml(log.detalhes||log.acao);
+    const data = new Date(log.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+    const hora = new Date(log.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    return '<div style="display:flex;align-items:flex-start;gap:.875rem;padding:1rem 1.25rem;border-bottom:'+border+'">'
+      +'<div style="width:36px;height:36px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">'+icon+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:.82rem;font-weight:600">'+nome+'</div>'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">'+det+'</div>'
+      +'</div>'
+      +'<div style="font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;text-align:right">'
+      +'<div>'+data+'</div><div>'+hora+'</div>'
+      +'</div></div>';
+  }).join('');
 }
-
-// dummy closing - the real function was above
-function _dummy(){
 
 // ══════════════════════════════════════════
 // AGENTES
@@ -1069,31 +1085,23 @@ function renderAgentes(){
     {tipo:'estoque',icon:'📦',nome:'Agente Estoque',desc:'Controle de produtos e alertas de ruptura',ativo:false,em_breve:true},
   ];
 
-  return`
-  <div class="main-header">
-    <div>
-      <div class="page-title">Agentes de IA</div>
-      <div class="page-sub">Seus assistentes especializados trabalhando 24/7</div>
-    </div>
-  </div>
-  <div class="content">
-    ${todos.map(a=>`
-      <div class="agent-row">
-        <div class="agent-row-icon">${a.icon}</div>
-        <div class="agent-row-info">
-          <div class="agent-row-name">${a.nome} ${a.em_breve?'<span style="font-size:.6rem;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);padding:.1rem .5rem;border-radius:100px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-left:.25rem">Em breve</span>':''}</div>
-          <div class="agent-row-desc">${a.desc}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:.75rem">
-          ${a.em_breve
-            ? `<span style="font-size:.72rem;color:var(--muted)">🔒 Em breve</span>`
-            : a.link
-              ? `<a href="https://ppeu07280-oss.github.io/acaipoints/acaipoints-admin.html" target="_blank" class="agent-row-btn primary">Abrir ↗</a>`
-              : `<span class="agent-row-status"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span> Ativo</span>`
-          }
-        </div>
-      </div>`).join('')}
-  </div>`;
+  const agentesHtml = todos.map(function(a){
+    const soon = a.em_breve ? '<span style="font-size:.6rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:#8B8B99;padding:.1rem .5rem;border-radius:100px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-left:.25rem">Em breve</span>' : '';
+    let btn = '';
+    if(a.em_breve) btn = '<span style="font-size:.72rem;color:var(--muted)">🔒 Em breve</span>';
+    else if(a.link) btn = '<a href="https://ppeu07280-oss.github.io/acaipoints/acaipoints-admin.html" target="_blank" class="agent-row-btn primary">Abrir ↗</a>';
+    else btn = '<span class="agent-row-status"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span> Ativo</span>';
+    return '<div class="agent-row">'
+      +'<div class="agent-row-icon">'+a.icon+'</div>'
+      +'<div class="agent-row-info">'
+      +'<div class="agent-row-name">'+a.nome+soon+'</div>'
+      +'<div class="agent-row-desc">'+a.desc+'</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:.75rem">'+btn+'</div>'
+      +'</div>';
+  }).join('');
+
+  return '<div class="main-header"><div><div class="page-title">Agentes de IA</div><div class="page-sub">Seus assistentes especializados trabalhando 24/7</div></div></div><div class="content">'+agentesHtml+'</div>';
 }
 
 // ══════════════════════════════════════════
