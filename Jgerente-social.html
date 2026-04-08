@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JgerenteAI — Social Mídia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#050508;--white:#F5F3EE;--accent:#00FF88;
+  --muted:#8B8B99;--card:#0D0D14;--card2:#111118;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.1);
+  --font:'Unbounded',sans-serif;--body:'DM Sans',sans-serif;
+  --error:#FF3D6B;--warning:#FFD600;--r:12px;
+  --pink:#FF6B9D;--purple:#9D6BFF;
+}
+html,body{min-height:100vh;background:var(--black);color:var(--white);font-family:var(--body)}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;z-index:999;background:var(--black);display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.login-box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2rem}
+.login-logo{font-family:var(--font);font-weight:900;font-size:1rem;letter-spacing:-.02em;margin-bottom:1.5rem;text-align:center}
+.login-logo .j{color:var(--accent)}
+.lbl{display:block;font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.375rem}
+.inp{width:100%;padding:.8rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:var(--r);font-size:.9rem;color:var(--white);font-family:var(--body);outline:none;transition:border-color .2s}
+.inp:focus{border-color:var(--accent)}
+.fg{margin-bottom:1rem}
+.btn-login{width:100%;padding:.875rem;background:linear-gradient(135deg,var(--pink),var(--purple));color:var(--white);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer;margin-top:.25rem}
+.login-err{font-size:.75rem;color:var(--error);margin-top:.625rem;text-align:center;min-height:18px}
+
+/* APP */
+#app{display:none;min-height:100vh;flex-direction:column}
+#app.show{display:flex}
+
+/* HEADER */
+.app-header{background:var(--card);border-bottom:1px solid var(--border);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-logo{font-family:var(--font);font-size:.85rem;font-weight:900}
+.header-logo .j{color:var(--accent)}
+.header-sub{font-size:.72rem;color:var(--muted)}
+.btn-back{background:none;border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.375rem}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--card);overflow-x:auto;scrollbar-width:none}
+.tab-btn{flex-shrink:0;padding:.875rem 1.125rem;font-size:.72rem;font-weight:600;color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--body);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* CONTENT */
+.content{padding:1.25rem;flex:1;max-width:900px;margin:0 auto;width:100%}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:.8rem;font-weight:700;margin-bottom:.875rem;display:flex;align-items:center;gap:.5rem}
+
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 120px)}
+.chat-msgs{flex:1;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:.875rem}
+.chat-msg{display:flex;gap:.625rem;max-width:88%}
+.chat-msg.user{align-self:flex-end;flex-direction:row-reverse}
+.chat-bubble{padding:.75rem 1rem;border-radius:14px;font-size:.83rem;line-height:1.6}
+.chat-msg.user .chat-bubble{background:linear-gradient(135deg,var(--pink),var(--purple));color:var(--white);border-radius:14px 14px 4px 14px}
+.chat-msg.ai .chat-bubble{background:var(--card2);border:1px solid var(--border);border-radius:14px 14px 14px 4px}
+.chat-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;margin-top:.2rem;background:var(--card2);border:1px solid var(--border)}
+.chat-input-wrap{padding:.875rem 1rem;border-top:1px solid var(--border);background:var(--black);flex-shrink:0}
+.chat-row{display:flex;gap:.625rem;margin-bottom:.5rem}
+.chat-inp{flex:1;padding:.75rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:var(--r);font-size:.85rem;color:var(--white);font-family:var(--body);outline:none;resize:none}
+.chat-inp:focus{border-color:var(--accent)}
+.btn-send{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--purple));color:var(--white);border:none;cursor:pointer;font-size:.9rem;flex-shrink:0}
+.btn-send:disabled{opacity:.4;cursor:not-allowed}
+.quick-btns{display:flex;gap:.375rem;flex-wrap:wrap}
+.quick-btn{padding:.3rem .75rem;background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-size:.7rem;border-radius:100px;cursor:pointer;font-family:var(--body);transition:all .15s;white-space:nowrap}
+.quick-btn:hover{border-color:var(--pink);color:var(--pink)}
+
+/* GERADOR */
+.gen-section{margin-bottom:1.5rem}
+.gen-title{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem}
+.gen-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:.75rem}
+.btn-gerar{width:100%;padding:.875rem;border:none;border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer;transition:all .2s;margin-top:.875rem}
+.btn-img{background:linear-gradient(135deg,#FF6B9D,#9D6BFF);color:white}
+.btn-vid{background:linear-gradient(135deg,#FF6B00,#FF0060);color:white}
+.btn-txt{background:linear-gradient(135deg,var(--accent),#00CCFF);color:var(--black)}
+.btn-gerar:disabled{opacity:.5;cursor:not-allowed}
+.resultado{margin-top:1rem;border-radius:var(--r);overflow:hidden}
+.resultado img{width:100%;border-radius:var(--r);display:block}
+.resultado video{width:100%;border-radius:var(--r);display:block}
+.progresso{text-align:center;padding:2rem;color:var(--muted);font-size:.8rem}
+.progresso-bar{height:4px;background:var(--border);border-radius:100px;margin-top:.875rem;overflow:hidden}
+.progresso-fill{height:100%;background:linear-gradient(90deg,var(--pink),var(--purple));border-radius:100px;animation:loading 1.5s ease-in-out infinite}
+@keyframes loading{0%{width:0%}50%{width:70%}100%{width:90%}}
+.uso-info{font-size:.7rem;color:var(--muted);text-align:right;margin-top:.375rem}
+.uso-critico{color:var(--error)}
+
+/* LIMITE */
+.limite-card{background:rgba(255,61,107,.06);border:1px solid rgba(255,61,107,.2);border-radius:12px;padding:1rem;text-align:center;margin-bottom:1rem}
+.limite-title{font-size:.82rem;font-weight:700;color:var(--error);margin-bottom:.375rem}
+.limite-sub{font-size:.75rem;color:var(--muted)}
+
+/* CALENDÁRIO */
+.cal-day{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.875rem;margin-bottom:.5rem}
+.cal-dia{font-size:.72rem;font-weight:700;color:var(--accent);margin-bottom:.375rem}
+.cal-tipo{font-size:.7rem;color:var(--muted);margin-bottom:.25rem}
+.cal-texto{font-size:.82rem;line-height:1.5}
+
+/* TOAST */
+.toast{position:fixed;top:1rem;right:1rem;z-index:9999;background:var(--card2);border:1px solid var(--border2);padding:.75rem 1.25rem;border-radius:12px;font-size:.8rem;font-weight:600;display:none;max-width:280px}
+.toast.show{display:block;animation:toastIn .3s ease}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+/* TYPING */
+.typing{display:flex;gap:4px;align-items:center;padding:.5rem}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bounce .8s infinite}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo"><span class="j">J</span>gerenteAI · Social Mídia</div>
+    <div class="fg"><label class="lbl">Email</label><input class="inp" id="l-email" type="email" placeholder="seu@email.com"></div>
+    <div class="fg"><label class="lbl">Senha</label><input class="inp" id="l-pwd" type="password" placeholder="••••••••" onkeydown="if(event.keyCode===13)doLogin()"></div>
+    <button class="btn-login" id="l-btn" onclick="doLogin()">Entrar →</button>
+    <div class="login-err" id="l-err"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="app-header">
+    <div>
+      <div class="header-logo"><span class="j">J</span>gerenteAI · 📱 Social Mídia</div>
+      <div class="header-sub" id="h-company">Carregando...</div>
+    </div>
+    <a href="jgerente-app.html" class="btn-back">← Painel</a>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('agente')">🤖 Agente IA</button>
+    <button class="tab-btn" onclick="showTab('imagens')">🖼️ Gerar Imagem</button>
+    <button class="tab-btn" onclick="showTab('videos')">🎬 Gerar Vídeo</button>
+    <button class="tab-btn" onclick="showTab('calendario')">📅 Calendário</button>
+  </div>
+
+  <div id="content" style="flex:1;display:flex;flex-direction:column"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  'https://hnculphposmgfvaeliiw.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
+);
+
+const FAL_KEY = '925a87d1-6a7b-495e-b569-2bea6333132a:02c196077d9cb12b1cafdce67f499527';
+const GEMINI_URL = 'https://jgerente-ai.vercel.app/api/chat';
+const LIMITE_IMAGENS = 30;
+const LIMITE_VIDEOS = 10;
+
+let S = { usuario: null, company: null, chatMsgs: [], usoMes: {imagens: 0, videos: 0} };
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+let _toastTimer;
+function toast(msg, ok=true){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--accent)' : 'var(--error)';
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
+}
+
+async function doLogin(){
+  const email = document.getElementById('l-email').value.trim();
+  const pwd = document.getElementById('l-pwd').value;
+  const btn = document.getElementById('l-btn');
+  const err = document.getElementById('l-err');
+  if(!email||!pwd){ err.textContent='⚠️ Preencha email e senha'; return; }
+  btn.disabled=true; btn.textContent='Entrando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if(error){ err.textContent='❌ Email ou senha incorretos'; btn.disabled=false; btn.textContent='Entrar →'; return; }
+  await initApp(data.user);
+}
+
+async function initApp(user){
+  try{
+    const { data: usr } = await sb.from('usuarios').select('*').eq('auth_id', user.id).single();
+    if(!usr){ document.getElementById('l-err').textContent='⚠️ Usuário não encontrado'; return; }
+    S.usuario = usr;
+    const { data: comp } = await sb.from('companies').select('*').eq('id', usr.company_id).single();
+    S.company = comp;
+    document.getElementById('h-company').textContent = comp&&comp.nome||'';
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('show');
+    await carregarUso();
+    showTab('agente');
+  }catch(e){
+    console.error(e);
+    document.getElementById('l-btn').disabled=false;
+    document.getElementById('l-btn').textContent='Entrar →';
+    document.getElementById('l-err').textContent='⚠️ Erro. Tente novamente.';
+  }
+}
+
+async function carregarUso(){
+  const mesAtual = new Date().toISOString().slice(0,7);
+  const { data } = await sb.from('financeiro')
+    .select('config')
+    .eq('company_id', S.company.id)
+    .eq('categoria', 'social_uso')
+    .gte('created_at', mesAtual+'-01')
+    .limit(1)
+    .maybeSingle();
+  if(data && data.config){
+    try{ S.usoMes = JSON.parse(data.config); }catch(e){ S.usoMes = {imagens:0, videos:0}; }
+  }
+}
+
+async function salvarUso(){
+  const mesAtual = new Date().toISOString().slice(0,7);
+  await sb.from('financeiro').upsert({
+    company_id: S.company.id,
+    tipo: 'saida',
+    valor: 0,
+    descricao: 'Uso Social Mídia '+mesAtual,
+    categoria: 'social_uso',
+    config: JSON.stringify(S.usoMes)
+  });
+}
+
+// ── TABS ──
+function showTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){
+    b.classList.toggle('active', ['agente','imagens','videos','calendario'][i]===tab);
+  });
+  const el = document.getElementById('content');
+  el.style.padding = tab==='agente' ? '0' : '1.25rem';
+  if(tab==='agente') renderAgente();
+  else if(tab==='imagens') renderImagens();
+  else if(tab==='videos') renderVideos();
+  else renderCalendario();
+}
+
+// ── AGENTE IA ──
+function renderAgente(){
+  const el = document.getElementById('content');
+  const msgsHtml = S.chatMsgs.length===0
+    ? '<div style="text-align:center;padding:2rem;color:var(--muted)">'
+      +'<div style="font-size:2.5rem;margin-bottom:.75rem">📱</div>'
+      +'<div style="font-size:.88rem;font-weight:700;color:var(--white);margin-bottom:.5rem">Agente Social Mídia</div>'
+      +'<div style="font-size:.78rem;line-height:1.6;margin-bottom:1.5rem">Especialista em criar conteúdo para Instagram,<br>TikTok, Facebook e WhatsApp.</div>'
+      +'<div style="display:flex;flex-direction:column;gap:.5rem;max-width:320px;margin:0 auto">'
+      +'<button class="quick-btn" style="padding:.6rem 1rem;border-radius:10px" onclick="enviarMsg(\'Crie uma legenda para Instagram sobre \'+(S.company&&S.company.nome||\'meu negócio\')+\' hoje\')">📝 Legenda para Instagram</button>'
+      +'<button class="quick-btn" style="padding:.6rem 1rem;border-radius:10px" onclick="enviarMsg(\'Crie um roteiro de 30 segundos para Reels sobre \'+( S.company&&S.company.nome||\'meu negócio\'))">🎬 Roteiro para Reels</button>'
+      +'<button class="quick-btn" style="padding:.6rem 1rem;border-radius:10px" onclick="enviarMsg(\'Sugira 10 hashtags para \'+( S.company&&S.company.nome||\'meu negócio\'))">🏷️ Hashtags</button>'
+      +'<button class="quick-btn" style="padding:.6rem 1rem;border-radius:10px" onclick="enviarMsg(\'Crie um calendário de conteúdo para essa semana para \'+( S.company&&S.company.nome||\'meu negócio\'))">📅 Calendário semanal</button>'
+      +'</div></div>'
+    : S.chatMsgs.map(function(m){
+        var isUser = m.role==='user';
+        return '<div class="chat-msg '+(isUser?'user':'ai')+'">'
+          +'<div class="chat-av">'+(isUser?'👤':'📱')+'</div>'
+          +'<div class="chat-bubble">'+renderMd(m.content)+'</div>'
+          +'</div>';
+      }).join('');
+
+  el.innerHTML = '<div class="chat-wrap">'
+    +'<div class="chat-msgs" id="chat-msgs">'+msgsHtml+'</div>'
+    +'<div class="chat-input-wrap">'
+    +'<div class="quick-btns" style="margin-bottom:.5rem">'
+    +'<button class="quick-btn" onclick="enviarMsg(\'Crie uma legenda criativa para hoje\')">💬 Legenda</button>'
+    +'<button class="quick-btn" onclick="enviarMsg(\'Roteiro para Reels de 30 segundos\')">🎬 Reels</button>'
+    +'<button class="quick-btn" onclick="enviarMsg(\'10 hashtags relevantes\')">🏷️ Hashtags</button>'
+    +'<button class="quick-btn" onclick="enviarMsg(\'Ideia de post para Stories\')">📸 Stories</button>'
+    +'<button class="quick-btn" onclick="enviarMsg(\'Texto para anúncio no Facebook\')">📣 Anúncio</button>'
+    +'</div>'
+    +'<div class="chat-row">'
+    +'<textarea class="chat-inp" id="chat-inp" placeholder="Peça legendas, roteiros, hashtags..." rows="2" onkeydown="if(event.keyCode===13&&!event.shiftKey){event.preventDefault();enviarMsg()}"></textarea>'
+    +'<button class="btn-send" id="btn-send" onclick="enviarMsg()">→</button>'
+    +'</div>'
+    +'</div></div>';
+
+  const msgs = document.getElementById('chat-msgs');
+  if(msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+function renderMd(text){
+  if(!text) return '';
+  var t = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  var lines = t.split('\n');
+  var result = lines.map(function(line){
+    if(line.startsWith('### ')) return '<div style="font-weight:700;margin:.5rem 0 .2rem">'+line.slice(4)+'</div>';
+    if(line.startsWith('## ')) return '<div style="font-weight:700;font-size:.9rem;margin:.625rem 0 .25rem">'+line.slice(3)+'</div>';
+    if(line.startsWith('* ')||line.startsWith('- ')) return '<div style="padding-left:.75rem;margin:.15rem 0">&bull; '+line.slice(2)+'</div>';
+    var nm = line.match(/^(\d+)\. (.+)$/);
+    if(nm) return '<div style="padding-left:.75rem;margin:.15rem 0"><b>'+nm[1]+'.</b> '+nm[2]+'</div>';
+    if(line==='---') return '<hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:.5rem 0">';
+    return line ? '<div>'+line+'</div>' : '<div style="height:.4rem"></div>';
+  }).join('');
+  return result.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*(.+?)\*/g,'<i>$1</i>');
+}
+
+async function enviarMsg(txt){
+  const inp = document.getElementById('chat-inp');
+  const msg = txt || (inp&&inp.value.trim());
+  if(!msg) return;
+  if(inp) inp.value='';
+  const btn = document.getElementById('btn-send');
+  if(btn) btn.disabled=true;
+
+  S.chatMsgs.push({role:'user', content:msg});
+
+  const systemPrompt = 'Você é o Agente Social Mídia da empresa "'+( S.company&&S.company.nome||'empresa')+'".'
+    +' Você é especialista em marketing digital, criação de conteúdo para redes sociais brasileiras.'
+    +' Cria legendas virais, roteiros para Reels/TikTok, hashtags estratégicas e calendários de conteúdo.'
+    +' Conhece as tendências do mercado brasileiro e fala de forma jovem e engajante.'
+    +' Sempre sugere CTAs (chamadas para ação) e pede para salvar, compartilhar ou seguir.'
+    +' Responda em português brasileiro, use emojis e seja criativo!';
+
+  const msgs = document.getElementById('chat-msgs');
+  if(msgs){
+    msgs.innerHTML += '<div class="chat-msg ai"><div class="chat-av">📱</div><div class="chat-bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>';
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  try{
+    const res = await fetch(GEMINI_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({messages: S.chatMsgs, systemPrompt})
+    });
+    const data = await res.json();
+    const reply = data.response || 'Desculpe, tente novamente.';
+    S.chatMsgs.push({role:'assistant', content:reply});
+  }catch(e){
+    S.chatMsgs.push({role:'assistant', content:'Erro ao conectar. Tente novamente.'});
+  }
+
+  if(btn) btn.disabled=false;
+  renderAgente();
+}
+
+// ── GERAR IMAGEM ──
+function renderImagens(){
+  const restantes = LIMITE_IMAGENS - (S.usoMes.imagens||0);
+  const el = document.getElementById('content');
+
+  el.innerHTML = (restantes<=0 ? '<div class="limite-card"><div class="limite-title">❌ Limite mensal atingido</div><div class="limite-sub">Você usou todas as '+LIMITE_IMAGENS+' imagens do mês. Renova no dia 1.</div></div>' : '')
+    +'<div class="gen-section">'
+    +'<div class="gen-title">🖼️ Gerador de Imagens para Posts</div>'
+    +'<div class="gen-card">'
+    +'<div class="fg"><label class="lbl">Descreva a imagem *</label>'
+    +'<textarea class="inp" id="img-prompt" rows="3" placeholder="Ex: Foto de um açaí cremoso com granola e frutas, fundo branco clean, iluminação profissional, estilo food photography"></textarea></div>'
+    +'<div class="fg"><label class="lbl">Formato</label>'
+    +'<select class="inp" id="img-format">'
+    +'<option value="square_hd">📷 Quadrado (Instagram Feed)</option>'
+    +'<option value="portrait_4_3">📱 Vertical (Stories/Reels)</option>'
+    +'<option value="landscape_4_3">🖥️ Horizontal (Facebook/YouTube)</option>'
+    +'</select></div>'
+    +'<div class="uso-info '+(restantes<=5?'uso-critico':'')+'">'+restantes+' de '+LIMITE_IMAGENS+' imagens restantes este mês</div>'
+    +'<button class="btn-gerar btn-img" id="btn-gerar-img" onclick="gerarImagem()" '+(restantes<=0?'disabled':'')+'>🖼️ Gerar Imagem com IA</button>'
+    +'</div>'
+    +'<div id="resultado-img"></div>'
+    +'</div>'
+    +'<div class="gen-section">'
+    +'<div class="gen-title">💡 Dicas de prompt</div>'
+    +'<div class="gen-card" style="display:grid;gap:.5rem">'
+    +'<div style="font-size:.78rem;color:var(--muted)">• Seja específico: tipo de comida, cores, estilo, ângulo</div>'
+    +'<div style="font-size:.78rem;color:var(--muted)">• Inclua o estilo: "food photography", "flat lay", "macro"</div>'
+    +'<div style="font-size:.78rem;color:var(--muted)">• Mencione a iluminação: "luz natural", "estúdio", "backlight"</div>'
+    +'<div style="font-size:.78rem;color:var(--muted)">• Defina o fundo: "fundo branco", "madeira rústica", "mármore"</div>'
+    +'</div></div>';
+}
+
+async function gerarImagem(){
+  const prompt = document.getElementById('img-prompt').value.trim();
+  const format = document.getElementById('img-format').value;
+  if(!prompt){ toast('⚠️ Descreva a imagem', false); return; }
+
+  const btn = document.getElementById('btn-gerar-img');
+  const resultado = document.getElementById('resultado-img');
+  btn.disabled=true; btn.textContent='⏳ Gerando...';
+  resultado.innerHTML = '<div class="progresso">Gerando sua imagem...<div class="progresso-bar"><div class="progresso-fill"></div></div></div>';
+
+  try{
+    const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Key '+FAL_KEY
+      },
+      body: JSON.stringify({
+        prompt: prompt+', professional photography, high quality, 8k',
+        image_size: format,
+        num_images: 1,
+        num_inference_steps: 4
+      })
+    });
+
+    const data = await res.json();
+    if(data.images && data.images[0]){
+      const url = data.images[0].url;
+      S.usoMes.imagens = (S.usoMes.imagens||0) + 1;
+      await salvarUso();
+
+      resultado.innerHTML = '<div style="margin-top:1rem">'
+        +'<img src="'+url+'" style="width:100%;border-radius:12px;display:block">'
+        +'<div style="display:flex;gap:.5rem;margin-top:.75rem">'
+        +'<a href="'+url+'" download="post.jpg" style="flex:1;padding:.75rem;background:var(--accent);color:var(--black);border:none;border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;display:block">⬇️ Baixar imagem</a>'
+        +'<button onclick="renderImagens()" style="flex:1;padding:.75rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--body)">🔄 Gerar outra</button>'
+        +'</div></div>';
+      toast('✅ Imagem gerada!');
+    } else {
+      throw new Error('Sem imagem na resposta');
+    }
+  }catch(e){
+    console.error(e);
+    resultado.innerHTML = '<div style="padding:1rem;background:rgba(255,61,107,.08);border:1px solid rgba(255,61,107,.2);border-radius:10px;color:var(--error);font-size:.8rem;margin-top:.75rem">❌ Erro ao gerar. Tente novamente.</div>';
+    toast('⚠️ Erro ao gerar imagem', false);
+  }
+
+  btn.disabled=false; btn.textContent='🖼️ Gerar Imagem com IA';
+}
+
+// ── GERAR VÍDEO ──
+function renderVideos(){
+  const restantes = LIMITE_VIDEOS - (S.usoMes.videos||0);
+  const el = document.getElementById('content');
+
+  el.innerHTML = (restantes<=0 ? '<div class="limite-card"><div class="limite-title">❌ Limite mensal atingido</div><div class="limite-sub">Você usou todos os '+LIMITE_VIDEOS+' vídeos do mês. Renova no dia 1.</div></div>' : '')
+    +'<div class="gen-section">'
+    +'<div class="gen-title">🎬 Gerador de Vídeos Curtos para Reels e Stories</div>'
+    +'<div class="gen-card">'
+    +'<div class="fg"><label class="lbl">Descreva o vídeo *</label>'
+    +'<textarea class="inp" id="vid-prompt" rows="3" placeholder="Ex: Vídeo de um açaí sendo montado em câmera lenta, granola caindo, frutas frescas, iluminação quente, estilo profissional"></textarea></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">'
+    +'<div class="fg"><label class="lbl">Duração</label>'
+    +'<select class="inp" id="vid-duration">'
+    +'<option value="5">5 segundos</option>'
+    +'<option value="10" selected>10 segundos</option>'
+    +'</select></div>'
+    +'<div class="fg"><label class="lbl">Formato</label>'
+    +'<select class="inp" id="vid-ratio">'
+    +'<option value="9:16">📱 Vertical (Reels/Stories)</option>'
+    +'<option value="1:1">⬛ Quadrado (Feed)</option>'
+    +'<option value="16:9">🖥️ Horizontal</option>'
+    +'</select></div>'
+    +'</div>'
+    +'<div class="uso-info '+(restantes<=3?'uso-critico':'')+'">'+restantes+' de '+LIMITE_VIDEOS+' vídeos restantes este mês</div>'
+    +'<button class="btn-gerar btn-vid" id="btn-gerar-vid" onclick="gerarVideo()" '+(restantes<=0?'disabled':'')+'>🎬 Gerar Vídeo com IA</button>'
+    +'<div style="font-size:.7rem;color:var(--muted);margin-top:.5rem;text-align:center">⏱️ Leva 1-3 minutos para gerar</div>'
+    +'</div>'
+    +'<div id="resultado-vid"></div>'
+    +'</div>';
+}
+
+async function gerarVideo(){
+  const prompt = document.getElementById('vid-prompt').value.trim();
+  const duration = parseInt(document.getElementById('vid-duration').value);
+  const ratio = document.getElementById('vid-ratio').value;
+  if(!prompt){ toast('⚠️ Descreva o vídeo', false); return; }
+
+  const btn = document.getElementById('btn-gerar-vid');
+  const resultado = document.getElementById('resultado-vid');
+  btn.disabled=true; btn.textContent='⏳ Gerando vídeo...';
+  resultado.innerHTML = '<div class="progresso">Gerando seu vídeo... Isso leva 1-3 minutos.<div class="progresso-bar"><div class="progresso-fill"></div></div></div>';
+
+  try{
+    // Usar Kling via fal.ai
+    const res = await fetch('https://fal.run/fal-ai/kling-video/v1.6/standard/text-to-video', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Key '+FAL_KEY
+      },
+      body: JSON.stringify({
+        prompt: prompt+', cinematic, professional, high quality',
+        duration: duration === 5 ? '5' : '10',
+        aspect_ratio: ratio,
+        negative_prompt: 'blurry, low quality, distorted'
+      })
+    });
+
+    const data = await res.json();
+
+    if(data.video && data.video.url){
+      const url = data.video.url;
+      S.usoMes.videos = (S.usoMes.videos||0) + 1;
+      await salvarUso();
+
+      resultado.innerHTML = '<div style="margin-top:1rem">'
+        +'<video src="'+url+'" controls style="width:100%;border-radius:12px;display:block"></video>'
+        +'<div style="display:flex;gap:.5rem;margin-top:.75rem">'
+        +'<a href="'+url+'" download="video.mp4" style="flex:1;padding:.75rem;background:linear-gradient(135deg,#FF6B00,#FF0060);color:white;border:none;border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;display:block">⬇️ Baixar vídeo</a>'
+        +'<button onclick="renderVideos()" style="flex:1;padding:.75rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--body)">🔄 Gerar outro</button>'
+        +'</div></div>';
+      toast('✅ Vídeo gerado!');
+    } else {
+      throw new Error('Sem vídeo na resposta: '+JSON.stringify(data));
+    }
+  }catch(e){
+    console.error(e);
+    resultado.innerHTML = '<div style="padding:1rem;background:rgba(255,61,107,.08);border:1px solid rgba(255,61,107,.2);border-radius:10px;color:var(--error);font-size:.8rem;margin-top:.75rem">❌ Erro ao gerar vídeo. Tente com outro prompt.</div>';
+    toast('⚠️ Erro ao gerar vídeo', false);
+  }
+
+  btn.disabled=false; btn.textContent='🎬 Gerar Vídeo com IA';
+}
+
+// ── CALENDÁRIO ──
+async function renderCalendario(){
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="gen-section"><div class="gen-title">📅 Calendário de Conteúdo</div>'
+    +'<div class="gen-card">'
+    +'<div class="fg"><label class="lbl">Segmento do negócio</label>'
+    +'<select class="inp" id="cal-segmento">'
+    +'<option value="açaiteria">🍇 Açaiteria</option>'
+    +'<option value="lanchonete">🍔 Lanchonete</option>'
+    +'<option value="restaurante">🍽️ Restaurante</option>'
+    +'<option value="salão de beleza">💇 Salão de Beleza</option>'
+    +'<option value="barbearia">💈 Barbearia</option>'
+    +'<option value="padaria">🥐 Padaria</option>'
+    +'<option value="farmácia">💊 Farmácia</option>'
+    +'<option value="pet shop">🐾 Pet Shop</option>'
+    +'<option value="academia">🏋️ Academia</option>'
+    +'<option value="outro">🏪 Outro</option>'
+    +'</select></div>'
+    +'<div class="fg"><label class="lbl">Foco da semana (opcional)</label>'
+    +'<input class="inp" id="cal-foco" placeholder="Ex: Promoção de fim de semana, lançamento de produto..."></div>'
+    +'<button class="btn-gerar btn-txt" onclick="gerarCalendario()">📅 Gerar Calendário da Semana</button>'
+    +'</div>'
+    +'<div id="resultado-cal"></div></div>';
+}
+
+async function gerarCalendario(){
+  const segmento = document.getElementById('cal-segmento').value;
+  const foco = document.getElementById('cal-foco').value.trim();
+  const btn = document.querySelector('.btn-txt');
+  const resultado = document.getElementById('resultado-cal');
+  btn.disabled=true; btn.textContent='⏳ Gerando...';
+  resultado.innerHTML = '<div class="progresso">Criando calendário...<div class="progresso-bar"><div class="progresso-fill"></div></div></div>';
+
+  const prompt = 'Crie um calendário de conteúdo para redes sociais para uma '+segmento+' chamada "'+( S.company&&S.company.nome||'empresa')+'" para os próximos 7 dias.'
+    +(foco?' Foco da semana: '+foco+'.':"")
+    +' Para cada dia, inclua: tipo de post (feed/stories/reels), sugestão de conteúdo e legenda pronta com hashtags.'
+    +' Formato: Dia 1 - Segunda: [tipo] | [assunto] | Legenda: [texto]'
+    +' Seja criativo e use linguagem jovem brasileira!';
+
+  try{
+    const res = await fetch(GEMINI_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        messages:[{role:'user',content:prompt}],
+        systemPrompt:'Você é especialista em marketing digital para pequenas empresas brasileiras.'
+      })
+    });
+    const data = await res.json();
+    const reply = data.response||'Erro ao gerar';
+
+    const dias = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+    resultado.innerHTML = '<div style="margin-top:1rem">'
+      + dias.map(function(dia, i){
+          return '<div class="cal-day">'
+            +'<div class="cal-dia">📅 Dia '+(i+1)+' — '+dia+'</div>'
+            +'<div class="cal-texto" style="font-size:.78rem;color:var(--muted)">Veja no texto gerado abaixo</div>'
+            +'</div>';
+        }).join('')
+      +'<div class="gen-card" style="margin-top:1rem">'
+      +'<div style="font-size:.78rem;line-height:1.8;white-space:pre-wrap">'+renderMd(reply)+'</div>'
+      +'</div>'
+      +'<button onclick="copiarTexto(this)" data-texto="'+escHtml(reply)+'" style="width:100%;padding:.75rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--body);margin-top:.5rem">📋 Copiar calendário</button>'
+      +'</div>';
+
+    toast('✅ Calendário gerado!');
+  }catch(e){
+    resultado.innerHTML = '<div style="padding:1rem;color:var(--error);font-size:.8rem">❌ Erro. Tente novamente.</div>';
+  }
+
+  btn.disabled=false; btn.textContent='📅 Gerar Calendário da Semana';
+}
+
+function copiarTexto(btn){
+  const texto = btn.getAttribute('data-texto');
+  navigator.clipboard.writeText(texto).then(function(){
+    toast('📋 Copiado!');
+  });
+}
+
+// ── BOOT ──
+(async function(){
+  const { data } = await sb.auth.getSession();
+  if(data&&data.session&&data.session.user) await initApp(data.session.user);
+})();
+</script>
+</body>
+</html>
