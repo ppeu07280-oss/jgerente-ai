@@ -432,17 +432,16 @@ async function gerarImagem(){
   resultado.innerHTML = '<div class="progresso">Gerando sua imagem...<div class="progresso-bar"><div class="progresso-fill"></div></div></div>';
 
   try{
-    // Map format to OpenAI size
-    var sizeMap = {'square_hd':'1024x1024','portrait_4_3':'1024x1536','landscape_4_3':'1536x1024'};
-    var openaiSize = sizeMap[format]||'1024x1024';
+    // Map format to Imagen aspect ratio
+    var ratioMap = {'square_hd':'1:1','portrait_4_3':'3:4','landscape_4_3':'4:3'};
+    var aspectRatio = ratioMap[format]||'1:1';
 
     const res = await fetch(IMAGE_PROXY, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         prompt: prompt+', professional photography, high quality, ultra detailed',
-        size: openaiSize,
-        quality: 'high'
+        aspectRatio: aspectRatio
       })
     });
 
