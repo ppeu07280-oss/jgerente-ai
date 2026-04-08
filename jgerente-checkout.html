@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JgerenteAI — Assinar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#050508;--white:#F5F3EE;--accent:#00FF88;
+  --muted:#8B8B99;--card:#0D0D14;--card2:#111118;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);
+  --font:'Unbounded',sans-serif;--body:'DM Sans',sans-serif;
+  --error:#FF3D6B;--warning:#FFD600;
+}
+body{background:var(--black);color:var(--white);font-family:var(--body);min-height:100vh;display:flex;flex-direction:column}
+
+/* HEADER */
+.header{padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.logo{font-family:var(--font);font-weight:900;font-size:.95rem;letter-spacing:-.02em;text-decoration:none;color:var(--white)}
+.logo span{color:var(--accent)}
+.secure{display:flex;align-items:center;gap:.375rem;font-size:.72rem;color:var(--muted)}
+
+/* MAIN */
+.main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
+.checkout-wrap{width:100%;max-width:860px;display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start}
+
+/* LEFT — PLANO */
+.plan-box{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2rem}
+.plan-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1.5rem}
+.plan-tabs{display:flex;gap:.5rem;margin-bottom:1.75rem}
+.plan-tab{flex:1;padding:.625rem;border-radius:10px;font-family:var(--font);font-size:.68rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border2);background:transparent;color:var(--muted);transition:all .2s;text-align:center}
+.plan-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(0,255,136,.06)}
+.plan-details{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1.5rem}
+.plan-name{font-family:var(--font);font-size:.88rem;font-weight:700;margin-bottom:.375rem}
+.plan-price{font-family:var(--font);font-size:2.5rem;font-weight:900;line-height:1;margin-bottom:.25rem}
+.plan-price span{font-size:.85rem;font-weight:400;color:var(--muted)}
+.plan-desc{font-size:.78rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.6}
+.plan-features{display:flex;flex-direction:column;gap:.5rem}
+.plan-feat{font-size:.78rem;display:flex;align-items:center;gap:.5rem}
+.plan-feat::before{content:'✓';color:var(--accent);font-weight:700;flex-shrink:0}
+
+/* SOCIAL ADDON */
+.addon-box{border:1px dashed rgba(255,107,157,.3);border-radius:12px;padding:1rem;margin-bottom:1.5rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:.875rem}
+.addon-box:hover{border-color:rgba(255,107,157,.5)}
+.addon-box.selected{border-color:#FF6B9D;background:rgba(255,107,157,.05)}
+.addon-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;font-size:.7rem}
+.addon-box.selected .addon-check{background:#FF6B9D;border-color:#FF6B9D;color:white}
+.addon-info{flex:1}
+.addon-name{font-size:.82rem;font-weight:700;margin-bottom:.2rem}
+.addon-sub{font-size:.72rem;color:var(--muted)}
+.addon-price{font-family:var(--font);font-size:.88rem;font-weight:900;color:#FF6B9D;flex-shrink:0}
+
+/* GARANTIA */
+.garantia{display:flex;align-items:center;gap:.75rem;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.12);border-radius:12px;padding:.875rem;font-size:.75rem}
+.garantia-icon{font-size:1.5rem;flex-shrink:0}
+
+/* RIGHT — PAGAMENTO */
+.pay-box{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2rem;position:sticky;top:2rem}
+.pay-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1.5rem}
+.pay-summary{margin-bottom:1.5rem}
+.pay-row{display:flex;justify-content:space-between;align-items:center;padding:.625rem 0;border-bottom:1px solid var(--border);font-size:.82rem}
+.pay-row:last-child{border-bottom:none}
+.pay-row.total{font-family:var(--font);font-weight:700;font-size:.95rem;padding-top:.875rem}
+.pay-row.total .pay-val{color:var(--accent);font-size:1.1rem}
+
+.inp{width:100%;padding:.8rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:10px;font-size:.88rem;color:var(--white);font-family:var(--body);outline:none;margin-bottom:.875rem;transition:border-color .2s}
+.inp:focus{border-color:var(--accent)}
+.inp-label{font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem;display:block}
+
+.btn-pay{width:100%;padding:1rem;background:var(--accent);color:var(--black);border:none;border-radius:12px;font-family:var(--font);font-size:.88rem;font-weight:700;cursor:pointer;transition:all .2s;margin-top:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem}
+.btn-pay:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(0,255,136,.25)}
+.btn-pay:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.pay-methods{display:flex;gap:.5rem;justify-content:center;margin-top:1rem;flex-wrap:wrap}
+.pay-method{padding:.3rem .625rem;background:var(--card2);border:1px solid var(--border);border-radius:6px;font-size:.68rem;color:var(--muted)}
+
+.pay-note{text-align:center;font-size:.7rem;color:var(--muted);margin-top:.875rem;line-height:1.5}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:rgba(5,5,8,.9);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:1rem}
+.loading-overlay.show{display:flex}
+.spinner{width:40px;height:40px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:.85rem;color:var(--muted)}
+
+/* SUCCESS */
+.success-screen{display:none;text-align:center;padding:3rem 2rem}
+.success-screen.show{display:block}
+.success-icon{font-size:4rem;margin-bottom:1rem}
+.success-title{font-family:var(--font);font-size:1.5rem;font-weight:900;margin-bottom:.75rem}
+.success-sub{color:var(--muted);font-size:.88rem;line-height:1.7;margin-bottom:2rem}
+.btn-painel{display:inline-block;padding:.875rem 2rem;background:var(--accent);color:var(--black);border-radius:100px;font-family:var(--font);font-size:.82rem;font-weight:700;text-decoration:none;transition:all .2s}
+
+@media(max-width:700px){
+  .checkout-wrap{grid-template-columns:1fr}
+  .main{padding:1rem}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="jgerente-app.html" class="logo"><span>J</span>gerenteAI</a>
+  <div class="secure">🔒 Pagamento 100% seguro · Mercado Pago</div>
+</div>
+
+<div class="main">
+  <div class="checkout-wrap" id="checkout-wrap">
+
+    <!-- LEFT -->
+    <div class="plan-box">
+      <div class="plan-label">Escolha seu plano</div>
+
+      <div class="plan-tabs">
+        <button class="plan-tab active" data-plano="essencial" onclick="selecionarPlano(this)">Essencial</button>
+        <button class="plan-tab" data-plano="profissional" onclick="selecionarPlano(this)">Profissional</button>
+        <button class="plan-tab" data-plano="empresarial" onclick="selecionarPlano(this)">Empresarial</button>
+      </div>
+
+      <div class="plan-details" id="plan-details"></div>
+
+      <!-- ADDON SOCIAL -->
+      <div class="addon-box" id="addon-social" onclick="toggleAddon()">
+        <div class="addon-check" id="addon-check">✓</div>
+        <div class="addon-info">
+          <div class="addon-name">📱 Agente Social Mídia</div>
+          <div class="addon-sub">30 imagens + 10 vídeos por mês com IA</div>
+        </div>
+        <div class="addon-price">+R$97</div>
+      </div>
+
+      <!-- GARANTIA -->
+      <div class="garantia">
+        <div class="garantia-icon">🛡️</div>
+        <div>
+          <div style="font-weight:700;margin-bottom:.2rem">14 dias grátis garantidos</div>
+          <div style="color:var(--muted)">Cancele quando quiser, sem burocracia. Sem cobrança nos primeiros 14 dias.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="pay-box">
+      <div class="pay-label">Resumo do pedido</div>
+
+      <div class="pay-summary" id="pay-summary"></div>
+
+      <span class="inp-label">Seu nome</span>
+      <input class="inp" id="pay-nome" placeholder="Nome completo">
+
+      <span class="inp-label">Seu email</span>
+      <input class="inp" id="pay-email" type="email" placeholder="email@exemplo.com">
+
+      <button class="btn-pay" id="btn-pay" onclick="pagar()">
+        🔒 Assinar agora →
+      </button>
+
+      <div class="pay-methods">
+        <div class="pay-method">💳 Cartão</div>
+        <div class="pay-method">📱 PIX</div>
+        <div class="pay-method">🔑 Boleto</div>
+      </div>
+
+      <div class="pay-note">
+        Ao assinar você concorda com nossos termos de uso.<br>
+        Cobrado mensalmente. Cancele a qualquer momento.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="success-screen" id="success">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">Assinatura ativada!</div>
+    <div class="success-sub">Seu plano JgerenteAI está ativo.<br>Seus agentes de IA já estão trabalhando para você!</div>
+    <a href="jgerente-app.html" class="btn-painel">Entrar no painel →</a>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">Preparando seu checkout seguro...</div>
+</div>
+
+<script>
+const PLANOS = {
+  essencial: {
+    nome: 'Essencial',
+    valor: 97,
+    desc: 'Para quem está começando com IA na gestão.',
+    features: ['Agente Fidelidade completo','Até 3 funcionários','Até 500 clientes','Notificações WhatsApp']
+  },
+  profissional: {
+    nome: 'Profissional',
+    valor: 197,
+    desc: 'Para empresas que querem crescer com IA.',
+    features: ['Tudo do Essencial','Agente Gestor com IA','Agente Financeiro','Funcionários ilimitados','Clientes ilimitados','Relatórios avançados']
+  },
+  empresarial: {
+    nome: 'Empresarial',
+    valor: 397,
+    desc: 'Para redes e múltiplas unidades.',
+    features: ['Tudo do Profissional','Todos os agentes ativos','Multi-unidades','API de integração','Onboarding dedicado','Suporte prioritário']
+  }
+};
+
+let planoAtual = 'essencial';
+let addonAtivo = false;
+let companyId = null;
+
+// Pega params da URL
+const params = new URLSearchParams(window.location.search);
+const planoParam = params.get('plano');
+const emailParam = params.get('email');
+const nomeParam = params.get('nome');
+companyId = params.get('company_id');
+
+// Preenche dados se vieram da URL
+if(emailParam) document.getElementById('pay-email').value = emailParam;
+if(nomeParam) document.getElementById('pay-nome').value = nomeParam;
+
+// Checa se voltou do pagamento aprovado
+if(params.get('pago') === '1'){
+  document.getElementById('checkout-wrap').style.display = 'none';
+  document.getElementById('success').classList.add('show');
+}
+
+function selecionarPlano(btn){
+  document.querySelectorAll('.plan-tab').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  planoAtual = btn.dataset.plano;
+  renderPlano();
+  renderSummary();
+}
+
+function toggleAddon(){
+  addonAtivo = !addonAtivo;
+  const box = document.getElementById('addon-social');
+  const check = document.getElementById('addon-check');
+  box.classList.toggle('selected', addonAtivo);
+  check.textContent = addonAtivo ? '✓' : '';
+  renderSummary();
+}
+
+function renderPlano(){
+  const p = PLANOS[planoAtual];
+  document.getElementById('plan-details').innerHTML =
+    '<div class="plan-name">'+p.nome+'</div>'
+    +'<div class="plan-price">R$'+p.valor+'<span>/mês</span></div>'
+    +'<div class="plan-desc">'+p.desc+'</div>'
+    +'<div class="plan-features">'
+    +p.features.map(function(f){ return '<div class="plan-feat">'+f+'</div>'; }).join('')
+    +'</div>';
+}
+
+function renderSummary(){
+  const p = PLANOS[planoAtual];
+  const total = p.valor + (addonAtivo ? 97 : 0);
+  document.getElementById('pay-summary').innerHTML =
+    '<div class="pay-row"><span>Plano '+p.nome+'</span><span class="pay-val">R$'+p.valor+'/mês</span></div>'
+    +(addonAtivo ? '<div class="pay-row"><span>📱 Social Mídia Add-on</span><span class="pay-val">R$97/mês</span></div>' : '')
+    +'<div class="pay-row"><span>14 dias grátis</span><span style="color:var(--accent);font-weight:600">R$0</span></div>'
+    +'<div class="pay-row total"><span>Total após trial</span><span class="pay-val">R$'+total+'/mês</span></div>';
+}
+
+async function pagar(){
+  const nome = document.getElementById('pay-nome').value.trim();
+  const email = document.getElementById('pay-email').value.trim();
+
+  if(!nome){ alert('Informe seu nome'); return; }
+  if(!email || !email.includes('@')){ alert('Informe um email válido'); return; }
+
+  const btn = document.getElementById('btn-pay');
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando checkout...';
+  document.getElementById('loading').classList.add('show');
+
+  try{
+    const res = await fetch('https://jgerente-ai.vercel.app/api/pagamento', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action: 'criar',
+        plano: planoAtual,
+        email: email,
+        nome: nome,
+        company_id: companyId,
+        addon_social: addonAtivo
+      })
+    });
+
+    const data = await res.json();
+    document.getElementById('loading').classList.remove('show');
+
+    if(data.url){
+      window.location.href = data.url;
+    } else {
+      alert('Erro ao gerar checkout: '+(data.error||'tente novamente'));
+      btn.disabled = false;
+      btn.innerHTML = '🔒 Assinar agora →';
+    }
+  }catch(e){
+    document.getElementById('loading').classList.remove('show');
+    alert('Erro: '+e.message);
+    btn.disabled = false;
+    btn.innerHTML = '🔒 Assinar agora →';
+  }
+}
+
+// Seleciona plano da URL se veio
+if(planoParam && PLANOS[planoParam]){
+  planoAtual = planoParam;
+  document.querySelectorAll('.plan-tab').forEach(function(b){
+    b.classList.toggle('active', b.dataset.plano === planoParam);
+  });
+}
+
+// Init
+renderPlano();
+renderSummary();
+</script>
+</body>
+</html>
