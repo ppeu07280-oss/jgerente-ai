@@ -8,30 +8,35 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { messages, systemPrompt, generateImage, imagePrompt, aspectRatio } = req.body;
+  const { messages, systemPrompt, generateImage, imagePrompt } = req.body;
 
-  // IMAGE GENERATION MODE
+  // IMAGE GENERATION MODE — usa gemini-2.0-flash-exp com responseModalities IMAGE
   if (generateImage && imagePrompt) {
     try {
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=' + GEMINI_API_KEY;
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + GEMINI_API_KEY;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          instances: [{ prompt: imagePrompt }],
-          parameters: { sampleCount: 1, aspectRatio: aspectRatio || '1:1' }
+          contents: [{ parts: [{ text: 'Generate an image: ' + imagePrompt }] }],
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
         })
       });
       const data = await response.json();
-      console.log('Imagen status:', response.status, JSON.stringify(data).slice(0, 300));
+      console.log('Gemini Image status:', response.status, JSON.stringify(data).slice(0, 400));
 
-      if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
-        const b64 = data.predictions[0].bytesBase64Encoded;
-        const mimeType = data.predictions[0].mimeType || 'image/png';
-        return res.status(200).json({ imageUrl: 'data:' + mimeType + ';base64,' + b64 });
+      if (data.candidates && data.candidates[0]) {
+        const parts = data.candidates[0].content.parts;
+        for (const part of parts) {
+          if (part.inlineData) {
+            const url = 'data:' + part.inlineData.mimeType + ';base64,' + part.inlineData.data;
+            return res.status(200).json({ imageUrl: url });
+          }
+        }
       }
-      return res.status(500).json({ error: 'No image', details: data });
+      return res.status(500).json({ error: 'No image in response', details: data });
     } catch (e) {
+      console.error('Image error:', e);
       return res.status(500).json({ error: e.message });
     }
   }
