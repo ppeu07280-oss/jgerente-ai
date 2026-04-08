@@ -1975,34 +1975,14 @@ function renderMarkdown(text){
 
 
 // ── PAGAMENTO ──────────────────────────────────────
-async function assinar(plano){
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = 'Aguarde...';
-
-  try{
-    const res = await fetch('https://jgerente-ai.vercel.app/api/pagamento', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        action: 'criar',
-        plano: plano,
-        email: S.usuario.email,
-        nome: S.usuario.nome,
-        company_id: S.company.id
-      })
-    });
-    const data = await res.json();
-    if(data.url){
-      window.open(data.url, '_blank');
-    } else {
-      toast('⚠️ Erro ao gerar link de pagamento', false);
-    }
-  }catch(e){
-    toast('⚠️ Erro: '+e.message, false);
-  }
-  btn.disabled = false;
-  btn.textContent = 'Assinar';
+function assinar(plano){
+  var params = new URLSearchParams({
+    plano: plano,
+    email: S.usuario.email||'',
+    nome: S.usuario.nome||'',
+    company_id: S.company.id||''
+  });
+  window.open('jgerente-checkout.html?'+params.toString(), '_blank');
 }
 
 // ── BOOT ──
