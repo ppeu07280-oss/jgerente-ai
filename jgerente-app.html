@@ -653,7 +653,13 @@ function renderView(view){
     agentes: renderAgentes,
     config: renderConfig,
   };
-  m.innerHTML = (views[view]||renderDashboard)();
+  const result = (views[view]||renderDashboard)();
+  if(result && typeof result.then === 'function'){
+    // função async — aguarda e insere
+    result.then(html=>{ if(html) m.innerHTML = html; });
+  } else {
+    if(result) m.innerHTML = result;
+  }
   if(view === 'chat' && chatMessages.length === 0) loadChatHistory(currentAgent);
 }
 
@@ -1590,6 +1596,7 @@ function renderPresencaDono(){
 // AUDITORIA
 // ══════════════════════════════════════════
 async function renderAuditoria(){
+  // Renderização própria — não retorna HTML
   const el = document.getElementById('main');
   el.innerHTML = `
     <div class="main-header">
