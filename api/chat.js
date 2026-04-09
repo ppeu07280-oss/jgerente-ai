@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
             model: 'llama-3.3-70b-versatile',
             messages: [{
               role: 'system',
-              content: 'You are an expert at writing prompts for FLUX AI image generation. Convert the user description into a detailed, technical English prompt optimized for photorealistic food/product photography. Include: subject details, lighting, background, style, camera settings. Return ONLY the prompt, nothing else.'
+              content: 'You are an expert at writing prompts for AI image generation (Ideogram). Convert the user description into a detailed English prompt for photorealistic food/product photography. IMPORTANT: Add "no text, no words, no letters" at the end unless the user explicitly wants text in the image. Include: subject details, lighting, background, style. Return ONLY the prompt, nothing else.'
             }, {
               role: 'user',
               content: imagePrompt
