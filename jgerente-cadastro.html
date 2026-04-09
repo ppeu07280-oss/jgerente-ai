@@ -53,7 +53,7 @@ body::before{
   .form-side{padding:1.25rem;justify-content:flex-start;min-height:100vh}
   .progress-wrap{margin-bottom:1.5rem}
   .progress-steps{gap:.25rem}
-  .prog-step span:not(.prog-dot){display:none}
+  .prog-step span:not(.prog-dot){font-size:.6rem;letter-spacing:.01em}
   .step-title{font-size:1.2rem}
   .prog-step{gap:.25rem}
   .form-grid{grid-template-columns:1fr !important}
@@ -145,8 +145,9 @@ body::before{
 /* ── PROGRESS ── */
 .progress-wrap{margin-bottom:3rem}
 .progress-steps{
-  display:flex;align-items:center;gap:.5rem;
+  display:flex;align-items:center;gap:.375rem;
   margin-bottom:1rem;
+  overflow:hidden;
 }
 .prog-step{
   display:flex;align-items:center;gap:.5rem;
