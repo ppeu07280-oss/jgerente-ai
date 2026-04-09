@@ -31,48 +31,45 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // CHAT MODE
-  try {
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'GEMINI_API_KEY não configurada' });
-    }
+  // CHAT MODE — tenta modelos em sequência
+  const models = [
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-2.0-flash'
+  ];
 
-    const contents = [];
-    if (systemPrompt) {
-      contents.push({ role: 'user', parts: [{ text: systemPrompt }] });
-      contents.push({ role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar.' }] });
-    }
-
-    const msgs = messages || [];
-    // Limita a 10 mensagens para não estourar tokens
-    const recent = msgs.slice(-10);
-    for (const msg of recent) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        contents.push({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: String(msg.content || '') }]
-        });
-      }
-    }
-
-    console.log('Gemini request:', contents.length, 'messages');
-
-    const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents }) }
-    );
-
-    const data = await response.json();
-    console.log('Gemini response status:', response.status, JSON.stringify(data).slice(0, 200));
-
-    if (!response.ok) {
-      return res.status(200).json({ response: 'Erro temporário. Tente novamente.' });
-    }
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Erro ao processar.';
-    return res.status(200).json({ response: text });
-  } catch (e) {
-    console.error('Chat error:', e);
-    return res.status(200).json({ response: 'Erro ao conectar. Tente novamente.' });
+  const contents = [];
+  if (systemPrompt) {
+    contents.push({ role: 'user', parts: [{ text: systemPrompt }] });
+    contents.push({ role: 'model', parts: [{ text: 'Entendido!' }] });
   }
+  const recent = (messages || []).slice(-8);
+  for (const msg of recent) {
+    if (msg.role === 'user' || msg.role === 'assistant') {
+      contents.push({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: String(msg.content || '') }]
+      });
+    }
+  }
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + GEMINI_API_KEY,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents }) }
+      );
+      const data = await response.json();
+      console.log('Model:', model, 'Status:', response.status);
+
+      if (response.status === 429) continue; // tenta próximo modelo
+
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return res.status(200).json({ response: text });
+    } catch (e) {
+      console.log('Model failed:', model, e.message);
+    }
+  }
+
+  return res.status(200).json({ response: 'Serviço temporariamente indisponível. Tente em alguns minutos.' });
 };
