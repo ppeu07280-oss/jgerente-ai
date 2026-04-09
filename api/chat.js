@@ -1,5 +1,5 @@
 // api/chat.js — Groq chat + FAL.AI Image generation
-const GROQ_KEY = process.env.GROQ_KEY || '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';
+const GROQ_KEY = process.env.GROQ_KEY;
 const FAL_KEY = '925a87d1-6a7b-495e-b569-2bea6333132a:02c196077d9cb12b1cafdce67f499527';
 
 module.exports = async function handler(req, res) {
