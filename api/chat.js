@@ -1,6 +1,6 @@
 // api/chat.js — Groq chat + FAL.AI Image generation
 const GROQ_KEY = process.env.GROQ_KEY;
-const FAL_KEY = process.env.FAL_KEY || '925a87d1-6a7b-495e-b569-2bea6333132a:02c196077d9cb12b1cafdce67f499527';
+const IDEOGRAM_KEY = process.env.IDEOGRAM_KEY || 'XhCmK6XRYH5xh1UNRjjcVmSH8fUSfQ8Vf7P6B3Q8FNohMbCjKbYt_hYPFzF3TdVgfNRqgS-YxU63WXlvngcbSw';
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,25 +43,31 @@ module.exports = async function handler(req, res) {
       const sizeMap = { '1:1': 'square_hd', '3:4': 'portrait_4_3', '4:3': 'landscape_4_3' };
       const imageSize = sizeMap[aspectRatio] || 'square_hd';
 
-      const response = await fetch('https://fal.run/fal-ai/flux-pro/v1.1', {
+      // Map aspect ratio to Ideogram format
+      const ratioMap = { 'square_hd': 'ASPECT_1_1', 'portrait_4_3': 'ASPECT_3_4', 'landscape_4_3': 'ASPECT_4_3' };
+      const ideogramRatio = ratioMap[imageSize] || 'ASPECT_1_1';
+
+      const response = await fetch('https://api.ideogram.ai/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Key ' + FAL_KEY
+          'Api-Key': IDEOGRAM_KEY
         },
         body: JSON.stringify({
-          prompt: optimizedPrompt,
-          image_size: imageSize,
-          num_images: 1,
-          safety_tolerance: '2'
+          image_request: {
+            prompt: optimizedPrompt,
+            aspect_ratio: ideogramRatio,
+            model: 'V_2',
+            magic_prompt_option: 'AUTO'
+          }
         })
       });
 
       const data = await response.json();
-      console.log('FAL status:', response.status, JSON.stringify(data).slice(0, 150));
+      console.log('Ideogram status:', response.status, JSON.stringify(data).slice(0, 200));
 
-      if (data.images && data.images[0] && data.images[0].url) {
-        return res.status(200).json({ imageUrl: data.images[0].url });
+      if (data.data && data.data[0] && data.data[0].url) {
+        return res.status(200).json({ imageUrl: data.data[0].url });
       }
       return res.status(500).json({ error: 'Sem imagem', details: data });
     } catch (e) {
