@@ -14,20 +14,46 @@ module.exports = async function handler(req, res) {
   // ── IMAGE GENERATION via FAL.AI FLUX ──
   if (generateImage && imagePrompt) {
     try {
+      // Otimizar prompt com Groq antes de enviar para FAL
+      let optimizedPrompt = imagePrompt;
+      try {
+        const promptRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{
+              role: 'system',
+              content: 'You are an expert at writing prompts for FLUX AI image generation. Convert the user description into a detailed, technical English prompt optimized for photorealistic food/product photography. Include: subject details, lighting, background, style, camera settings. Return ONLY the prompt, nothing else.'
+            }, {
+              role: 'user',
+              content: imagePrompt
+            }],
+            max_tokens: 200,
+            temperature: 0.3
+          })
+        });
+        const promptData = await promptRes.json();
+        const refined = promptData.choices?.[0]?.message?.content;
+        if (refined) optimizedPrompt = refined.trim();
+        console.log('Optimized prompt:', optimizedPrompt.slice(0, 100));
+      } catch(pe) {
+        console.log('Prompt optimization failed, using original');
+      }
       const sizeMap = { '1:1': 'square_hd', '3:4': 'portrait_4_3', '4:3': 'landscape_4_3' };
       const imageSize = sizeMap[aspectRatio] || 'square_hd';
 
-      const response = await fetch('https://fal.run/fal-ai/flux/schnell', {
+      const response = await fetch('https://fal.run/fal-ai/flux-pro/v1.1', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Key ' + FAL_KEY
         },
         body: JSON.stringify({
-          prompt: imagePrompt,
+          prompt: optimizedPrompt,
           image_size: imageSize,
           num_images: 1,
-          num_inference_steps: 4
+          safety_tolerance: '2'
         })
       });
 
