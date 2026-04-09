@@ -160,7 +160,7 @@ body{font-family:var(--body);background:var(--black);color:var(--white)}
         <div class="header-company" id="h-company">Carregando...</div>
       </div>
     </div>
-    <a href="jgerente-app.html" class="btn-back">← Painel</a>
+    <div style="display:flex;align-items:center;gap:.625rem"><a href="jgerente-app.html" class="btn-back">← Painel</a><button onclick="doLogout()" style="background:none;border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer">Sair</button></div>
   </div>
 
   <div class="tabs">
@@ -946,6 +946,11 @@ function salvarMetas(){
   closeModal();
   toastF('✅ Metas salvas!');
   renderDashboard();
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  window.location.href = 'jgerente-app.html';
 }
 
 // ── BOOT ──
