@@ -421,6 +421,37 @@ option{background:var(--card2)}
   background:var(--accent-dim);color:var(--accent);
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.bottom-nav{
+  display:none;
+  position:fixed;
+  bottom:0;left:0;right:0;
+  z-index:200;
+  background:var(--card);
+  border-top:1px solid var(--border);
+  padding:.5rem .25rem;
+  padding-bottom:calc(.5rem + env(safe-area-inset-bottom));
+  justify-content:space-around;
+  align-items:center;
+}
+.bn-btn{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:.2rem;
+  background:none;
+  border:none;
+  color:var(--muted);
+  font-size:.55rem;
+  font-family:var(--body);
+  font-weight:600;
+  cursor:pointer;
+  padding:.375rem .5rem;
+  border-radius:10px;
+  transition:all .15s;
+  min-width:48px;
+}
+.bn-btn.active{color:var(--accent);background:rgba(0,255,136,.08)}
+.bn-icon{font-size:1.2rem;line-height:1}
 </style>
 </head>
 <body>
@@ -634,10 +665,16 @@ async function loadData(){
 // ── NAVIGATION ──
 function navTo(view){
   S.view = view;
+  // Sidebar
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
   const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,auditoria:9,config:10};
   const btns=document.querySelectorAll('.sb-btn');
   if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
+  // Bottom nav mobile
+  document.querySelectorAll('.bn-btn').forEach(b=>b.classList.remove('active'));
+  var bnMap={dashboard:'bn-dashboard',tarefas:'bn-tarefas',equipe:'bn-equipe',presenca:'bn-equipe',chat:'bn-chat',agentes:'bn-chat',config:'bn-config',auditoria:'bn-config'};
+  var bnId = bnMap[view];
+  if(bnId){ var el=document.getElementById(bnId); if(el) el.classList.add('active'); }
   renderView(view);
 }
 
@@ -1985,6 +2022,56 @@ function assinar(plano){
   window.open('jgerente-checkout.html?'+params.toString(), '_blank');
 }
 
+// ── PRESENÇA ──────────────────────────────────────
+async function registrarPresenca(tipo){
+  const agora = new Date();
+  const { error } = await sb.from('presencas').insert({
+    company_id: S.company.id,
+    usuario_id: S.usuario.id,
+    tipo: tipo,
+    hora: agora.toISOString()
+  });
+  if(error){ toast('⚠️ Erro ao registrar: '+error.message, false); return; }
+  logAuditoria('presenca', (tipo==='entrada'?'Registrou entrada':'Registrou saída')+' às '+agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  toast(tipo==='entrada' ? '✅ Entrada registrada!' : '✅ Saída registrada!');
+  await loadData();
+  renderView('presenca');
+}
+
+// ── VER DETALHES FUNCIONÁRIO ───────────────────────
+function verDetalhes(id){
+  const m = S.equipe.find(function(x){ return x.id===id; });
+  if(!m) return;
+
+  // Performance do funcionário
+  const minhasTarefas = S.tarefas.filter(function(t){ return t.atribuido_para===id; });
+  const concluidas = minhasTarefas.filter(function(t){ return t.status==='concluida'; }).length;
+  const pendentes = minhasTarefas.filter(function(t){ return t.status==='pendente'; }).length;
+  const score = minhasTarefas.length > 0 ? Math.round((concluidas/minhasTarefas.length)*100) : 0;
+
+  // Presença hoje
+  const hoje = new Date().toDateString();
+  const presencaHoje = S.presencas.filter(function(p){
+    return p.usuario_id===id && new Date(p.hora).toDateString()===hoje;
+  });
+  const entrada = presencaHoje.find(function(p){ return p.tipo==='entrada'; });
+  const saida = presencaHoje.find(function(p){ return p.tipo==='saida'; });
+
+  const html = '<div class="modal-title">👤 '+escHtml(m.nome)+'</div>'
+    +'<div style="display:grid;gap:.625rem;margin-bottom:1.25rem">'
+    +'<div style="display:flex;justify-content:space-between;padding:.625rem 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="color:var(--muted)">Email</span><span>'+escHtml(m.email||'—')+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:.625rem 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="color:var(--muted)">Perfil</span><span>'+escHtml(m.perfil||'funcionario')+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:.625rem 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="color:var(--muted)">Status</span><span style="color:'+(m.ativo!==false?'var(--accent)':'var(--error)')+'">'+( m.ativo!==false?'✅ Ativo':'⛔ Inativo')+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:.625rem 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="color:var(--muted)">Performance</span><span style="color:var(--accent);font-weight:700">'+score+'%</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:.625rem 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="color:var(--muted)">Tarefas concluídas</span><span>'+concluidas+' de '+minhasTarefas.length+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:.625rem 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="color:var(--muted)">Entrada hoje</span><span>'+(entrada?new Date(entrada.hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—')+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:.625rem 0;font-size:.82rem"><span style="color:var(--muted)">Saída hoje</span><span>'+(saida?new Date(saida.hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—')+'</span></div>'
+    +'</div>'
+    +'<button onclick="closeModal()" style="width:100%;padding:.75rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">Fechar</button>';
+
+  openModal(html);
+}
+
 // ── BOOT ──
 (async()=>{
   // Verificar sessão ativa
@@ -1995,5 +2082,22 @@ function assinar(plano){
   // Se não tiver sessão, mostra login (já visível por padrão)
 })();
 </script>
+<div class="bottom-nav" id="bottom-nav">
+  <button class="bn-btn active" id="bn-dashboard" onclick="navTo('dashboard')">
+    <span class="bn-icon">🏠</span>Início
+  </button>
+  <button class="bn-btn" id="bn-tarefas" onclick="navTo('tarefas')">
+    <span class="bn-icon">📋</span>Tarefas
+  </button>
+  <button class="bn-btn" id="bn-equipe" onclick="navTo('equipe')">
+    <span class="bn-icon">👥</span>Equipe
+  </button>
+  <button class="bn-btn" id="bn-chat" onclick="navTo('chat')">
+    <span class="bn-icon">💬</span>IA
+  </button>
+  <button class="bn-btn" id="bn-config" onclick="navTo('config')">
+    <span class="bn-icon">⚙️</span>Mais
+  </button>
+</div>
 </body>
 </html>
