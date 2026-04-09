@@ -745,7 +745,7 @@ function contaRow(c){
       </div>
     </div>
     <div style="font-family:var(--font);font-size:.9rem;font-weight:800;color:${paga?'var(--muted)':corVal};flex-shrink:0">${fmtMoeda(c.valor)}</div>
-    ${!paga?`<button onclick="liquidarConta('${c.id}','${c.tipo}')" style="background:${c.tipo==='receber'?'rgba(0,255,136,.08)':'rgba(255,61,107,.08)'};border:1px solid ${c.tipo==='receber'?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)'};color:${corVal};font-size:.65rem;font-weight:700;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-family:var(--body);flex-shrink:0">${c.tipo==='receber'?'Receber':'Pagar'}</button>`:''}
+    ${!paga?`<div style="display:flex;gap:.375rem;flex-shrink:0"><button onclick="liquidarConta('${c.id}','${c.tipo}')" style="background:${c.tipo==='receber'?'rgba(0,255,136,.08)':'rgba(255,61,107,.08)'};border:1px solid ${c.tipo==='receber'?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)'};color:${corVal};font-size:.65rem;font-weight:700;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-family:var(--body)">${c.tipo==='receber'?'Receber':'Pagar'}</button><button onclick="pagarParcial('${c.id}')" style="background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.2);color:var(--warning);font-size:.65rem;font-weight:700;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-family:var(--body)">Parcial</button></div>`:``}
   </div>`;
 }
 
@@ -787,6 +787,47 @@ async function salvarConta(tipo){
   S.contas.push(data);
   closeModal();
   toastF(`✅ Conta ${tipo==='pagar'?'a pagar':'a receber'} cadastrada!`);
+  renderContas();
+}
+
+async function pagarParcial(id){
+  const c = S.contas.find(x=>x.id===id);
+  if(!c) return;
+  const valorRestante = c.valor - (c.valor_pago||0);
+  const valorStr = prompt('Dívida total: R$ '+c.valor.toFixed(2)+'\nJá pago: R$ '+(c.valor_pago||0).toFixed(2)+'\nRestante: R$ '+valorRestante.toFixed(2)+'\n\nQuanto vai pagar agora?', valorRestante.toFixed(2));
+  if(!valorStr) return;
+  const valorPagamento = parseFloat(valorStr.replace(',','.'));
+  if(isNaN(valorPagamento)||valorPagamento<=0){ toastF('⚠️ Valor inválido', false); return; }
+  if(valorPagamento > valorRestante){ toastF('⚠️ Valor maior que o restante', false); return; }
+
+  const novoValorPago = (c.valor_pago||0) + valorPagamento;
+  const quitado = novoValorPago >= c.valor;
+  const novoStatus = quitado ? (c.tipo==='receber'?'recebido':'pago') : c.status;
+
+  await sb.from('contas').update({
+    valor_pago: novoValorPago,
+    status: novoStatus
+  }).eq('id', id);
+
+  // Registrar pagamento parcial no financeiro
+  await sb.from('financeiro').insert({
+    company_id: S.company.id,
+    tipo: c.tipo==='receber'?'entrada':'saida',
+    valor: valorPagamento,
+    descricao: c.descricao + (quitado ? ' (quitado)' : ' (parcial)'),
+    categoria: c.tipo==='receber'?'Recebimentos':'Pagamentos',
+    produto: c.descricao
+  });
+
+  c.valor_pago = novoValorPago;
+  c.status = novoStatus;
+  S.lancamentos.unshift({...c, tipo:c.tipo==='receber'?'entrada':'saida', valor:valorPagamento, created_at:new Date().toISOString()});
+
+  if(quitado){
+    toastF('✅ Conta quitada!');
+  } else {
+    toastF('✅ R$ '+valorPagamento.toFixed(2)+' registrado! Resta R$ '+(c.valor-novoValorPago).toFixed(2));
+  }
   renderContas();
 }
 
