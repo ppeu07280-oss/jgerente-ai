@@ -134,7 +134,7 @@ html,body{min-height:100vh;background:var(--black);color:var(--white);font-famil
       <div class="header-logo"><span class="j">J</span>gerenteAI · 📱 Social Mídia</div>
       <div class="header-sub" id="h-company">Carregando...</div>
     </div>
-    <a href="jgerente-app.html" class="btn-back">← Painel</a>
+    <div style="display:flex;align-items:center;gap:.625rem"><a href="jgerente-app.html" class="btn-back">← Painel</a><button onclick="doLogout()" style="background:none;border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer">Sair</button></div>
   </div>
 
   <div class="tabs">
@@ -624,6 +624,11 @@ function copiarTexto(btn){
   navigator.clipboard.writeText(texto).then(function(){
     toast('📋 Copiado!');
   });
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  window.location.href = 'jgerente-app.html';
 }
 
 // ── BOOT ──
