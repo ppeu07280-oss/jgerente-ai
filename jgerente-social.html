@@ -351,7 +351,7 @@ async function enviarMsg(txt){
         var ir = await fetch(IMAGE_PROXY,{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({prompt:reply, size:'1024x1024', quality:'high'})
+          body:JSON.stringify({generateImage:true, imagePrompt:reply, aspectRatio:'1:1'})
         });
         var id = await ir.json();
         S.chatMsgs = S.chatMsgs.filter(function(m){return m.content!=='🎨 Criando prompt e gerando imagem...';});
