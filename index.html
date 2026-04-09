@@ -164,10 +164,58 @@ footer{border-top:1px solid var(--border);padding:2rem;text-align:center;color:v
 .glow-2{width:400px;height:400px;background:rgba(0,204,255,.05);bottom:0;right:-100px}
 
 @media(max-width:768px){
+  /* NAV */
   .nav-links{display:none}
-  .social-highlight{grid-template-columns:1fr}
-  .stats{grid-template-columns:repeat(3,1fr);gap:.75rem}
-  .stat-num{font-size:1.75rem}
+  .nav-cta{font-size:.68rem;padding:.5rem .875rem}
+  nav{padding:.875rem 1.25rem}
+
+  /* HERO */
+  .hero{padding:6rem 1.25rem 3rem}
+  .hero-ctas{flex-direction:column;align-items:stretch}
+  .btn-primary,.btn-secondary{text-align:center;justify-content:center}
+  .agent-pills{gap:.375rem}
+  .pill{font-size:.72rem;padding:.375rem .875rem}
+
+  /* STATS */
+  .stats{grid-template-columns:repeat(3,1fr);gap:.5rem}
+  .stat-num{font-size:1.5rem}
+  .stat-label{font-size:.65rem}
+
+  /* SECTIONS */
+  .section{padding:3rem 1.25rem}
+  .section-title{font-size:1.75rem}
+
+  /* PROBLEMS */
+  .problems-grid{grid-template-columns:1fr}
+
+  /* AGENTS */
+  .agents-grid{grid-template-columns:1fr}
+  .social-highlight{grid-template-columns:1fr;padding:1.5rem;gap:1.5rem}
+  .social-left h3{font-size:1.3rem}
+
+  /* STEPS */
+  .steps{grid-template-columns:1fr 1fr;gap:1.25rem}
+
+  /* TESTIMONIALS */
+  .testimonials{grid-template-columns:1fr}
+
+  /* PRICING */
+  .pricing-grid{grid-template-columns:1fr}
+  .price-card.popular{order:-1}
+
+  /* CTA */
+  .cta-section{padding:4rem 1.25rem}
+  .cta-checks{gap:.875rem}
+
+  /* TICKER */
+  .ticker-wrap{display:none}
+}
+
+@media(max-width:480px){
+  .hero h1{font-size:2rem}
+  .steps{grid-template-columns:1fr}
+  .stats{gap:.375rem}
+  .stat-num{font-size:1.25rem}
 }
 </style>
 </head>
