@@ -45,10 +45,20 @@ body::before{
   display:grid;
   grid-template-columns:1fr 1fr;
   min-height:100vh;
+  overflow-x:hidden;
 }
 @media(max-width:768px){
   .page{grid-template-columns:1fr}
   .side{display:none}
+  .form-side{padding:1.25rem;justify-content:flex-start;min-height:100vh}
+  .progress-wrap{margin-bottom:1.5rem}
+  .progress-steps{gap:.25rem}
+  .prog-step span:not(.prog-dot){display:none}
+  .step-title{font-size:1.2rem}
+  .prog-step{gap:.25rem}
+  .form-grid{grid-template-columns:1fr !important}
+  .agent-grid{grid-template-columns:1fr !important}
+  .btn-next{padding:.875rem}
 }
 
 /* ── LEFT SIDE ── */
@@ -111,6 +121,18 @@ body::before{
 }
 
 /* ── RIGHT SIDE (FORM) ── */
+.mobile-logo{
+  display:none;
+  font-family:var(--font);
+  font-weight:900;
+  font-size:.9rem;
+  letter-spacing:-.02em;
+  margin-bottom:1.5rem;
+  text-align:center;
+}
+.mobile-logo .j{color:var(--accent)}
+@media(max-width:768px){.mobile-logo{display:block}}
+
 .form-side{
   display:flex;
   flex-direction:column;
