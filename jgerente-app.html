@@ -347,6 +347,8 @@ option{background:var(--card2)}
   .content{padding:0 1rem 3rem}
   .main-header{padding:1.25rem 1rem 0}
   .cards-grid{grid-template-columns:1fr 1fr}
+  .bottom-nav{display:flex !important}
+  #main{padding-bottom:80px}
 }
 
 /* ── CHAT ── */
@@ -1767,7 +1769,7 @@ async function sendMessage(){
     const res = await fetch('https://jgerente-ai.vercel.app/api/chat', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({messages: chatMessages, systemPrompt})
+      body: JSON.stringify({messages: chatMessages.slice(-10), systemPrompt})
     });
     const data = await res.json();
     const reply = data.response||'Desculpe, não consegui processar.';
