@@ -50,15 +50,28 @@ body::before{
 @media(max-width:768px){
   .page{grid-template-columns:1fr}
   .side{display:none}
-  .form-side{padding:1.25rem;justify-content:flex-start;min-height:100vh}
-  .progress-wrap{margin-bottom:1.5rem}
-  .progress-steps{gap:.25rem}
-  .prog-step span:not(.prog-dot){font-size:.6rem;letter-spacing:.01em}
-  .step-title{font-size:1.2rem}
-  .prog-step{gap:.25rem}
+  .form-side{padding:0;justify-content:flex-start;min-height:100vh;flex-direction:column}
+  .mobile-logo{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:.875rem 1.25rem;
+    border-bottom:1px solid var(--border);
+    background:var(--card);
+    margin-bottom:0;
+  }
+  .progress-wrap{padding:1rem 1.25rem;margin-bottom:0;border-bottom:1px solid var(--border)}
+  .progress-steps{gap:.25rem;justify-content:space-between}
+  .prog-step{flex-direction:column;align-items:center;gap:.25rem;flex:1}
+  .prog-step span:not(.prog-dot){font-size:.6rem;letter-spacing:.01em;text-align:center}
+  .prog-line{display:none}
+  .progress-bar{margin-top:.75rem}
+  .step-wrap{padding:1.25rem}
+  .step-title{font-size:1.1rem}
   .form-grid{grid-template-columns:1fr !important}
   .agent-grid{grid-template-columns:1fr !important}
   .btn-next{padding:.875rem}
+  .btn-back{margin-top:.5rem}
 }
 
 /* ── LEFT SIDE ── */
