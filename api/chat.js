@@ -1,5 +1,5 @@
-// api/chat.js — Gemini chat + FAL.AI Image generation
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// api/chat.js — Groq chat + FAL.AI Image generation
+const GROQ_KEY = process.env.GROQ_KEY || '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';
 const FAL_KEY = '925a87d1-6a7b-495e-b569-2bea6333132a:02c196077d9cb12b1cafdce67f499527';
 
 module.exports = async function handler(req, res) {
@@ -31,45 +31,40 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // CHAT MODE — tenta modelos em sequência
-  const models = [
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-2.0-flash'
-  ];
-
-  const contents = [];
-  if (systemPrompt) {
-    contents.push({ role: 'user', parts: [{ text: systemPrompt }] });
-    contents.push({ role: 'model', parts: [{ text: 'Entendido!' }] });
-  }
-  const recent = (messages || []).slice(-8);
-  for (const msg of recent) {
-    if (msg.role === 'user' || msg.role === 'assistant') {
-      contents.push({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: String(msg.content || '') }]
-      });
+  // CHAT MODE — Groq LLaMA
+  try {
+    const msgs = [];
+    if (systemPrompt) {
+      msgs.push({ role: 'system', content: systemPrompt });
     }
-  }
-
-  for (const model of models) {
-    try {
-      const response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + GEMINI_API_KEY,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents }) }
-      );
-      const data = await response.json();
-      console.log('Model:', model, 'Status:', response.status);
-
-      if (response.status === 429) continue; // tenta próximo modelo
-
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return res.status(200).json({ response: text });
-    } catch (e) {
-      console.log('Model failed:', model, e.message);
+    const recent = (messages || []).slice(-10);
+    for (const msg of recent) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        msgs.push({ role: msg.role, content: String(msg.content || '') });
+      }
     }
-  }
 
-  return res.status(200).json({ response: 'Serviço temporariamente indisponível. Tente em alguns minutos.' });
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + GROQ_KEY
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: msgs,
+        max_tokens: 1024,
+        temperature: 0.7
+      })
+    });
+
+    const data = await response.json();
+    console.log('Groq status:', response.status, JSON.stringify(data).slice(0, 200));
+
+    const text = data.choices?.[0]?.message?.content || 'Erro ao processar.';
+    return res.status(200).json({ response: text });
+  } catch (e) {
+    console.error('Chat error:', e);
+    return res.status(200).json({ response: 'Erro ao conectar. Tente novamente.' });
+  }
 };
