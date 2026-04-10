@@ -3,197 +3,180 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JgerenteAI — Social Mídia</title>
+<title>JgerenteAI — Financeiro</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0a0a0f;--card:#111118;--card2:#18181f;
-  --white:#F0EEE9;--accent:#00FF88;--pink:#FF6B9D;--purple:#9D6BFF;
-  --muted:#6b6b78;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.13);
-  --font:'Unbounded',sans-serif;--body:'DM Sans',sans-serif;--error:#FF3D6B;
+  --black:#050508;--white:#F5F3EE;--accent:#00FF88;
+  --muted:#8B8B99;--card:#0D0D14;--card2:#111118;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.1);
+  --font:'Unbounded',sans-serif;--body:'DM Sans',sans-serif;
+  --error:#FF3D6B;--warning:#FFD600;--r:12px;
+  --entrada:#00FF88;--saida:#FF3D6B;
 }
-html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--body);overflow:hidden}
+html,body{min-height:100vh}
+body{font-family:var(--body);background:var(--black);color:var(--white)}
 
 /* LOGIN */
-#login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;padding:1rem}
-.lbox{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2rem;width:100%;max-width:360px}
-.llogo{font-family:var(--font);font-weight:900;font-size:.95rem;text-align:center;margin-bottom:1.75rem}
-.llogo b{color:var(--accent)}
-.finp{width:100%;padding:.8rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:10px;font-size:.88rem;color:var(--white);font-family:var(--body);outline:none;margin-bottom:.75rem}
-.finp:focus{border-color:var(--accent)}
-.lbtn{width:100%;padding:.875rem;background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff;border:none;border-radius:10px;font-family:var(--font);font-size:.8rem;font-weight:700;cursor:pointer}
-.lerr{font-size:.72rem;color:var(--error);text-align:center;margin-top:.5rem;min-height:16px}
+#login-screen{position:fixed;inset:0;z-index:999;background:var(--black);display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.login-box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:2rem}
+.login-logo{font-family:var(--font);font-weight:900;font-size:1rem;letter-spacing:-.02em;margin-bottom:1.5rem;text-align:center}
+.login-logo .j{color:var(--accent)}
+.lbl{display:block;font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.375rem}
+.inp{width:100%;padding:.8rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:var(--r);font-size:.9rem;color:var(--white);font-family:var(--body);outline:none;transition:border-color .2s}
+.inp::placeholder{color:var(--muted)}
+.inp:focus{border-color:var(--accent)}
+.fg{margin-bottom:1rem}
+.btn-login{width:100%;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer;margin-top:.25rem}
+.login-err{font-size:.75rem;color:var(--error);margin-top:.625rem;text-align:center;min-height:18px}
 
-/* APP LAYOUT */
-#app{display:none;height:100vh;flex-direction:column}
+/* APP */
+#app{display:none;min-height:100vh;flex-direction:column}
 #app.show{display:flex}
 
 /* HEADER */
-.hdr{background:var(--card);border-bottom:1px solid var(--border);padding:.875rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.hdr-logo{font-family:var(--font);font-size:.82rem;font-weight:900}
-.hdr-logo b{color:var(--accent)}
-.hdr-right{display:flex;align-items:center;gap:.625rem}
-.hdr-sub{font-size:.7rem;color:var(--muted)}
-.hdr-btn{background:none;border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.7rem;padding:.35rem .7rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
+.app-header{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:1rem}
+.header-logo{font-family:var(--font);font-size:.85rem;font-weight:900}
+.header-logo .j{color:var(--accent)}
+.header-company{font-size:.75rem;color:var(--muted)}
+.btn-back{background:none;border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.375rem}
 
-/* CHAT AREA */
-.chat-area{flex:1;overflow-y:auto;padding:1rem 1rem 0;display:flex;flex-direction:column;gap:.875rem}
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--card);overflow-x:auto;scrollbar-width:none}
+.tab-btn{flex-shrink:0;padding:.875rem 1.25rem;font-size:.75rem;font-weight:600;color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--body);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 
-/* MESSAGES */
-.msg{display:flex;gap:.625rem;max-width:88%}
-.msg.user{align-self:flex-end;flex-direction:row-reverse}
-.msg.ai{align-self:flex-start}
-.av{width:30px;height:30px;border-radius:50%;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;margin-top:2px}
-.bubble{padding:.75rem 1rem;border-radius:16px;font-size:.84rem;line-height:1.65}
-.msg.user .bubble{background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff;border-radius:16px 16px 4px 16px}
-.msg.ai .bubble{background:var(--card);border:1px solid var(--border);border-radius:16px 16px 16px 4px;color:var(--white)}
+/* CONTENT */
+.content{padding:1.25rem;flex:1;max-width:900px;margin:0 auto;width:100%}
 
-/* IMAGE MESSAGE */
-.img-card{max-width:300px}
-.img-card img{width:100%;border-radius:12px;display:block}
-.img-btns{display:flex;gap:.375rem;margin-top:.5rem}
-.img-dl{flex:1;padding:.5rem;background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff;border-radius:8px;font-size:.72rem;font-weight:700;text-align:center;text-decoration:none;display:block}
-.img-re{flex:1;padding:.5rem;background:var(--card2);border:1px solid var(--border2);color:var(--muted);border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:var(--body);border:1px solid var(--border2)}
+/* CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-bottom:1.25rem}
+@media(min-width:600px){.cards-grid{grid-template-columns:repeat(4,1fr)}}
+.metric-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem;position:relative;overflow:hidden}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.metric-card.green::before{background:var(--accent)}
+.metric-card.red::before{background:var(--error)}
+.metric-card.blue::before{background:#3D6BFF}
+.metric-card.yellow::before{background:var(--warning)}
+.metric-label{font-size:.65rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem}
+.metric-val{font-family:var(--font);font-size:1.4rem;font-weight:900;letter-spacing:-.04em;line-height:1}
+.metric-sub{font-size:.68rem;color:var(--muted);margin-top:.25rem}
 
-/* TYPING */
-.typing-dots{display:flex;gap:4px;padding:.375rem 0}
-.typing-dots span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bop .9s infinite}
-.typing-dots span:nth-child(2){animation-delay:.2s}
-.typing-dots span:nth-child(3){animation-delay:.4s}
-@keyframes bop{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-5px);opacity:1}}
+/* CHART */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.chart-title{font-size:.8rem;font-weight:700;letter-spacing:.02em}
+.chart-period{display:flex;gap:.375rem}
+.period-btn{padding:.3rem .625rem;border-radius:6px;font-size:.65rem;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:none;color:var(--muted);font-family:var(--body);transition:all .15s}
+.period-btn.active{background:var(--accent-dim,rgba(0,255,136,.08));border-color:rgba(0,255,136,.2);color:var(--accent)}
 
-/* WELCOME */
-.welcome{text-align:center;padding:2.5rem 1rem;max-width:500px;margin:0 auto}
-.welcome-icon{font-size:2.5rem;margin-bottom:.875rem}
-.welcome-title{font-family:var(--font);font-size:1rem;font-weight:700;margin-bottom:.5rem}
-.welcome-sub{font-size:.82rem;color:var(--muted);line-height:1.6;margin-bottom:1.5rem}
-.suggestions{display:flex;flex-direction:column;gap:.5rem;text-align:left}
-.sug{padding:.75rem 1rem;background:var(--card);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-size:.8rem;line-height:1.4;transition:border-color .15s;color:var(--white)}
-.sug:hover{border-color:var(--pink)}
-.sug-icon{margin-right:.375rem}
+/* LANÇAMENTO */
+.lanc-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem}
+.lanc-tipo{display:flex;gap:.5rem;margin-bottom:1rem}
+.tipo-btn{flex:1;padding:.75rem;border-radius:10px;font-size:.8rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border2);background:none;color:var(--muted);font-family:var(--body);transition:all .15s}
+.tipo-btn.entrada.active{border-color:var(--accent);background:rgba(0,255,136,.08);color:var(--accent)}
+.tipo-btn.saida.active{border-color:var(--error);background:rgba(255,61,107,.08);color:var(--error)}
+.sugestoes{display:flex;flex-wrap:wrap;gap:.375rem;margin-top:.375rem}
+.sugestao-chip{padding:.25rem .625rem;background:var(--card2);border:1px solid var(--border2);border-radius:100px;font-size:.7rem;color:var(--muted);cursor:pointer;transition:all .15s}
+.sugestao-chip:hover{border-color:var(--accent);color:var(--accent)}
+.btn-lancar{width:100%;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer;margin-top:.875rem;transition:all .2s}
+.btn-lancar:hover{opacity:.9}
+.btn-lancar:disabled{opacity:.5;cursor:not-allowed}
 
-/* INPUT ZONE */
-.input-zone{flex-shrink:0;padding:.875rem 1rem 1rem;background:var(--bg);border-top:1px solid var(--border)}
+/* LISTA */
+.lanc-row{display:flex;align-items:center;gap:.875rem;padding:.875rem 0;border-bottom:1px solid var(--border)}
+.lanc-row:last-child{border-bottom:none}
+.lanc-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+.lanc-info{flex:1;min-width:0}
+.lanc-desc{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lanc-cat{font-size:.7rem;color:var(--muted)}
+.lanc-val{font-family:var(--font);font-size:.9rem;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 
-/* REF IMAGE */
-.ref-bar{display:flex;align-items:center;gap:.625rem;margin-bottom:.625rem;padding:.5rem .75rem;background:var(--card);border:1px solid var(--border2);border-radius:10px}
-.ref-thumb{width:34px;height:34px;border-radius:6px;object-fit:cover;flex-shrink:0}
-.ref-info{flex:1;min-width:0}
-.ref-name{font-size:.72rem;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ref-hint{font-size:.65rem;color:var(--muted)}
-.ref-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.25rem;flex-shrink:0}
+/* CHAT IA */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 160px);min-height:400px}
+.chat-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.875rem}
+.chat-msg{display:flex;gap:.625rem;max-width:85%}
+.chat-msg.user{align-self:flex-end;flex-direction:row-reverse}
+.chat-bubble{padding:.75rem 1rem;border-radius:14px;font-size:.83rem;line-height:1.6}
+.chat-msg.user .chat-bubble{background:var(--accent);color:var(--black);font-weight:500;border-radius:14px 14px 4px 14px}
+.chat-msg.ai .chat-bubble{background:var(--card2);border:1px solid var(--border);border-radius:14px 14px 14px 4px}
+.chat-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;margin-top:.2rem}
+.chat-input-wrap{padding:.875rem 1rem;border-top:1px solid var(--border);display:flex;gap:.625rem;background:var(--black)}
+.chat-inp{flex:1;padding:.75rem 1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:var(--r);font-size:.85rem;color:var(--white);font-family:var(--body);outline:none}
+.chat-inp:focus{border-color:var(--accent)}
+.btn-send{width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--black);border:none;cursor:pointer;font-size:.9rem;flex-shrink:0}
+.btn-send:disabled{opacity:.4;cursor:not-allowed}
+.typing{display:flex;gap:4px;align-items:center;padding:.5rem}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bounce .8s infinite}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 
-/* INPUT BOX */
-.input-box{background:var(--card);border:1.5px solid var(--border2);border-radius:16px;overflow:hidden;transition:border-color .2s}
-.input-box:focus-within{border-color:rgba(255,107,157,.4)}
-.input-top{display:flex;align-items:flex-end;padding:.625rem .75rem .5rem}
-.itxt{flex:1;background:none;border:none;color:var(--white);font-family:var(--body);font-size:.88rem;outline:none;resize:none;min-height:24px;max-height:120px;line-height:1.5}
-.itxt::placeholder{color:var(--muted)}
-.isend{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--purple));border:none;cursor:pointer;color:#fff;font-size:.85rem;flex-shrink:0;margin-left:.5rem;transition:opacity .2s}
-.isend:disabled{opacity:.3;cursor:not-allowed}
-.input-bottom{padding:0 .75rem .625rem;display:flex;align-items:center;gap:.5rem;border-top:1px solid var(--border)}
-.attach-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:.375rem .5rem;border-radius:6px;font-family:var(--body);display:flex;align-items:center;gap:.3rem;transition:color .15s}
-.attach-btn:hover{color:var(--pink)}
-.quick-pills{display:flex;gap:.375rem;overflow-x:auto;scrollbar-width:none;flex:1}
-.pill{padding:.3rem .75rem;background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-size:.68rem;border-radius:100px;cursor:pointer;font-family:var(--body);white-space:nowrap;transition:all .15s;flex-shrink:0}
-.pill:hover,.pill.img-pill{border-color:rgba(255,107,157,.3);color:var(--pink)}
+/* CATEGORIAS */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.625rem;margin-bottom:1.25rem}
+.cat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.875rem;text-align:center}
+.cat-name{font-size:.72rem;font-weight:600;color:var(--muted);margin-bottom:.375rem}
+.cat-val{font-family:var(--font);font-size:1rem;font-weight:900;letter-spacing:-.03em}
 
 /* TOAST */
-.toast{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border2);padding:.625rem 1.25rem;border-radius:100px;font-size:.78rem;font-weight:600;display:none;z-index:999;white-space:nowrap}
-.toast.show{display:block}
+.toast{position:fixed;top:1rem;right:1rem;z-index:9999;background:var(--card2);border:1px solid var(--border2);padding:.75rem 1.25rem;border-radius:12px;font-size:.8rem;font-weight:600;display:none;max-width:280px}
+.toast.show{display:block;animation:toastIn .3s ease}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 
-/* MODAL CHAT */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:flex-end;justify-content:center;padding:0}
-.modal-overlay.show{display:flex}
-.modal-chat{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:600px;height:85vh;display:flex;flex-direction:column;border:1px solid var(--border2);border-bottom:none}
-.modal-hdr{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.modal-hdr-title{font-family:var(--font);font-size:.82rem;font-weight:700}
-.modal-close{background:none;border:1px solid var(--border2);color:var(--muted);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.9rem}
-.modal-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem}
-.modal-inp-wrap{padding:.875rem;border-top:1px solid var(--border);flex-shrink:0}
-.modal-inp-row{display:flex;gap:.5rem}
-.modal-inp{flex:1;padding:.7rem .875rem;background:var(--card);border:1.5px solid var(--border2);border-radius:12px;font-size:.85rem;color:var(--white);font-family:var(--body);outline:none;resize:none}
-.modal-inp:focus{border-color:rgba(255,107,157,.4)}
-.modal-send{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--purple));border:none;cursor:pointer;color:#fff;font-size:.85rem;flex-shrink:0}
-.modal-send:disabled{opacity:.3;cursor:not-allowed}
+/* ALERTA IA */
+.alerta-ia{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:12px;padding:1rem;margin-bottom:1rem}
+.alerta-ia-title{font-size:.78rem;font-weight:700;color:var(--accent);margin-bottom:.5rem;display:flex;align-items:center;gap:.375rem}
+.alerta-ia-text{font-size:.78rem;color:var(--muted);line-height:1.6}
 </style>
 </head>
 <body>
 
 <!-- LOGIN -->
-<div id="login">
-  <div class="lbox">
-    <div class="llogo"><b>J</b>gerenteAI · Social Mídia</div>
-    <input class="finp" id="em" type="email" placeholder="seu@email.com">
-    <input class="finp" id="pw" type="password" placeholder="Senha" onkeydown="if(event.keyCode===13)login()">
-    <button class="lbtn" onclick="login()">Entrar →</button>
-    <div class="lerr" id="lerr"></div>
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo"><span class="j">J</span>gerenteAI · Financeiro</div>
+    <div class="fg"><label class="lbl">Email</label><input class="inp" id="l-email" type="email" placeholder="seu@email.com"></div>
+    <div class="fg"><label class="lbl">Senha</label><input class="inp" id="l-pwd" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn-login" id="l-btn" onclick="doLogin()">Entrar →</button>
+    <div class="login-err" id="l-err"></div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app">
-  <div class="hdr">
-    <div>
-      <div class="hdr-logo"><b>J</b>gerenteAI · 📱 Social</div>
-      <div class="hdr-sub" id="hcomp"></div>
+  <div class="app-header">
+    <div class="header-left">
+      <div>
+        <div class="header-logo"><span class="j">J</span>gerenteAI</div>
+        <div class="header-company" id="h-company">Carregando...</div>
+      </div>
     </div>
-    <div class="hdr-right">
-      <a href="jgerente-app.html" class="hdr-btn">← Painel</a>
-      <button class="hdr-btn" onclick="logout()">Sair</button>
-    </div>
+    <div style="display:flex;align-items:center;gap:.625rem"><a href="jgerente-app.html" class="btn-back">← Painel</a><button onclick="doLogout()" style="background:none;border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.72rem;padding:.4rem .75rem;border-radius:8px;cursor:pointer">Sair</button></div>
   </div>
 
-  <div class="chat-area" id="msgs">
-    <div class="welcome" id="welcome">
-      <div class="welcome-icon">📱</div>
-      <div class="welcome-title">Agente Social Mídia</div>
-      <div class="welcome-sub">Crio legendas, roteiros e imagens para suas redes sociais.<br>Pode subir uma foto do seu produto para eu gerar baseado nela!</div>
-      <div class="suggestions">
-        <div class="sug" onclick="send('Crie um post completo para o Instagram hoje, com legenda e hashtags')"><span class="sug-icon">📝</span>Post completo para Instagram hoje</div>
-        <div class="sug" onclick="send('Gere uma imagem profissional do meu produto para o Instagram')"><span class="sug-icon">🖼️</span>Gerar imagem profissional do produto</div>
-        <div class="sug" onclick="send('Crie um roteiro de 30 segundos para Reels mostrando meu negócio')"><span class="sug-icon">🎬</span>Roteiro de 30s para Reels</div>
-        <div class="sug" onclick="send('Crie um calendário de conteúdo para essa semana')"><span class="sug-icon">📅</span>Calendário de conteúdo semanal</div>
-      </div>
-    </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('dashboard')">📊 Dashboard</button>
+    <button class="tab-btn" onclick="showTab('lancamento')">+ Lançamento</button>
+    <button class="tab-btn" onclick="showTab('contas')">📅 Contas</button>
+    <button class="tab-btn" onclick="showTab('dre')">📈 DRE</button>
+    <button class="tab-btn" onclick="showTab('historico')">📋 Histórico</button>
+    <button class="tab-btn" onclick="showTab('chat')">🤖 IA</button>
   </div>
 
-  <div class="input-zone">
-    <!-- Ref image bar (hidden by default) -->
-    <div class="ref-bar" id="ref-bar" style="display:none">
-      <img class="ref-thumb" id="ref-thumb" src="">
-      <div class="ref-info">
-        <div class="ref-name" id="ref-name"></div>
-        <div class="ref-hint">📎 Foto de referência — vou gerar baseada nela</div>
-      </div>
-      <button class="ref-x" onclick="removeRef()">✕</button>
-    </div>
-
-    <div class="input-box">
-      <div class="input-top">
-        <textarea class="itxt" id="itxt" placeholder="Descreva o que precisa para suas redes sociais..." rows="1"
-          oninput="autoResize(this)"
-          onkeydown="if(event.keyCode===13&&!event.shiftKey){event.preventDefault();send()}"></textarea>
-        <button class="isend" id="isend" onclick="send()">↑</button>
-      </div>
-      <div class="input-bottom">
-        <button class="attach-btn" onclick="document.getElementById('fi').click()">📎 Foto do produto</button>
-        <div class="quick-pills">
-          <div class="pill" style="border-color:rgba(157,107,255,.3);color:var(--purple)" onclick="openModalChat()">💬 Chat IA</div><div class="pill img-pill" onclick="send('Gere uma imagem profissional do meu produto para o Instagram')">🖼️ Imagem</div>
-          <div class="pill" onclick="send('Crie uma legenda criativa para hoje com hashtags')">💬 Legenda</div>
-          <div class="pill" onclick="send('Roteiro para Reels 30 segundos')">🎬 Reels</div>
-          <div class="pill" onclick="send('10 hashtags estratégicas para meu negócio')">🏷️ Hashtags</div>
-          <div class="pill" onclick="send('Texto para anúncio no Facebook e Instagram')">📣 Anúncio</div>
-        </div>
-      </div>
-    </div>
+  <div class="content" id="content">
+    <div style="text-align:center;padding:3rem;color:var(--muted)">Carregando...</div>
   </div>
 </div>
 
-<input type="file" id="fi" accept="image/*" style="display:none" onchange="onFile(event)">
 <div class="toast" id="toast"></div>
 
 <script>
@@ -202,392 +185,844 @@ const sb = createClient(
   'https://hnculphposmgfvaeliiw.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY3VscGhwb3NtZ2Z2YWVsaWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTE4MDIsImV4cCI6MjA5MDM4NzgwMn0.mlkDEf0HI6XQm2mX7Ee3CWcR8WxevJiy3l2xBdvTaNM'
 );
-const API = 'https://jgerente-ai.vercel.app/api/chat';
+const API_URL = 'https://jgerente-ai.vercel.app/api/chat';
 
-let company = null, usuario = null;
-let history = []; // {role, content} for groq
-let refImg = null; // {b64url, b64data, mime, name}
-let busy = false;
-let toastT;
+let S = { usuario: null, company: null, lancamentos: [], contas: [], chatMsgs: [], periodo: '7d', tipoLanc: 'entrada', metaReceita: 0, metaDespesa: 0 };
+let chartBar = null, chartPizza = null;
 
-// ── AUTH ──
-async function login(){
-  const em = document.getElementById('em').value.trim();
-  const pw = document.getElementById('pw').value;
-  const err = document.getElementById('lerr');
-  if(!em||!pw){err.textContent='Preencha email e senha';return;}
-  const {data,error} = await sb.auth.signInWithPassword({email:em,password:pw});
-  if(error){err.textContent='Email ou senha incorretos';return;}
-  await boot(data.user);
-}
-async function logout(){ await sb.auth.signOut(); window.location.href='jgerente-app.html'; }
-
-async function boot(user){
-  const {data:u} = await sb.from('usuarios').select('*').eq('auth_id',user.id).single();
-  const {data:c} = await sb.from('companies').select('*').eq('id',u.company_id).single();
-  usuario = u; company = c;
-  document.getElementById('hcomp').textContent = c.nome||'';
-  document.getElementById('login').style.display='none';
-  document.getElementById('app').classList.add('show');
+// ── HELPERS ──
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtMoeda(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtData(iso){ return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); }
+let toastTimer;
+function toast(msg, green=true){ toastF(msg,green); }
+function _toast(msg, green=true){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.color=green?'var(--accent)':'var(--error)';
+  el.style.borderColor=green?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
 }
 
-// ── FILE ──
-function onFile(e){
-  const f = e.target.files[0];
-  if(!f) return;
-  if(f.size > 8*1024*1024){showToast('⚠️ Imagem muito grande (máx 8MB)');return;}
-  const r = new FileReader();
-  r.onload = function(ev){
-    refImg = {b64url: ev.target.result, b64data: ev.target.result.split(',')[1], mime: f.type, name: f.name};
-    document.getElementById('ref-thumb').src = ev.target.result;
-    document.getElementById('ref-name').textContent = f.name;
-    document.getElementById('ref-bar').style.display = 'flex';
-    showToast('📎 Foto adicionada! Agora descreva o que quer gerar.');
+// ── CATEGORIAS ──
+const CATS_SAIDA = ['Ingredientes','Bebidas','Embalagens','Funcionários','Aluguel','Energia','Gás','Limpeza','Manutenção','Marketing','Outros'];
+const CATS_ENTRADA = ['Vendas','Delivery','PIX','Cartão','Dinheiro','Outros'];
+
+// ── LOGIN ──
+async function doLogin(){
+  const email=document.getElementById('l-email').value.trim();
+  const pwd=document.getElementById('l-pwd').value;
+  const btn=document.getElementById('l-btn');
+  const err=document.getElementById('l-err');
+  if(!email||!pwd){ err.textContent='⚠️ Preencha email e senha'; return; }
+  btn.disabled=true; btn.textContent='Entrando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if(error){ err.textContent='❌ Email ou senha incorretos'; btn.disabled=false; btn.textContent='Entrar →'; return; }
+  await initApp(data.user);
+}
+
+async function initApp(user){
+  try{
+    const { data: usr } = await sb.from('usuarios').select('*').eq('auth_id', user.id).single();
+    if(!usr){ document.getElementById('l-err').textContent='⚠️ Usuário não encontrado'; return; }
+    S.usuario = usr;
+    const { data: comp } = await sb.from('companies').select('*').eq('id', usr.company_id).single();
+    S.company = comp;
+    document.getElementById('h-company').textContent = comp?.nome||'';
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('show');
+    await loadLancamentos();
+    showTab('dashboard');
+  }catch(e){
+    console.error(e);
+    document.getElementById('l-btn').disabled=false;
+    document.getElementById('l-btn').textContent='Entrar →';
+    document.getElementById('l-err').textContent='⚠️ Erro. Tente novamente.';
+  }
+}
+
+async function loadLancamentos(){
+  const from = new Date(); from.setDate(from.getDate()-30);
+  const [lancs, contas] = await Promise.all([
+    sb.from('financeiro').select('*').eq('company_id',S.company.id).gte('created_at',from.toISOString()).order('created_at',{ascending:false}),
+    sb.from('contas').select('*').eq('company_id',S.company.id).order('vencimento',{ascending:true})
+  ]);
+  S.lancamentos = lancs.data||[];
+  S.contas = contas.data||[];
+  
+  // Verificar contas atrasadas
+  const hoje = new Date().toISOString().split('T')[0];
+  for(const c of S.contas){
+    if(c.status==='pendente' && c.vencimento < hoje){
+      await sb.from('contas').update({status:'atrasado'}).eq('id',c.id);
+      c.status='atrasado';
+    }
+  }
+
+  // Carregar metas do localStorage
+  S.metaReceita = parseFloat(localStorage.getItem('meta_receita_'+S.company.id)||0);
+  S.metaDespesa = parseFloat(localStorage.getItem('meta_despesa_'+S.company.id)||0);
+}
+
+// ── TABS ──
+function showTab(tab){
+  S.currentTab=tab;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['dashboard','lancamento','contas','dre','historico','chat'][i]===tab));
+  const el=document.getElementById('content');
+  el.style.padding='1.25rem';
+  if(tab==='dashboard') renderDashboard();
+  else if(tab==='lancamento') renderLancamento();
+  else if(tab==='contas') renderContas();
+  else if(tab==='dre') renderDRE();
+  else if(tab==='historico') renderHistorico();
+  else renderChat();
+}
+
+// ── DASHBOARD ──
+function getLancsPeriodo(){
+  const dias = S.periodo==='7d'?7:S.periodo==='15d'?15:30;
+  const from = new Date(); from.setDate(from.getDate()-dias);
+  return S.lancamentos.filter(l=>new Date(l.created_at)>=from);
+}
+
+function renderDashboard(){
+  const lancs = getLancsPeriodo();
+  const entradas = lancs.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+Number(l.valor),0);
+  const saidas = lancs.filter(l=>l.tipo==='saida').reduce((a,l)=>a+Number(l.valor),0);
+  const saldo = entradas - saidas;
+  const margem = entradas>0 ? Math.round((saldo/entradas)*100) : 0;
+
+  // Dados por dia para gráfico
+  const dias = S.periodo==='7d'?7:S.periodo==='15d'?15:30;
+  const labels=[],dataEnt=[],dataSai=[];
+  for(let i=dias-1;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
+    const next=new Date(d); next.setDate(next.getDate()+1);
+    const dayLancs=lancs.filter(l=>{const ct=new Date(l.created_at);return ct>=d&&ct<next;});
+    labels.push(d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
+    dataEnt.push(dayLancs.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+Number(l.valor),0));
+    dataSai.push(dayLancs.filter(l=>l.tipo==='saida').reduce((a,l)=>a+Number(l.valor),0));
+  }
+
+  // Categorias de saída
+  const catMap={};
+  lancs.filter(l=>l.tipo==='saida').forEach(l=>{
+    const cat=l.categoria||'Outros';
+    catMap[cat]=(catMap[cat]||0)+Number(l.valor);
+  });
+  const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+
+  // Contas vencendo hoje e amanhã
+  const hoje = new Date().toISOString().split('T')[0];
+  const amanha = new Date(); amanha.setDate(amanha.getDate()+1);
+  const amanhaStr = amanha.toISOString().split('T')[0];
+  const contasHoje = S.contas.filter(c=>c.vencimento===hoje&&c.status==='pendente');
+  const contasAmanha = S.contas.filter(c=>c.vencimento===amanhaStr&&c.status==='pendente');
+  const contasAtrasadas = S.contas.filter(c=>c.status==='atrasado');
+  const totalVencer = [...contasHoje,...contasAmanha].reduce((a,c)=>a+Number(c.valor),0);
+  const totalAtrasado = contasAtrasadas.reduce((a,c)=>a+Number(c.valor),0);
+
+  // Ticket médio
+  const diasComVenda = new Set(lancs.filter(l=>l.tipo==='entrada').map(l=>l.created_at.split('T')[0])).size;
+  const ticketMedio = diasComVenda > 0 ? entradas/diasComVenda : 0;
+
+  // Alertas IA
+  const alertas=[];
+  if(contasAtrasadas.length>0) alertas.push({emoji:'🚨',txt:`${contasAtrasadas.length} conta(s) atrasada(s) totalizando ${fmtMoeda(totalAtrasado)}. Regularize para evitar juros!`});
+  if(contasHoje.length>0) alertas.push({emoji:'⏰',txt:`${contasHoje.length} conta(s) vence(m) HOJE totalizando ${fmtMoeda(contasHoje.reduce((a,c)=>a+Number(c.valor),0))}. Não esqueça!`});
+  if(contasAmanha.length>0) alertas.push({emoji:'📅',txt:`${contasAmanha.length} conta(s) vence(m) amanhã totalizando ${fmtMoeda(contasAmanha.reduce((a,c)=>a+Number(c.valor),0))}.`});
+  if(saidas>entradas) alertas.push({emoji:'🚨',txt:`Suas saídas (${fmtMoeda(saidas)}) estão maiores que as entradas (${fmtMoeda(entradas)}). Risco de caixa negativo!`});
+  if(margem<20&&margem>0) alertas.push({emoji:'⚠️',txt:`Sua margem está em ${margem}%. O ideal é acima de 30%. Revise seus custos.`});
+  const maiorGasto=cats[0];
+  if(maiorGasto) alertas.push({emoji:'💡',txt:`Seu maior gasto é ${maiorGasto[0]} (${fmtMoeda(maiorGasto[1])}). Analise se é possível reduzir.`});
+  if(S.metaReceita>0){
+    const pctMeta=Math.round((entradas/S.metaReceita)*100);
+    if(pctMeta<50) alertas.push({emoji:'🎯',txt:`Você atingiu ${pctMeta}% da meta de receita (${fmtMoeda(S.metaReceita)}). Faltam ${fmtMoeda(S.metaReceita-entradas)}.`});
+    else if(pctMeta>=100) alertas.push({emoji:'🏆',txt:`Parabéns! Você bateu a meta de receita de ${fmtMoeda(S.metaReceita)}!`});
+  }
+
+  const el=document.getElementById('content');
+  el.innerHTML=`
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <button class="period-btn ${S.periodo==='7d'?'active':''}" onclick="S.periodo='7d';renderDashboard()">7 dias</button>
+      <button class="period-btn ${S.periodo==='15d'?'active':''}" onclick="S.periodo='15d';renderDashboard()">15 dias</button>
+      <button class="period-btn ${S.periodo==='30d'?'active':''}" onclick="S.periodo='30d';renderDashboard()">30 dias</button>
+    </div>
+
+    <div class="cards-grid">
+      <div class="metric-card ${saldo>=0?'green':'red'}">
+        <div class="metric-label">Saldo</div>
+        <div class="metric-val" style="font-size:1.1rem;color:${saldo>=0?'var(--accent)':'var(--error)'}">${fmtMoeda(saldo)}</div>
+        <div class="metric-sub">Entradas - Saídas</div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-label">Entradas</div>
+        <div class="metric-val" style="font-size:1.1rem;color:var(--accent)">${fmtMoeda(entradas)}</div>
+        ${S.metaReceita>0?`<div style="height:3px;background:var(--border);border-radius:100px;margin-top:.375rem;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((entradas/S.metaReceita)*100))}%;background:var(--accent);border-radius:100px"></div></div><div style="font-size:.62rem;color:var(--muted);margin-top:.2rem">Meta: ${fmtMoeda(S.metaReceita)}</div>`:`<div class="metric-sub">${lancs.filter(l=>l.tipo==='entrada').length} lançamentos</div>`}
+      </div>
+      <div class="metric-card red">
+        <div class="metric-label">Saídas</div>
+        <div class="metric-val" style="font-size:1.1rem;color:var(--error)">${fmtMoeda(saidas)}</div>
+        ${S.metaDespesa>0?`<div style="height:3px;background:var(--border);border-radius:100px;margin-top:.375rem;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((saidas/S.metaDespesa)*100))}%;background:var(--error);border-radius:100px"></div></div><div style="font-size:.62rem;color:var(--muted);margin-top:.2rem">Limite: ${fmtMoeda(S.metaDespesa)}</div>`:`<div class="metric-sub">${lancs.filter(l=>l.tipo==='saida').length} lançamentos</div>`}
+      </div>
+      <div class="metric-card ${margem>=30?'green':margem>=20?'yellow':'red'}">
+        <div class="metric-label">Margem</div>
+        <div class="metric-val" style="font-size:1.1rem;color:${margem>=30?'var(--accent)':margem>=20?'var(--warning)':'var(--error)'}">${margem}%</div>
+        <div class="metric-sub">Lucro / Receita</div>
+      </div>
+    </div>
+    <div class="cards-grid" style="margin-top:-.25rem">
+      <div class="metric-card blue">
+        <div class="metric-label">Ticket Médio/Dia</div>
+        <div class="metric-val" style="font-size:1rem">${fmtMoeda(ticketMedio)}</div>
+        <div class="metric-sub">${diasComVenda} dias com vendas</div>
+      </div>
+      <div class="metric-card ${contasAtrasadas.length>0?'red':'yellow'}">
+        <div class="metric-label">Contas Pendentes</div>
+        <div class="metric-val" style="font-size:1rem;color:${contasAtrasadas.length>0?'var(--error)':'var(--warning)'}">${S.contas.filter(c=>c.status==='pendente'||c.status==='atrasado').length}</div>
+        <div class="metric-sub">${fmtMoeda(S.contas.filter(c=>c.status==='pendente'||c.status==='atrasado').reduce((a,c)=>a+Number(c.valor),0))} a pagar/receber</div>
+      </div>
+      <div class="metric-card green" style="cursor:pointer" onclick="editarMetas()">
+        <div class="metric-label">Meta Receita</div>
+        <div class="metric-val" style="font-size:1rem;color:var(--accent)">${S.metaReceita>0?fmtMoeda(S.metaReceita):'Definir →'}</div>
+        <div class="metric-sub">Clique para editar</div>
+      </div>
+      <div class="metric-card red" style="cursor:pointer" onclick="editarMetas()">
+        <div class="metric-label">Limite Despesas</div>
+        <div class="metric-val" style="font-size:1rem;color:var(--error)">${S.metaDespesa>0?fmtMoeda(S.metaDespesa):'Definir →'}</div>
+        <div class="metric-sub">Clique para editar</div>
+      </div>
+    </div>
+
+    ${alertas.length>0?`
+    <div class="alerta-ia">
+      <div class="alerta-ia-title">🤖 Análise do Agente Financeiro</div>
+      ${alertas.map(a=>`<div class="alerta-ia-text" style="margin-bottom:.375rem">${a.emoji} ${a.txt}</div>`).join('')}
+      <div style="margin-top:.625rem"><button onclick="showTab('chat')" style="background:none;border:1px solid rgba(0,255,136,.2);color:var(--accent);font-size:.72rem;font-weight:600;padding:.3rem .75rem;border-radius:8px;cursor:pointer;font-family:var(--body)">💬 Conversar com o agente →</button></div>
+    </div>`:''}
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">📈 Entradas vs Saídas</div>
+      </div>
+      <canvas id="chartBar" height="200"></canvas>
+    </div>
+
+    ${cats.length>0?`
+    <div class="chart-card">
+      <div class="chart-header"><div class="chart-title">🥧 Gastos por categoria</div></div>
+      <div class="cat-grid">
+        ${cats.map(([cat,val])=>`
+          <div class="cat-card">
+            <div class="cat-name">${escHtml(cat)}</div>
+            <div class="cat-val" style="color:var(--error)">${fmtMoeda(val)}</div>
+            <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">${Math.round((val/saidas)*100)}% das saídas</div>
+          </div>`).join('')}
+      </div>
+    </div>`:''}
+  `;
+
+  // Renderizar gráfico de barras
+  setTimeout(()=>{
+    const ctx=document.getElementById('chartBar');
+    if(!ctx) return;
+    if(chartBar) chartBar.destroy();
+    chartBar=new Chart(ctx,{
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'Entradas',data:dataEnt,backgroundColor:'rgba(0,255,136,.3)',borderColor:'rgba(0,255,136,.7)',borderWidth:1.5,borderRadius:4},
+          {label:'Saídas',data:dataSai,backgroundColor:'rgba(255,61,107,.25)',borderColor:'rgba(255,61,107,.6)',borderWidth:1.5,borderRadius:4}
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{labels:{color:'#8B8B99',font:{size:11}}}},
+        scales:{
+          x:{ticks:{color:'#8B8B99',font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}},
+          y:{ticks:{color:'#8B8B99',font:{size:10},callback:v=>'R$'+v},grid:{color:'rgba(255,255,255,.05)'}}
+        }
+      }
+    });
+  },100);
+}
+
+// ── LANÇAMENTO ──
+function renderLancamento(){
+  // Produtos recentes para sugestão
+  const produtosSaida = [...new Set(S.lancamentos.filter(l=>l.tipo==='saida'&&l.produto).map(l=>l.produto))].slice(0,8);
+  const produtosEntrada = [...new Set(S.lancamentos.filter(l=>l.tipo==='entrada'&&l.produto).map(l=>l.produto))].slice(0,5);
+
+  const el=document.getElementById('content');
+  el.innerHTML=`
+    <div class="lanc-card">
+      <div style="font-size:.8rem;font-weight:700;margin-bottom:.875rem">Novo Lançamento</div>
+
+      <div class="lanc-tipo">
+        <button class="tipo-btn entrada ${S.tipoLanc==='entrada'?'active':''}" onclick="setTipo('entrada')">📈 Entrada</button>
+        <button class="tipo-btn saida ${S.tipoLanc==='saida'?'active':''}" onclick="setTipo('saida')">📉 Saída</button>
+      </div>
+
+      <div class="fg">
+        <label class="lbl">Valor *</label>
+        <input class="inp" id="l-valor" type="number" step="0.01" placeholder="0,00" style="font-family:var(--font);font-size:1.2rem;font-weight:700">
+      </div>
+
+      <div class="fg">
+        <label class="lbl">Descrição *</label>
+        <input class="inp" id="l-desc" placeholder="${S.tipoLanc==='saida'?'Ex: 100 reais de coco ralado':'Ex: Vendas do almoço'}" oninput="sugerirCategoria(this.value)">
+        ${(S.tipoLanc==='saida'?produtosSaida:produtosEntrada).length>0?`
+        <div class="sugestoes" id="sugestoes">
+          ${(S.tipoLanc==='saida'?produtosSaida:produtosEntrada).map(p=>`<div class="sugestao-chip" onclick="usarSugestao('${escHtml(p)}')">${escHtml(p)}</div>`).join('')}
+        </div>`:''}
+      </div>
+
+      <div class="fg">
+        <label class="lbl">Categoria</label>
+        <select class="inp" id="l-cat">
+          <option value="">Detectar automaticamente</option>
+          ${(S.tipoLanc==='saida'?CATS_SAIDA:CATS_ENTRADA).map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+
+      <button class="btn-lancar" id="btn-lancar" onclick="lancar()">
+        ${S.tipoLanc==='entrada'?'📈 Registrar Entrada':'📉 Registrar Saída'}
+      </button>
+    </div>
+  `;
+}
+
+function setTipo(tipo){
+  S.tipoLanc=tipo;
+  renderLancamento();
+}
+
+function usarSugestao(texto){
+  const inp=document.getElementById('l-desc');
+  if(inp){ inp.value=texto; sugerirCategoria(texto); }
+}
+
+function sugerirCategoria(texto){
+  const t=texto.toLowerCase();
+  const catInp=document.getElementById('l-cat');
+  if(!catInp) return;
+  const mapa={
+    'coco':'Ingredientes','açúcar':'Ingredientes','farinha':'Ingredientes','leite':'Ingredientes',
+    'carne':'Ingredientes','frango':'Ingredientes','peixe':'Ingredientes','legume':'Ingredientes',
+    'verdura':'Ingredientes','tempero':'Ingredientes','óleo':'Ingredientes','manteiga':'Ingredientes',
+    'refrigerante':'Bebidas','suco':'Bebidas','água':'Bebidas','cerveja':'Bebidas',
+    'caixa':'Embalagens','sacola':'Embalagens','pote':'Embalagens','embalagem':'Embalagens',
+    'salário':'Funcionários','funcionário':'Funcionários','vale':'Funcionários',
+    'aluguel':'Aluguel','luz':'Energia','energia':'Energia','gás':'Gás',
+    'detergente':'Limpeza','sabão':'Limpeza','limpeza':'Limpeza',
+    'venda':'Vendas','delivery':'Delivery','pix':'PIX','cartão':'Cartão','dinheiro':'Dinheiro'
   };
-  r.readAsDataURL(f);
-  e.target.value='';
-}
-function removeRef(){
-  refImg = null;
-  document.getElementById('ref-bar').style.display='none';
+  for(const [key,cat] of Object.entries(mapa)){
+    if(t.includes(key)){
+      catInp.value=cat;
+      return;
+    }
+  }
 }
 
-// ── SEND ──
-async function send(txt){
-  if(busy) return;
-  const inp = document.getElementById('itxt');
-  const msg = txt || inp.value.trim();
+async function lancar(){
+  const valor=parseFloat(document.getElementById('l-valor')?.value);
+  const desc=document.getElementById('l-desc')?.value.trim();
+  const catManual=document.getElementById('l-cat')?.value;
+  if(!valor||valor<=0){ toast('⚠️ Informe o valor',false); return; }
+  if(!desc){ toast('⚠️ Informe a descrição',false); return; }
+
+  const btn=document.getElementById('btn-lancar');
+  btn.disabled=true; btn.textContent='Registrando...';
+
+  // Detectar categoria se não selecionada
+  let cat=catManual;
+  if(!cat){
+    sugerirCategoria(desc);
+    cat=document.getElementById('l-cat')?.value||'Outros';
+  }
+
+  // Extrair produto da descrição
+  const produto=desc.replace(/r\$?\s*\d+[\d.,]*/gi,'').replace(/reais?/gi,'').trim()||desc;
+
+  const { data, error } = await sb.from('financeiro').insert({
+    company_id: S.company.id,
+    tipo: S.tipoLanc,
+    valor,
+    descricao: desc,
+    categoria: cat||'Outros',
+    produto: produto.slice(0,80)
+  }).select().single();
+
+  if(error){ toast('⚠️ Erro ao registrar',false); btn.disabled=false; btn.textContent=S.tipoLanc==='entrada'?'📈 Registrar Entrada':'📉 Registrar Saída'; return; }
+
+  S.lancamentos.unshift(data);
+  toast(`✅ ${S.tipoLanc==='entrada'?'Entrada':'Saída'} de ${fmtMoeda(valor)} registrada!`);
+  renderLancamento();
+}
+
+// ── HISTÓRICO ──
+function renderHistorico(){
+  const el=document.getElementById('content');
+  if(S.lancamentos.length===0){
+    el.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2.5rem;margin-bottom:.75rem">📋</div><div>Nenhum lançamento ainda.</div></div>`;
+    return;
+  }
+  el.innerHTML=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:1rem">Últimos 30 dias</div>
+      ${S.lancamentos.map(l=>`
+        <div class="lanc-row">
+          <div class="lanc-icon" style="background:${l.tipo==='entrada'?'rgba(0,255,136,.1)':'rgba(255,61,107,.1)'}">
+            ${l.tipo==='entrada'?'📈':'📉'}
+          </div>
+          <div class="lanc-info">
+            <div class="lanc-desc">${escHtml(l.descricao||'')}</div>
+            <div class="lanc-cat">${l.categoria||''} · ${fmtData(l.created_at)}</div>
+          </div>
+          <div class="lanc-val" style="color:${l.tipo==='entrada'?'var(--accent)':'var(--error)'}">
+            ${l.tipo==='entrada'?'+':'-'}${fmtMoeda(l.valor)}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ── CHAT IA ──
+function renderChat(){
+  const el=document.getElementById('content');
+  el.style.padding='0';
+  el.innerHTML=`
+    <div class="chat-wrap">
+      <div class="chat-msgs" id="chat-msgs">
+        ${S.chatMsgs.length===0?`
+          <div style="text-align:center;padding:2rem;color:var(--muted)">
+            <div style="font-size:2rem;margin-bottom:.5rem">💰</div>
+            <div style="font-size:.85rem;font-weight:600;color:var(--white);margin-bottom:.375rem">Agente Financeiro</div>
+            <div style="font-size:.78rem;line-height:1.6">Olá! Analiso seus dados financeiros e identifico oportunidades de melhora.<br>Pergunte qualquer coisa!</div>
+            <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1.25rem">
+              <button onclick="enviarMsg('Onde estou perdendo mais dinheiro?')" style="background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.75rem;padding:.5rem 1rem;border-radius:8px;cursor:pointer">📊 Onde estou perdendo mais dinheiro?</button>
+              <button onclick="enviarMsg('Como posso aumentar minha margem?')" style="background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.75rem;padding:.5rem 1rem;border-radius:8px;cursor:pointer">💡 Como posso aumentar minha margem?</button>
+              <button onclick="enviarMsg('Qual foi meu melhor dia de vendas?')" style="background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-family:var(--body);font-size:.75rem;padding:.5rem 1rem;border-radius:8px;cursor:pointer">📈 Qual foi meu melhor dia de vendas?</button>
+            </div>
+          </div>`
+          :S.chatMsgs.map(m=>chatBubble(m)).join('')}
+      </div>
+      <div class="chat-input-wrap">
+        <input class="chat-inp" id="chat-inp" placeholder="Pergunte sobre suas finanças..." onkeydown="if(event.key==='Enter')enviarMsg()">
+        <button class="btn-send" id="btn-send" onclick="enviarMsg()">→</button>
+      </div>
+    </div>
+  `;
+  setTimeout(()=>{ const el=document.getElementById('chat-msgs'); if(el) el.scrollTop=el.scrollHeight; },50);
+}
+
+function chatBubble(m){
+  const isUser=m.role==='user';
+  return`<div class="chat-msg ${isUser?'user':'ai'}">
+    <div class="chat-av">${isUser?'👤':'💰'}</div>
+    <div class="chat-bubble">${m.content.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')}</div>
+  </div>`;
+}
+
+async function enviarMsg(txt){
+  const inp=document.getElementById('chat-inp');
+  const msg=txt||inp?.value.trim();
   if(!msg) return;
-  inp.value=''; autoResize(inp);
+  if(inp) inp.value='';
+  document.getElementById('btn-send').disabled=true;
 
-  // Hide welcome
-  const wl = document.getElementById('welcome');
-  if(wl) wl.remove();
+  S.chatMsgs.push({role:'user',content:msg});
 
-  // Add user message
-  addMsg('user', msg);
+  // Preparar contexto financeiro
+  const lancs30=S.lancamentos;
+  const entradas=lancs30.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+Number(l.valor),0);
+  const saidas=lancs30.filter(l=>l.tipo==='saida').reduce((a,l)=>a+Number(l.valor),0);
+  const catMap={};
+  lancs30.filter(l=>l.tipo==='saida').forEach(l=>{ catMap[l.categoria||'Outros']=(catMap[l.categoria||'Outros']||0)+Number(l.valor); });
+  const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([c,v])=>`${c}: R$${v.toFixed(2)}`).join(', ');
 
-  // Detect image request
-  const msgL = msg.toLowerCase();
-  const wantsImg = msgL.includes('gere uma imagem') || msgL.includes('gerar imagem')
-    || msgL.includes('crie uma imagem') || msgL.includes('criar imagem')
-    || msgL.includes('gera uma imagem') || msgL.includes('imagem para post')
-    || msgL.includes('imagem profissional') || msgL.includes('foto para')
-    || (msgL.includes('imagem') && (msgL.includes('gere')||msgL.includes('crie')||msgL.includes('gera')));
+  const systemPrompt=`Você é o Agente Financeiro da empresa "${S.company?.nome}". Você é um especialista em gestão financeira para pequenas empresas brasileiras.
 
-  busy = true;
-  document.getElementById('isend').disabled = true;
+DADOS REAIS DOS ÚLTIMOS 30 DIAS:
+- Total de entradas: R$${entradas.toFixed(2)}
+- Total de saídas: R$${saidas.toFixed(2)}
+- Saldo: R$${(entradas-saidas).toFixed(2)}
+- Margem: ${entradas>0?Math.round(((entradas-saidas)/entradas)*100):0}%
+- Principais gastos: ${topCats||'Nenhum registrado ainda'}
+- Total de lançamentos: ${lancs30.length}
+
+Sua função: identificar vazamentos financeiros, sugerir cortes de custos, analisar tendências e dar conselhos práticos.
+Responda sempre em português brasileiro, de forma direta, prática e com exemplos concretos.
+Use emojis para destacar pontos importantes. Seja como um contador experiente conversando com o dono.`;
 
   // Show typing
-  const typingId = 'typing_'+Date.now();
-  addTyping(typingId);
-
-  if(wantsImg){
-    // IMAGE FLOW
-    try{
-      // Step 1: Get text response + prompt hint from Groq
-      const sysPrompt = 'Você é o Agente Social Mídia da empresa "'+company.nome+'". '
-        +'O usuário quer uma imagem para redes sociais. '
-        +'Responda em português com: '
-        +'1) Uma breve mensagem dizendo que vai gerar a imagem '
-        +'2) Uma legenda criativa pronta para usar no post '
-        +'3) Hashtags relevantes '
-        +'Seja animado e use emojis!';
-
-      const chatRes = await fetch(API, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          messages: [...history, {role:'user',content:msg}],
-          systemPrompt: sysPrompt
-        })
-      });
-      const chatData = await chatRes.json();
-      const reply = chatData.response || '';
-
-      removeTyping(typingId);
-      if(reply) addMsg('ai', reply);
-
-      // Step 2: Generate image
-      addTyping('img_generating', '🎨 Gerando sua imagem...');
-
-      const imgBody = {
-        generateImage: true,
-        userMessage: msg + (company ? ' Empresa: '+company.nome : ''),
-      };
-      if(refImg){
-        imgBody.referenceImageB64 = refImg.b64data;
-        imgBody.referenceMimeType = refImg.mime;
-      }
-
-      const imgRes = await fetch(API, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(imgBody)
-      });
-      const imgData = await imgRes.json();
-      removeTyping('img_generating');
-
-      if(imgData.imageUrl){
-        addImgMsg(imgData.imageUrl, imgData.prompt||msg);
-        if(refImg) removeRef();
-        showToast('✅ Imagem gerada!');
-      } else {
-        addMsg('ai','⚠️ Não consegui gerar a imagem agora. Tente descrever diferente ou subir uma foto de referência.');
-      }
-
-      history.push({role:'user',content:msg});
-      if(reply) history.push({role:'assistant',content:reply});
-
-    }catch(e){
-      removeTyping(typingId);
-      removeTyping('img_generating');
-      addMsg('ai','Erro ao processar. Tente novamente.');
-    }
-
-  } else {
-    // TEXT FLOW
-    try{
-      history.push({role:'user',content:msg});
-      const sysPrompt = 'Você é o Agente Social Mídia da empresa "'+company.nome+'". '
-        +'Especialista em marketing digital brasileiro. '
-        +'Cria legendas virais, roteiros para Reels/TikTok, hashtags estratégicas. '
-        +'Fala de forma jovem, engajante, usa emojis. Responda em português!';
-
-      const res = await fetch(API, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({messages: history.slice(-12), systemPrompt: sysPrompt})
-      });
-      const data = await res.json();
-      const reply = data.response || 'Erro ao processar.';
-      history.push({role:'assistant',content:reply});
-      removeTyping(typingId);
-      addMsg('ai', reply);
-
-    }catch(e){
-      removeTyping(typingId);
-      addMsg('ai','Erro ao conectar. Tente novamente.');
-    }
+  const msgsEl=document.getElementById('chat-msgs');
+  if(msgsEl){
+    msgsEl.innerHTML=S.chatMsgs.map(m=>chatBubble(m)).join('')+
+      '<div class="chat-msg ai"><div class="chat-av">💰</div><div class="chat-bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>';
+    msgsEl.scrollTop=msgsEl.scrollHeight;
   }
 
-  busy = false;
-  document.getElementById('isend').disabled = false;
-  scrollBottom();
+  try{
+    const res=await fetch(API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:S.chatMsgs,systemPrompt})
+    });
+    const data=await res.json();
+    const reply=data.response||'Desculpe, não consegui processar.';
+    S.chatMsgs.push({role:'assistant',content:reply});
+  }catch(e){
+    S.chatMsgs.push({role:'assistant',content:'Desculpe, ocorreu um erro. Tente novamente.'});
+  }
+
+  document.getElementById('btn-send').disabled=false;
+  renderChat();
 }
 
-// ── DOM HELPERS ──
-function addMsg(role, content){
-  const msgs = document.getElementById('msgs');
-  const div = document.createElement('div');
-  div.className = 'msg '+role;
-  div.innerHTML = '<div class="av">'+(role==='user'?'👤':'📱')+'</div>'
-    +'<div class="bubble">'+renderMd(content)+'</div>';
-  msgs.appendChild(div);
-  scrollBottom();
+// ── CONTAS A PAGAR/RECEBER ──────────────────────────
+function renderContas(){
+  const hoje = new Date().toISOString().split('T')[0];
+  const pendentes = S.contas.filter(c=>c.status==='pendente'||c.status==='atrasado');
+  const pagas = S.contas.filter(c=>c.status==='pago'||c.status==='recebido');
+  const pagar = pendentes.filter(c=>c.tipo==='pagar');
+  const receber = pendentes.filter(c=>c.tipo==='receber');
+
+  const el=document.getElementById('content');
+  el.innerHTML=`
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <button onclick="addConta('pagar')" style="flex:1;padding:.75rem;background:rgba(255,61,107,.08);border:1.5px solid rgba(255,61,107,.2);color:var(--error);border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--body)">+ A Pagar</button>
+      <button onclick="addConta('receber')" style="flex:1;padding:.75rem;background:rgba(0,255,136,.08);border:1.5px solid rgba(0,255,136,.2);color:var(--accent);border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--body)">+ A Receber</button>
+    </div>
+
+    ${pagar.length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem;margin-bottom:.875rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--error);margin-bottom:.875rem">📤 A PAGAR (${pagar.length})</div>
+      ${pagar.map(c=>contaRow(c)).join('')}
+    </div>`:''}
+
+    ${receber.length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem;margin-bottom:.875rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--accent);margin-bottom:.875rem">📥 A RECEBER (${receber.length})</div>
+      ${receber.map(c=>contaRow(c)).join('')}
+    </div>`:''}
+
+    ${pagas.length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.125rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.875rem">✅ LIQUIDADAS (${pagas.length})</div>
+      ${pagas.slice(0,5).map(c=>contaRow(c)).join('')}
+    </div>`:''}
+
+    ${pendentes.length===0&&pagas.length===0?`
+    <div style="text-align:center;padding:3rem;color:var(--muted)">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">📅</div>
+      <div style="font-size:.85rem">Nenhuma conta cadastrada.<br>Adicione contas a pagar e a receber.</div>
+    </div>`:''}
+  `;
 }
 
-function addImgMsg(url, prompt){
-  const msgs = document.getElementById('msgs');
-  const div = document.createElement('div');
-  div.className = 'msg ai';
-  div.innerHTML = '<div class="av">🖼️</div>'
-    +'<div class="bubble img-card">'
-    +'<img src="'+url+'" alt="Imagem gerada" onload="scrollBottom()">'
-    +'<div class="img-btns">'
-    +'<a href="'+url+'" download="post-jgerente.jpg" class="img-dl">⬇️ Baixar</a>'
-    +'<button class="img-re" onclick="regenImg(\''+prompt.replace(/'/g,"\\'").replace(/\n/g,' ')+'\')">🔄 Gerar outra</button>'
-    +'</div></div>';
-  msgs.appendChild(div);
-  scrollBottom();
+function contaRow(c){
+  const hoje = new Date().toISOString().split('T')[0];
+  const atrasada = c.status==='atrasado';
+  const paga = c.status==='pago'||c.status==='recebido';
+  const diasVenc = Math.ceil((new Date(c.vencimento)-new Date(hoje))/86400000);
+  const corVal = c.tipo==='receber'?'var(--accent)':'var(--error)';
+
+  return`<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--border)">
+    <div style="width:32px;height:32px;border-radius:8px;background:${paga?'rgba(255,255,255,.04)':c.tipo==='receber'?'rgba(0,255,136,.08)':'rgba(255,61,107,.08)'};display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0">
+      ${paga?'✅':c.tipo==='receber'?'📥':'📤'}
+    </div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.descricao)}</div>
+      <div style="font-size:.7rem;color:${atrasada?'var(--error)':'var(--muted)'}">
+        ${atrasada?'⚠️ Atrasada':paga?'✅ Liquidada':'📅'} ${new Date(c.vencimento+'T12:00:00').toLocaleDateString('pt-BR')}
+        ${!paga&&!atrasada&&diasVenc<=3?` · Vence em ${diasVenc} dia${diasVenc!==1?'s':''}`:'' }
+      </div>
+    </div>
+    <div style="font-family:var(--font);font-size:.9rem;font-weight:800;color:${paga?'var(--muted)':corVal};flex-shrink:0;text-align:right">${c.valor_pago>0&&!paga?`<div style='font-size:.65rem;color:var(--muted);font-family:var(--body)'>Pago: ${fmtMoeda(c.valor_pago)}</div><div style='color:var(--warning)'>${fmtMoeda(c.valor-(c.valor_pago||0))}</div><div style='font-size:.6rem;color:var(--muted);font-family:var(--body)'>de ${fmtMoeda(c.valor)}</div>`:fmtMoeda(c.valor)}</div>
+    ${!paga?`<div style="display:flex;gap:.375rem;flex-shrink:0"><button onclick="liquidarConta('${c.id}','${c.tipo}')" style="background:${c.tipo==='receber'?'rgba(0,255,136,.08)':'rgba(255,61,107,.08)'};border:1px solid ${c.tipo==='receber'?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)'};color:${corVal};font-size:.65rem;font-weight:700;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-family:var(--body)">${c.tipo==='receber'?'Receber':'Pagar'}</button><button onclick="pagarParcial('${c.id}')" style="background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.2);color:var(--warning);font-size:.65rem;font-weight:700;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-family:var(--body)">Parcial</button></div>`:``}
+  </div>`;
 }
 
-function addTyping(id, text){
-  const msgs = document.getElementById('msgs');
-  const div = document.createElement('div');
-  div.className = 'msg ai';
-  div.id = id;
-  div.innerHTML = '<div class="av">📱</div>'
-    +'<div class="bubble">'
-    +(text ? '<span style="font-size:.78rem;color:var(--muted)">'+text+'</span>' : '')
-    +'<div class="typing-dots"><span></span><span></span><span></span></div>'
+function addConta(tipo){
+  const modal=`
+    <div class="modal-title">${tipo==='pagar'?'📤 Nova Conta a Pagar':'📥 Nova Conta a Receber'}</div>
+    <div class="fg"><label class="lbl">Descrição *</label><input class="inp" id="c-desc" placeholder="${tipo==='pagar'?'Ex: Fornecedor de coco ralado':'Ex: Pagamento cliente João'}"></div>
+    <div class="fg"><label class="lbl">Valor *</label><input class="inp" id="c-valor" type="number" step="0.01" placeholder="0,00"></div>
+    <div class="fg"><label class="lbl">Vencimento *</label><input class="inp" id="c-venc" type="date"></div>
+    <button class="btn-lancar" onclick="salvarConta('${tipo}')">💾 Salvar</button>
+    <button style="width:100%;padding:.75rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer;margin-top:.5rem" onclick="closeModal()">Cancelar</button>
+  `;
+  openModal(modal);
+}
+
+function openModal(html){
+  let overlay=document.getElementById('f-overlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='f-overlay';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px)';
+    overlay.onclick=e=>{if(e.target===overlay)closeModal()};
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML=`<div style="background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.5rem;animation:slideUp .25s ease"><div style="width:36px;height:3px;background:var(--border2);border-radius:100px;margin:-.5rem auto 1.25rem"></div>${html}</div>`;
+  overlay.style.display='flex';
+}
+function closeModal(){ const o=document.getElementById('f-overlay'); if(o) o.style.display='none'; }
+
+async function salvarConta(tipo){
+  const desc=document.getElementById('c-desc')?.value.trim();
+  const valor=parseFloat(document.getElementById('c-valor')?.value);
+  const venc=document.getElementById('c-venc')?.value;
+  if(!desc||!valor||!venc){ toastF('⚠️ Preencha todos os campos',false); return; }
+  const { data, error } = await sb.from('contas').insert({
+    company_id:S.company.id, tipo, descricao:desc, valor, vencimento:venc, status:'pendente'
+  }).select().single();
+  if(error){ toastF('⚠️ Erro ao salvar',false); return; }
+  S.contas.push(data);
+  closeModal();
+  toastF(`✅ Conta ${tipo==='pagar'?'a pagar':'a receber'} cadastrada!`);
+  renderContas();
+}
+
+function pagarParcial(id){
+  const c = S.contas.find(x=>x.id===id);
+  if(!c) return;
+  const valorRestante = (c.valor - (c.valor_pago||0)).toFixed(2);
+  const pct = c.valor_pago>0 ? Math.round(((c.valor_pago||0)/c.valor)*100) : 0;
+
+  const modal = '<div class="modal-title">'+(c.tipo==='receber'?'📥':'📤')+' Pagamento Parcial</div>'
+    +'<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1.25rem">'
+    +'<div style="font-size:.82rem;font-weight:600;margin-bottom:.875rem">'+escHtml(c.descricao)+'</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.375rem"><span style="color:var(--muted)">Valor total</span><span>'+fmtMoeda(c.valor)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.375rem"><span style="color:var(--muted)">Já pago</span><span style="color:var(--accent)">'+fmtMoeda(c.valor_pago||0)+'</span></div>'
+    +(c.valor_pago>0?'<div style="height:4px;background:var(--border);border-radius:100px;margin:.5rem 0;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--accent);border-radius:100px"></div></div>':'')
+    +'<div style="display:flex;justify-content:space-between;font-size:.88rem;font-weight:700;margin-top:.25rem"><span style="color:var(--muted)">Restante</span><span style="color:var(--warning)">'+fmtMoeda(parseFloat(valorRestante))+'</span></div>'
+    +'</div>'
+    +'<div class="fg"><label class="lbl">Quanto vai pagar agora? *</label>'
+    +'<input class="inp" id="parcial-valor" type="number" step="0.01" min="0.01" max="'+valorRestante+'" placeholder="0,00" value="'+valorRestante+'" style="font-size:1.1rem;font-family:var(--font);font-weight:700"></div>'
+    +'<div style="display:flex;gap:.5rem;margin-top:.5rem">'
+    +'<button data-id="'+id+'" onclick="confirmarParcial(this.dataset.id)" style="flex:1;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer">✅ Confirmar pagamento</button>'
+    +'<button onclick="closeModal()" style="flex:1;padding:.875rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer">Cancelar</button>'
     +'</div>';
-  msgs.appendChild(div);
-  scrollBottom();
+
+  openModal(modal);
+  setTimeout(function(){ var el=document.getElementById('parcial-valor'); if(el){el.focus();el.select();} }, 100);
 }
 
-function removeTyping(id){
-  const el = document.getElementById(id);
-  if(el) el.remove();
-}
+async function confirmarParcial(id){
+  const c = S.contas.find(x=>x.id===id);
+  if(!c) return;
+  const inp = document.getElementById('parcial-valor');
+  if(!inp) return;
+  const valorPagamento = parseFloat(inp.value);
+  const valorRestante = c.valor - (c.valor_pago||0);
 
-async function regenImg(prompt){
-  if(busy) return;
-  busy = true;
-  document.getElementById('isend').disabled = true;
-  addTyping('regen_t','🔄 Gerando nova versão...');
-  try{
-    const res = await fetch(API, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({generateImage:true, userMessage:prompt})
-    });
-    const data = await res.json();
-    removeTyping('regen_t');
-    if(data.imageUrl) addImgMsg(data.imageUrl, prompt);
-    else addMsg('ai','Não consegui gerar. Tente novamente.');
-  }catch(e){
-    removeTyping('regen_t');
-    addMsg('ai','Erro ao regenerar.');
+  if(isNaN(valorPagamento)||valorPagamento<=0){ toastF('⚠️ Informe um valor válido', false); return; }
+  if(valorPagamento > valorRestante+0.01){ toastF('⚠️ Valor maior que o restante', false); return; }
+
+  const novoValorPago = (c.valor_pago||0) + valorPagamento;
+  const quitado = novoValorPago >= c.valor - 0.01;
+  const novoStatus = quitado ? (c.tipo==='receber'?'recebido':'pago') : c.status;
+
+  await sb.from('contas').update({ valor_pago: novoValorPago, status: novoStatus }).eq('id', id);
+
+  await sb.from('financeiro').insert({
+    company_id: S.company.id,
+    tipo: c.tipo==='receber'?'entrada':'saida',
+    valor: valorPagamento,
+    descricao: c.descricao + (quitado ? ' (quitado)' : ' (parcial)'),
+    categoria: c.tipo==='receber'?'Recebimentos':'Pagamentos',
+    produto: c.descricao
+  });
+
+  c.valor_pago = novoValorPago;
+  c.status = novoStatus;
+  S.lancamentos.unshift({...c, tipo:c.tipo==='receber'?'entrada':'saida', valor:valorPagamento, created_at:new Date().toISOString()});
+
+  closeModal();
+
+  if(quitado){
+    toastF('✅ Conta quitada!');
+  } else {
+    toastF('✅ '+fmtMoeda(valorPagamento)+' registrado! Resta '+fmtMoeda(c.valor-novoValorPago));
   }
-  busy = false;
-  document.getElementById('isend').disabled = false;
+  renderContas();
 }
 
-function renderMd(text){
-  if(!text) return '';
-  var t = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  var lines = t.split('\n');
-  var r = lines.map(function(l){
-    if(l.startsWith('### ')) return '<b style="display:block;margin:.4rem 0 .1rem">'+l.slice(4)+'</b>';
-    if(l.startsWith('## ')) return '<b style="display:block;margin:.5rem 0 .15rem;font-size:.9rem">'+l.slice(3)+'</b>';
-    if(l.startsWith('* ')||l.startsWith('- ')) return '<div style="padding-left:.625rem;margin:.1rem 0">&bull; '+l.slice(2)+'</div>';
-    var nm = l.match(/^(\d+)\. (.+)$/);
-    if(nm) return '<div style="padding-left:.625rem;margin:.1rem 0"><b>'+nm[1]+'.</b> '+nm[2]+'</div>';
-    if(l==='---') return '<hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:.4rem 0">';
-    return l ? '<div>'+l+'</div>' : '<div style="height:.3rem"></div>';
-  }).join('');
-  return r.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*(.+?)\*/g,'<i>$1</i>');
-}
-
-function scrollBottom(){
-  const m = document.getElementById('msgs');
-  if(m) m.scrollTop = m.scrollHeight;
-}
-
-function autoResize(el){
-  el.style.height='auto';
-  el.style.height=Math.min(el.scrollHeight,120)+'px';
-}
-
-function showToast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastT);
-  toastT = setTimeout(function(){ t.classList.remove('show'); }, 2500);
-}
-
-// ── MODAL CHAT ──
-let modalHistory = [];
-let modalBusy = false;
-
-function openModalChat(){
-  document.getElementById('modal-overlay').classList.add('show');
-  setTimeout(function(){ document.getElementById('modal-inp').focus(); }, 200);
-}
-
-function closeModalChat(){
-  document.getElementById('modal-overlay').classList.remove('show');
-}
-
-async function sendModal(){
-  if(modalBusy) return;
-  const inp = document.getElementById('modal-inp');
-  const msg = inp.value.trim();
-  if(!msg) return;
-  inp.value='';
-
-  // Add user message
-  addModalMsg('user', msg);
-  modalHistory.push({role:'user', content:msg});
-  modalBusy = true;
-  document.getElementById('modal-send').disabled = true;
-
-  // Typing indicator
-  const typId = 'mtyp_'+Date.now();
-  addModalTyping(typId);
-
-  try{
-    const sysPrompt = 'Você é um especialista em marketing digital para pequenas empresas brasileiras.'
-      +' Empresa do cliente: "'+( company&&company.nome||'empresa')+'".'
-      +' Cria legendas virais, roteiros para Reels/TikTok/Stories, hashtags estratégicas, textos para anúncios.'
-      +' Use linguagem jovem, emojis, seja criativo e engajante. Responda SEMPRE em português!';
-
-    const res = await fetch(API, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({messages: modalHistory.slice(-12), systemPrompt: sysPrompt})
+async function liquidarConta(id, tipo){
+  const status=tipo==='receber'?'recebido':'pago';
+  await sb.from('contas').update({status}).eq('id',id);
+  const c=S.contas.find(x=>x.id===id);
+  if(c){
+    c.status=status;
+    // Registrar no financeiro automaticamente
+    await sb.from('financeiro').insert({
+      company_id:S.company.id,
+      tipo:tipo==='receber'?'entrada':'saida',
+      valor:c.valor,
+      descricao:c.descricao,
+      categoria:tipo==='receber'?'Recebimentos':'Pagamentos',
+      produto:c.descricao
     });
-    const data = await res.json();
-    const reply = data.response || 'Erro ao processar.';
-    modalHistory.push({role:'assistant', content:reply});
+    S.lancamentos.unshift({...c,tipo:tipo==='receber'?'entrada':'saida',created_at:new Date().toISOString()});
+  }
+  toastF(`✅ ${tipo==='receber'?'Recebimento':'Pagamento'} registrado!`);
+  renderContas();
+}
 
-    removeModalEl(typId);
-    addModalMsg('ai', reply);
+function toastF(msg, green=true){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.color=green?'var(--accent)':'var(--error)';
+  el.style.borderColor=green?'rgba(0,255,136,.2)':'rgba(255,61,107,.2)';
+  el.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
 
-  }catch(e){
-    removeModalEl(typId);
-    addModalMsg('ai','Erro ao conectar. Tente novamente.');
+// ── DRE ──────────────────────────────────────────────
+function renderDRE(){
+  const agora = new Date();
+  const mesAtual = agora.getMonth();
+  const anoAtual = agora.getFullYear();
+
+  // Últimos 3 meses
+  const meses = [];
+  for(let i=2;i>=0;i--){
+    const d = new Date(anoAtual, mesAtual-i, 1);
+    const fim = new Date(anoAtual, mesAtual-i+1, 0, 23, 59, 59);
+    const lancs = S.lancamentos.filter(l=>{
+      const ct=new Date(l.created_at);
+      return ct>=d&&ct<=fim;
+    });
+    const entrada = lancs.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+Number(l.valor),0);
+    const saida = lancs.filter(l=>l.tipo==='saida').reduce((a,l)=>a+Number(l.valor),0);
+    const lucro = entrada-saida;
+    const margem = entrada>0?Math.round((lucro/entrada)*100):0;
+
+    // Categorias
+    const cats={};
+    lancs.filter(l=>l.tipo==='saida').forEach(l=>{ cats[l.categoria||'Outros']=(cats[l.categoria||'Outros']||0)+Number(l.valor); });
+
+    meses.push({
+      label: d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}),
+      entrada, saida, lucro, margem, cats
+    });
   }
 
-  modalBusy = false;
-  document.getElementById('modal-send').disabled = false;
+  const el=document.getElementById('content');
+  const mesAtualData = meses[2];
+
+  el.innerHTML=`
+    <div style="font-size:.78rem;font-weight:700;margin-bottom:1rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">DRE — Demonstrativo de Resultado</div>
+
+    <!-- Mês atual resumo -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:1rem;text-transform:uppercase;letter-spacing:.06em">${mesAtualData.label}</div>
+      ${dreRow('(+) Receita Bruta', mesAtualData.entrada, 'var(--accent)')}
+      ${dreRow('(-) Total de Custos', mesAtualData.saida, 'var(--error)')}
+      <div style="height:1px;background:var(--border);margin:.75rem 0"></div>
+      ${dreRow('(=) Lucro Bruto', mesAtualData.lucro, mesAtualData.lucro>=0?'var(--accent)':'var(--error)', true)}
+      <div style="margin-top:.875rem;padding:.75rem;background:${mesAtualData.margem>=30?'rgba(0,255,136,.06)':mesAtualData.margem>=20?'rgba(255,214,0,.06)':'rgba(255,61,107,.06)'};border-radius:8px;text-align:center">
+        <span style="font-family:var(--font);font-size:1.5rem;font-weight:900;color:${mesAtualData.margem>=30?'var(--accent)':mesAtualData.margem>=20?'var(--warning)':'var(--error)'}">${mesAtualData.margem}%</span>
+        <span style="font-size:.72rem;color:var(--muted);margin-left:.5rem">de margem</span>
+      </div>
+    </div>
+
+    <!-- Breakdown de custos -->
+    ${Object.keys(mesAtualData.cats).length>0?`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.875rem;text-transform:uppercase;letter-spacing:.06em">Custos por categoria</div>
+      ${Object.entries(mesAtualData.cats).sort((a,b)=>b[1]-a[1]).map(([cat,val])=>`
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1;font-size:.8rem">${cat}</div>
+          <div style="font-size:.8rem;font-weight:700;color:var(--error)">${fmtMoeda(val)}</div>
+          <div style="font-size:.7rem;color:var(--muted);width:35px;text-align:right">${Math.round((val/mesAtualData.saida)*100)}%</div>
+        </div>`).join('')}
+    </div>`:''}
+
+    <!-- Comparativo 3 meses -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.875rem;text-transform:uppercase;letter-spacing:.06em">Comparativo — Últimos 3 meses</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem">
+        ${meses.map(m=>`
+          <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.75rem;text-align:center">
+            <div style="font-size:.62rem;color:var(--muted);margin-bottom:.375rem">${m.label.split(' ')[0]}</div>
+            <div style="font-size:.75rem;font-weight:700;color:${m.lucro>=0?'var(--accent)':'var(--error)'}">${fmtMoeda(m.lucro)}</div>
+            <div style="font-size:.62rem;color:var(--muted);margin-top:.2rem">${m.margem}% margem</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Metas -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-top:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem">
+        <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Metas do mês</div>
+        <button onclick="editarMetas()" style="background:var(--card2);border:1px solid var(--border2);color:var(--muted);font-size:.7rem;padding:.3rem .625rem;border-radius:6px;cursor:pointer;font-family:var(--body)">✏️ Editar</button>
+      </div>
+      ${S.metaReceita>0?`
+        <div style="margin-bottom:.75rem">
+          <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.375rem"><span>Meta de Receita</span><span style="color:var(--accent)">${fmtMoeda(mesAtualData.entrada)} / ${fmtMoeda(S.metaReceita)}</span></div>
+          <div style="height:6px;background:var(--border);border-radius:100px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((mesAtualData.entrada/S.metaReceita)*100))}%;background:var(--accent);border-radius:100px"></div></div>
+        </div>`:'<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:.5rem">Nenhuma meta definida. <button onclick="editarMetas()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:.78rem">Definir agora →</button></div>'}
+      ${S.metaDespesa>0?`
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.375rem"><span>Limite de Despesas</span><span style="color:var(--error)">${fmtMoeda(mesAtualData.saida)} / ${fmtMoeda(S.metaDespesa)}</span></div>
+          <div style="height:6px;background:var(--border);border-radius:100px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((mesAtualData.saida/S.metaDespesa)*100))}%;background:var(--error);border-radius:100px"></div></div>
+        </div>`:''}
+    </div>
+  `;
 }
 
-function addModalMsg(role, content){
-  const msgs = document.getElementById('modal-msgs');
-  const div = document.createElement('div');
-  div.className = 'msg '+role;
-  div.style.maxWidth = '95%';
-  div.innerHTML = '<div class="av">'+(role==='user'?'👤':'🤖')+'</div>'
-    +'<div class="bubble">'+renderMd(content)+'</div>';
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
+function dreRow(label, val, cor, bold=false){
+  return`<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)">
+    <div style="font-size:${bold?'.82':'0.78'}rem;font-weight:${bold?700:400};color:${bold?'var(--white)':'var(--muted)'}">${label}</div>
+    <div style="font-family:var(--font);font-size:${bold?'.9':'0.82'}rem;font-weight:${bold?900:600};color:${cor}">${fmtMoeda(val)}</div>
+  </div>`;
 }
 
-function addModalTyping(id){
-  const msgs = document.getElementById('modal-msgs');
-  const div = document.createElement('div');
-  div.id = id;
-  div.className = 'msg ai';
-  div.style.maxWidth = '95%';
-  div.innerHTML = '<div class="av">🤖</div><div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
+// ── METAS ──
+function editarMetas(){
+  openModal(`
+    <div style="font-family:var(--font);font-size:1rem;font-weight:900;letter-spacing:-.03em;margin-bottom:1.25rem">🎯 Metas do mês</div>
+    <div class="fg"><label class="lbl">Meta de Receita (R$)</label>
+      <input class="inp" id="meta-receita" type="number" step="0.01" value="${S.metaReceita||''}" placeholder="Ex: 10000">
+    </div>
+    <div class="fg"><label class="lbl">Limite de Despesas (R$)</label>
+      <input class="inp" id="meta-despesa" type="number" step="0.01" value="${S.metaDespesa||''}" placeholder="Ex: 6000">
+    </div>
+    <button class="btn-lancar" onclick="salvarMetas()">💾 Salvar metas</button>
+    <button style="width:100%;padding:.75rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer;margin-top:.5rem" onclick="closeModal()">Cancelar</button>
+  `);
 }
 
-function removeModalEl(id){
-  const el = document.getElementById(id);
-  if(el) el.remove();
+function salvarMetas(){
+  const r=parseFloat(document.getElementById('meta-receita')?.value)||0;
+  const d=parseFloat(document.getElementById('meta-despesa')?.value)||0;
+  S.metaReceita=r; S.metaDespesa=d;
+  localStorage.setItem('meta_receita_'+S.company.id, r);
+  localStorage.setItem('meta_despesa_'+S.company.id, d);
+  closeModal();
+  toastF('✅ Metas salvas!');
+  renderDashboard();
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  window.location.href = 'jgerente-app.html';
 }
 
 // ── BOOT ──
-(async function(){
-  const {data} = await sb.auth.getSession();
-  if(data&&data.session&&data.session.user) await boot(data.session.user);
+(async()=>{
+  const { data } = await sb.auth.getSession();
+  if(data?.session?.user) await initApp(data.session.user);
 })();
 </script>
-
-<!-- MODAL CHAT COM CLAUDE -->
-<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModalChat()">
-  <div class="modal-chat">
-    <div class="modal-hdr">
-      <div>
-        <div class="modal-hdr-title">💬 Chat com Claude IA</div>
-        <div style="font-size:.65rem;color:var(--muted)">Agente especialista em marketing digital</div>
-      </div>
-      <button class="modal-close" onclick="closeModalChat()">✕</button>
-    </div>
-    <div class="modal-msgs" id="modal-msgs">
-      <div class="msg ai" style="max-width:100%">
-        <div class="av">🤖</div>
-        <div class="bubble">Olá! Sou seu assistente de marketing digital. Posso criar legendas, roteiros para Reels, ideias de posts, scripts para Stories e muito mais. O que precisa hoje? 🚀</div>
-      </div>
-    </div>
-    <div class="modal-inp-wrap">
-      <div class="modal-inp-row">
-        <textarea class="modal-inp" id="modal-inp" placeholder="Ex: Crie uma legenda para post de açaí..." rows="2"
-          onkeydown="if(event.keyCode===13&&!event.shiftKey){event.preventDefault();sendModal()}"></textarea>
-        <button class="modal-send" id="modal-send" onclick="sendModal()">↑</button>
-      </div>
-    </div>
-  </div>
-</div>
 </body>
 </html>
