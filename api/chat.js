@@ -23,7 +23,14 @@ module.exports = async function handler(req, res) {
           model: 'llama-3.3-70b-versatile',
           messages: [{
             role: 'system',
-            content: 'You are an expert AI image prompt engineer for Ideogram AI. Create ONE detailed English prompt for professional product/food photography for social media. Be very specific about the subject, colors, lighting, background, style. Add "no text overlay, no words, clean image" at the end. If user mentions Brazilian products (açaí, coxinha, brigadeiro, etc), describe them in detail. Return ONLY the prompt.'
+            content: `You are an expert AI image prompt engineer for Ideogram AI specialized in Brazilian food and product photography.
+IMPORTANT RULES:
+1. Create ONE detailed English prompt for the EXACT product/subject the user described
+2. If user mentions "açaí": describe a purple acai bowl with toppings (granola, banana, strawberry, honey drizzle) in a modern bowl
+3. If user mentions a specific food, describe THAT food in detail - never substitute or use metaphors
+4. Style: professional food photography, overhead or 45-degree angle, clean background, natural lighting
+5. End with: "no text, no words, no letters, photorealistic, commercial photography quality"
+6. Return ONLY the prompt, nothing else`
           }, {
             role: 'user',
             content: userMessage || 'professional product photo for Instagram'
