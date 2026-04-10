@@ -815,6 +815,34 @@ function pagarParcial(id){
   setTimeout(function(){ var el=document.getElementById('parcial-valor'); if(el){el.focus();el.select();} }, 100);
 }
 
+async function reverterConta(id){
+  const c = S.contas.find(x=>x.id===id);
+  if(!c) return;
+
+  const modal = '<div class="modal-title">↩ Reverter Pagamento</div>'
+    +'<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1.25rem">'
+    +'<div style="font-size:.82rem;font-weight:600;margin-bottom:.375rem">'+escHtml(c.descricao)+'</div>'
+    +'<div style="font-size:.78rem;color:var(--muted)">Esta conta foi marcada como '+(c.status==='pago'?'paga':'recebida')+'. Deseja reverter para pendente?</div>'
+    +'<div style="margin-top:.75rem;font-size:.78rem;color:var(--warning)">⚠️ O lançamento no financeiro NÃO será removido automaticamente.</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:.5rem">'
+    +'<button data-id="'+id+'" onclick="confirmarReverter(this.dataset.id)" style="flex:1;padding:.875rem;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--warning);border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer">↩ Sim, reverter</button>'
+    +'<button onclick="closeModal()" style="flex:1;padding:.875rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer">Cancelar</button>'
+    +'</div>';
+  openModal(modal);
+}
+
+async function confirmarReverter(id){
+  const c = S.contas.find(x=>x.id===id);
+  if(!c) return;
+  await sb.from('contas').update({ status:'pendente', valor_pago:0 }).eq('id', id);
+  c.status = 'pendente';
+  c.valor_pago = 0;
+  closeModal();
+  toastF('↩ Conta revertida para pendente!');
+  renderContas();
+}
+
 async function confirmarParcial(id){
   const c = S.contas.find(x=>x.id===id);
   if(!c) return;
@@ -852,6 +880,10 @@ async function confirmarParcial(id){
   } else {
     toastF('✅ '+fmtMoeda(valorPagamento)+' registrado! Resta '+fmtMoeda(c.valor-novoValorPago));
   }
+
+  // Recarrega contas do banco para garantir dados atualizados
+  const { data: contasAtualizadas } = await sb.from('contas').select('*').eq('company_id', S.company.id).order('vencimento', {ascending:true});
+  if(contasAtualizadas) S.contas = contasAtualizadas;
   renderContas();
 }
 
