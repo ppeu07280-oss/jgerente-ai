@@ -492,6 +492,7 @@ option{background:var(--card2)}
       <button class="sb-btn" onclick="abrirFidelidade()"><span class="sb-icon">🎯</span>Fidelidade ↗</button>
       <button class="sb-btn" onclick="window.open('jgerente-financeiro.html','_blank')"><span class="sb-icon">💰</span>Financeiro ↗</button>
       <button class="sb-btn" onclick="window.open('jgerente-social.html','_blank')"><span class="sb-icon">📱</span>Social Mídia ↗</button>
+          <button class="sb-btn" onclick="navTo('contabilidade')"><span class="sb-icon">📊</span>Contabilidade</button>
       <div class="sb-section">Conta</div>
       <button class="sb-btn" onclick="navTo('mural')"><span class="sb-icon">🏆</span>Mural da Equipe</button>
           <button class="sb-btn" onclick="navTo('auditoria')"><span class="sb-icon">🔍</span>Auditoria</button>
@@ -669,7 +670,7 @@ function navTo(view){
   S.view = view;
   // Sidebar
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
-  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,mural:9,auditoria:10,contabilidade:11,config:12};
+  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,contabilidade:9,mural:10,auditoria:11,config:12};
   const btns=document.querySelectorAll('.sb-btn');
   if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
   // Bottom nav mobile
