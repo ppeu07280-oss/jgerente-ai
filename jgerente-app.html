@@ -681,8 +681,129 @@ function navTo(view){
 }
 
 function abrirFidelidade(){
-  // Abre o painel de fidelidade em nova aba
-  window.open('https://ppeu07280-oss.github.io/acaipoints/acaipoints-admin.html','_blank');
+  // Fidelidade integrada — navega para a view de fidelidade
+  navTo('fidelidade');
+}
+
+function renderFidelidade(){
+  const clientes = S.customers || [];
+  const totalPontos = clientes.reduce(function(a,c){ return a + (c.pontos||0); }, 0);
+  const clientesAtivos = clientes.filter(function(c){ return (c.pontos||0) > 0; }).length;
+
+  return '<div class="main-header">'
+    +'<div><div class="page-title">🎯 Agente Fidelidade</div>'
+    +'<div class="page-sub">Programa de pontos e recompensas</div></div>'
+    +'</div>'
+    +'<div class="content">'
+
+    // Métricas
+    +'<div class="cards-grid" style="margin-bottom:1rem">'
+    +'<div class="metric-card green"><div class="metric-label">Total Clientes</div><div class="metric-val">'+clientes.length+'</div><div class="metric-sub">no programa</div></div>'
+    +'<div class="metric-card blue"><div class="metric-label">Clientes Ativos</div><div class="metric-val">'+clientesAtivos+'</div><div class="metric-sub">com pontos</div></div>'
+    +'<div class="metric-card yellow"><div class="metric-label">Total de Pontos</div><div class="metric-val">'+totalPontos.toLocaleString('pt-BR')+'</div><div class="metric-sub">distribuídos</div></div>'
+    +'</div>'
+
+    // Lista de clientes
+    +'<div class="sec-card">'
+    +'<div class="sec-card-header">'
+    +'<div class="sec-card-title">👥 Clientes Cadastrados</div>'
+    +'<button class="btn-add" onclick="addClienteFidelidade()">+ Adicionar</button>'
+    +'</div>'
+    +'<div class="sec-card-body">'
+    +(clientes.length === 0
+      ? '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.82rem">Nenhum cliente cadastrado ainda.</div>'
+      : clientes.sort(function(a,b){ return (b.pontos||0)-(a.pontos||0); }).map(function(c, i){
+          var medalha = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+          return '<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--border)">'
+            +'<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font);font-size:.72rem;font-weight:700;color:var(--black);flex-shrink:0">'+initials(c.nome||'?')+'</div>'
+            +'<div style="flex:1;min-width:0">'
+            +'<div style="font-size:.85rem;font-weight:600">'+medalha+' '+escHtml(c.nome||'—')+'</div>'
+            +'<div style="font-size:.72rem;color:var(--muted)">'+escHtml(c.telefone||c.email||'Sem contato')+'</div>'
+            +'</div>'
+            +'<div style="text-align:right;flex-shrink:0">'
+            +'<div style="font-family:var(--font);font-size:.9rem;font-weight:900;color:var(--accent)">'+(c.pontos||0)+'</div>'
+            +'<div style="font-size:.65rem;color:var(--muted)">pontos</div>'
+            +'</div>'
+            +'<button data-id="'+c.id+'" data-nome="'+escHtml(c.nome||'')+'" data-pts="'+(c.pontos||0)+'" onclick="adicionarPontos(this.dataset.id,this.dataset.nome,parseInt(this.dataset.pts))" style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);color:var(--accent);font-size:.65rem;font-weight:700;padding:.3rem .5rem;border-radius:6px;cursor:pointer;font-family:var(--body);flex-shrink:0">+pts</button>'
+            +'</div>';
+        }).join('')
+    )
+    +'</div></div>'
+    +'</div>';
+}
+
+function addClienteFidelidade(){
+  var html = '<div class="modal-title">🎯 Novo Cliente</div>'
+    +'<div class="fg"><label class="lbl">Nome *</label><input class="inp" id="fc-nome" placeholder="Nome do cliente"></div>'
+    +'<div class="fg"><label class="lbl">Telefone</label><input class="inp" id="fc-tel" placeholder="(11) 99999-9999" type="tel"></div>'
+    +'<div class="fg"><label class="lbl">Email</label><input class="inp" id="fc-email" placeholder="email@exemplo.com" type="email"></div>'
+    +'<div style="display:flex;gap:.5rem;margin-top:.5rem">'
+    +'<button onclick="salvarClienteFidelidade()" style="flex:1;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer">✅ Cadastrar</button>'
+    +'<button onclick="closeModal()" style="flex:1;padding:.875rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer">Cancelar</button>'
+    +'</div>';
+  openModal(html);
+  setTimeout(function(){ var el=document.getElementById('fc-nome'); if(el) el.focus(); }, 100);
+}
+
+async function salvarClienteFidelidade(){
+  var nome = document.getElementById('fc-nome')?.value.trim();
+  var tel = document.getElementById('fc-tel')?.value.trim();
+  var email = document.getElementById('fc-email')?.value.trim();
+  if(!nome){ toast('⚠️ Informe o nome do cliente', false); return; }
+
+  var { data, error } = await sb.from('customers').insert({
+    company_id: S.company.id,
+    nome: nome,
+    telefone: tel||null,
+    email: email||null,
+    pontos: 0
+  }).select().single();
+
+  if(error){ toast('⚠️ Erro ao cadastrar: '+error.message, false); return; }
+  S.customers.push(data);
+  closeModal();
+  toast('✅ Cliente cadastrado!');
+  renderView('fidelidade');
+}
+
+function adicionarPontos(id, nome, pontosAtuais){
+  var html = '<div class="modal-title">⭐ Adicionar Pontos</div>'
+    +'<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1.25rem">'
+    +'<div style="font-size:.85rem;font-weight:700">'+escHtml(nome)+'</div>'
+    +'<div style="font-size:.78rem;color:var(--muted);margin-top:.25rem">Pontos atuais: <b style="color:var(--accent)">'+pontosAtuais+'</b></div>'
+    +'</div>'
+    +'<div class="fg"><label class="lbl">Quantos pontos adicionar?</label>'
+    +'<input class="inp" id="pts-valor" type="number" min="1" placeholder="Ex: 10" style="font-size:1.2rem;font-family:var(--font);font-weight:700"></div>'
+    +'<div style="display:flex;gap:.375rem;margin-bottom:.875rem">'
+    +'<button data-val="5" onclick="document.getElementById(\"pts-valor\").value=this.dataset.val" style="flex:1;padding:.5rem;background:var(--card2);border:1px solid var(--border2);color:var(--muted);border-radius:8px;cursor:pointer;font-family:var(--body);font-size:.78rem">+5</button>'
+    +'<button data-val="10" onclick="document.getElementById(\"pts-valor\").value=this.dataset.val" style="flex:1;padding:.5rem;background:var(--card2);border:1px solid var(--border2);color:var(--muted);border-radius:8px;cursor:pointer;font-family:var(--body);font-size:.78rem">+10</button>'
+    +'<button data-val="20" onclick="document.getElementById(\"pts-valor\").value=this.dataset.val" style="flex:1;padding:.5rem;background:var(--card2);border:1px solid var(--border2);color:var(--muted);border-radius:8px;cursor:pointer;font-family:var(--body);font-size:.78rem">+20</button>'
+    +'<button data-val="50" onclick="document.getElementById(\"pts-valor\").value=this.dataset.val" style="flex:1;padding:.5rem;background:var(--card2);border:1px solid var(--border2);color:var(--muted);border-radius:8px;cursor:pointer;font-family:var(--body);font-size:.78rem">+50</button>'
+    +'</div>'
+    +'<div style="display:flex;gap:.5rem">'
+    +'<button data-id="'+id+'" data-pts="'+pontosAtuais+'" onclick="confirmarPontos(this.dataset.id,parseInt(this.dataset.pts))" style="flex:1;padding:.875rem;background:var(--accent);color:var(--black);border:none;border-radius:var(--r);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer">⭐ Confirmar</button>'
+    +'<button onclick="closeModal()" style="flex:1;padding:.875rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer">Cancelar</button>'
+    +'</div>';
+  openModal(html);
+  setTimeout(function(){ var el=document.getElementById('pts-valor'); if(el) el.focus(); }, 100);
+}
+
+async function confirmarPontos(id, pontosAtuais){
+  var inp = document.getElementById('pts-valor');
+  var pts = parseInt(inp?.value);
+  if(!pts||pts<=0){ toast('⚠️ Informe a quantidade de pontos', false); return; }
+
+  var novoPts = pontosAtuais + pts;
+  var { error } = await sb.from('customers').update({ pontos: novoPts }).eq('id', id);
+  if(error){ toast('⚠️ Erro: '+error.message, false); return; }
+
+  var c = S.customers.find(function(x){ return x.id===id; });
+  if(c) c.pontos = novoPts;
+
+  closeModal();
+  toast('⭐ '+pts+' pontos adicionados!');
+  logAuditoria('fidelidade', 'Adicionou '+pts+' pontos para cliente');
+  renderView('fidelidade');
 }
 
 function renderView(view){
@@ -697,6 +818,7 @@ function renderView(view){
     agentes: renderAgentes,
     config: renderConfig,
     mural: renderMural,
+    fidelidade: renderFidelidade,
   };
   const result = (views[view]||renderDashboard)();
   if(result && typeof result.then === 'function'){
