@@ -1495,10 +1495,11 @@ function selectAgent(tipo){
 // ══════════════════════════════════════════
 function renderAgentes(){
   const todos = [
-    {tipo:'fidelidade',icon:'🎯',nome:'Agente Fidelidade',desc:'Pontos, clientes, prêmios e notificações WhatsApp',ativo:true,link:true},
-    {tipo:'gestor',icon:'👔',nome:'Agente Gestor',desc:'Tarefas, equipe e relatórios automáticos',ativo:true,link:false},
-    {tipo:'trafego',icon:'📱',nome:'Agente Tráfego',desc:'Conteúdo, posts e anúncios automáticos',ativo:false,em_breve:true},
-    {tipo:'financeiro',icon:'💰',nome:'Agente Financeiro',desc:'Fluxo de caixa, alertas e projeções',ativo:false,em_breve:true},
+    {tipo:'fidelidade',icon:'🎯',nome:'Agente Fidelidade',desc:'Pontos, clientes, prêmios e notificações WhatsApp',ativo:true,nav:'fidelidade'},
+    {tipo:'gestor',icon:'👔',nome:'Agente Gestor',desc:'Tarefas, equipe e relatórios automáticos',ativo:true,nav:'tarefas'},
+    {tipo:'social',icon:'📱',nome:'Agente Social Mídia',desc:'Imagens, legendas e conteúdo para redes sociais com IA',ativo:true,ext:'jgerente-social.html'},
+    {tipo:'financeiro',icon:'💰',nome:'Agente Financeiro',desc:'Fluxo de caixa, alertas e projeções com IA',ativo:true,ext:'jgerente-financeiro.html'},
+    {tipo:'contabilidade',icon:'📊',nome:'Agente Contabilidade',desc:'MEI, Simples Nacional, impostos e obrigações fiscais',ativo:true,nav:'contabilidade'},
     {tipo:'estoque',icon:'📦',nome:'Agente Estoque',desc:'Controle de produtos e alertas de ruptura',ativo:false,em_breve:true},
   ];
 
@@ -1506,7 +1507,8 @@ function renderAgentes(){
     const soon = a.em_breve ? '<span style="font-size:.6rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:#8B8B99;padding:.1rem .5rem;border-radius:100px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-left:.25rem">Em breve</span>' : '';
     let btn = '';
     if(a.em_breve) btn = '<span style="font-size:.72rem;color:var(--muted)">🔒 Em breve</span>';
-    else if(a.link) btn = '<a href="https://ppeu07280-oss.github.io/acaipoints/acaipoints-admin.html" target="_blank" class="agent-row-btn primary">Abrir ↗</a>';
+    else if(a.ext) btn = '<button onclick="window.open(\'' + a.ext + '\',\'_blank\')" class="agent-row-btn primary">Abrir ↗</button>';
+    else if(a.nav) btn = '<button onclick="navTo(\'' + a.nav + '\')" class="agent-row-btn primary">Abrir →</button>';
     else btn = '<span class="agent-row-status"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span> Ativo</span>';
     return '<div class="agent-row">'
       +'<div class="agent-row-icon">'+a.icon+'</div>'
