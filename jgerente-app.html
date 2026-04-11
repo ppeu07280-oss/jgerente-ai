@@ -485,7 +485,7 @@ option{background:var(--card2)}
       <button class="sb-btn active" onclick="navTo('dashboard')"><span class="sb-icon">🏠</span>Dashboard</button>
       <button class="sb-btn" onclick="navTo('tarefas')"><span class="sb-icon">📋</span>Tarefas</button>
       <button class="sb-btn" onclick="navTo('equipe')"><span class="sb-icon">👥</span>Equipe</button>
-      <button class="sb-btn" onclick="navTo('presenca')"><span class="sb-icon">🕐</span>Presença</button>
+      
       <div class="sb-section">Agentes</div>
       <button class="sb-btn" onclick="navTo('chat')"><span class="sb-icon">💬</span>IA Gerente</button>
       <button class="sb-btn" onclick="navTo('agentes')"><span class="sb-icon">🤖</span>Meus Agentes</button>
@@ -675,7 +675,7 @@ function navTo(view){
   if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
   // Bottom nav mobile
   document.querySelectorAll('.bn-btn').forEach(b=>b.classList.remove('active'));
-  var bnMap={dashboard:'bn-dashboard',tarefas:'bn-tarefas',equipe:'bn-equipe',presenca:'bn-mais',chat:'bn-chat',agentes:'bn-mais',mural:'bn-mais',config:'bn-mais',auditoria:'bn-mais',fidelidade:'bn-mais',contabilidade:'bn-mais'};
+  var bnMap={dashboard:'bn-dashboard',tarefas:'bn-tarefas',equipe:'bn-equipe',presenca:'bn-mais',chat:'bn-chat',agentes:'bn-mais',mural:'bn-mais',config:'bn-mais',auditoria:'bn-mais',fidelidade:'bn-mais',contabilidade:'bn-mais',social:'bn-mais',financeiro:'bn-mais'};
   var bnId = bnMap[view];
   if(bnId){ var el=document.getElementById(bnId); if(el) el.classList.add('active'); }
   renderView(view);
@@ -2618,8 +2618,9 @@ function closeMaisMenu(){
     <button onclick="closeMaisMenu();navTo('mural')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🏆</span><div><div style="font-size:.75rem;font-weight:700">Mural</div><div style="font-size:.65rem;color:var(--muted)">Ranking equipe</div></div></button>
     <button onclick="closeMaisMenu();navTo('presenca')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🕐</span><div><div style="font-size:.75rem;font-weight:700">Presença</div><div style="font-size:.65rem;color:var(--muted)">Entrada e saída</div></div></button>
   </div>
-  <div style="font-family:var(--font);font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;padding:0 .25rem">Sistema</div>
+  <div style="font-family:var(--font);font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;padding:0 .25rem">Mais opções</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:1rem">
+    
     <button onclick="closeMaisMenu();navTo('agentes')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🤖</span><div><div style="font-size:.75rem;font-weight:700">Meus Agentes</div><div style="font-size:.65rem;color:var(--muted)">Configurar</div></div></button>
     <button onclick="closeMaisMenu();navTo('auditoria')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🔍</span><div><div style="font-size:.75rem;font-weight:700">Auditoria</div><div style="font-size:.65rem;color:var(--muted)">Logs do sistema</div></div></button>
     <button onclick="closeMaisMenu();navTo('config')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">⚙️</span><div><div style="font-size:.75rem;font-weight:700">Configurações</div><div style="font-size:.65rem;color:var(--muted)">Empresa e plano</div></div></button>
