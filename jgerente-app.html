@@ -669,7 +669,7 @@ function navTo(view){
   S.view = view;
   // Sidebar
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
-  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,mural:9,auditoria:10,config:11};
+  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,mural:9,auditoria:10,contabilidade:11,config:12};
   const btns=document.querySelectorAll('.sb-btn');
   if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
   // Bottom nav mobile
@@ -819,6 +819,7 @@ function renderView(view){
     config: renderConfig,
     mural: renderMural,
     fidelidade: renderFidelidade,
+    contabilidade: renderContabilidade,
   };
   const result = (views[view]||renderDashboard)();
   if(result && typeof result.then === 'function'){
@@ -2229,7 +2230,7 @@ function renderMarkdown(text){
     .replace(/>/g,'&gt;');
   
   // Process line by line
-  var lines = t.split('\n');
+  var lines = t.split("\n");
   var result = lines.map(function(line){
     // Headers
     if(line.startsWith('### ')) return '<div style="font-weight:700;font-size:.85rem;margin:.5rem 0 .2rem">'+line.slice(4)+'</div>';
@@ -2418,6 +2419,134 @@ function verDetalhes(id){
     +'<button onclick="closeModal()" style="width:100%;padding:.75rem;background:var(--card2);border:1px solid var(--border2);color:var(--white);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--body)">Fechar</button>';
 
   openModal(html);
+}
+
+// ══════════════════════════════════════════
+// AGENTE CONTABILIDADE
+// ══════════════════════════════════════════
+let contabMsgs = [];
+let contabBusy = false;
+
+function renderContabilidade(){
+  const msgsHtml = contabMsgs.length === 0
+    ? '<div style="text-align:center;padding:2.5rem 1rem">'
+      +'<div style="font-size:2.5rem;margin-bottom:.75rem">📊</div>'
+      +'<div style="font-family:var(--font);font-size:.9rem;font-weight:700;margin-bottom:.5rem">Agente Contabilidade</div>'
+      +'<div style="font-size:.82rem;color:var(--muted);line-height:1.6;margin-bottom:1.5rem;max-width:380px;margin-left:auto;margin-right:auto">Especialista em contabilidade brasileira — MEI, Simples Nacional, DAS, IRPJ, folha de pagamento e obrigações fiscais.</div>'
+      +'<div style="display:flex;flex-direction:column;gap:.5rem;max-width:360px;margin:0 auto;text-align:left">'
+      +'<div data-q="Qual é o prazo para pagar o DAS do MEI esse mês?" onclick="sendContab(this.dataset.q)" style="padding:.75rem 1rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-size:.8rem;transition:border-color .15s">📅 Quando vence o DAS do MEI?</div>'
+      +'<div data-q="Quais impostos eu pago no Simples Nacional?" onclick="sendContab(this.dataset.q)" style="padding:.75rem 1rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-size:.8rem;transition:border-color .15s">💰 Impostos do Simples Nacional</div>'
+      +'<div data-q="Como funciona a folha de pagamento para pequenas empresas?" onclick="sendContab(this.dataset.q)" style="padding:.75rem 1rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-size:.8rem;transition:border-color .15s">👥 Como funciona a folha de pagamento?</div>'
+      +'<div data-q="Quais são as obrigações fiscais mensais da minha empresa?" onclick="sendContab(this.dataset.q)" style="padding:.75rem 1rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-size:.8rem;transition:border-color .15s">📋 Obrigações fiscais mensais</div>'
+      +'</div></div>'
+    : contabMsgs.map(function(m){
+        if(m.role==='system') return '<div style="text-align:center;color:var(--muted);font-size:.72rem;padding:.375rem">'+escHtml(m.content)+'</div>';
+        var isUser = m.role==='user';
+        return '<div style="display:flex;gap:.625rem;max-width:88%;'+(isUser?'align-self:flex-end;flex-direction:row-reverse':'align-self:flex-start')+'">'
+          +'<div style="width:30px;height:30px;border-radius:50%;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;margin-top:2px">'+(isUser?'👤':'📊')+'</div>'
+          +'<div style="padding:.75rem 1rem;border-radius:'+(isUser?'16px 16px 4px 16px':'16px 16px 16px 4px')+';font-size:.84rem;line-height:1.65;'+(isUser?'background:linear-gradient(135deg,#00FF88,#00CCFF);color:#050508':'background:var(--card2);border:1px solid var(--border);color:var(--white)')+'">'+renderMarkdown(m.content)+'</div>'
+          +'</div>';
+      }).join('');
+
+  var html = '<div class="main-header">'
+    +'<div><div class="page-title">📊 Agente Contabilidade</div>'
+    +'<div class="page-sub">Especialista em contabilidade brasileira 24/7</div></div>'
+    +'<a href="https://wa.me/5586994401190?text=Ol%C3%A1!%20Vim%20pelo%20JgerenteAI%20e%20preciso%20de%20ajuda%20com%20contabilidade." target="_blank" style="display:inline-flex;align-items:center;gap:.5rem;padding:.625rem 1.125rem;background:#25D366;color:white;border-radius:100px;font-family:var(--font);font-size:.7rem;font-weight:700;text-decoration:none;flex-shrink:0">'
+    +'<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>'
+    +'Falar com Contador'
+    +'</a>'
+    +'</div>'
+
+    // Chat area
+    +'<div style="display:flex;flex-direction:column;height:calc(100vh - 200px)">'
+    +'<div id="contab-msgs" style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.875rem">'
+    +msgsHtml
+    +'</div>'
+
+    // Input
+    +'<div style="padding:.875rem;border-top:1px solid var(--border);background:var(--black);flex-shrink:0">'
+    +'<div style="background:var(--card2);border:1.5px solid var(--border2);border-radius:14px;overflow:hidden" id="contab-input-box">'
+    +'<div style="display:flex;align-items:flex-end;padding:.625rem .75rem .5rem">'
+    +'<textarea id="contab-inp" rows="2" placeholder="Pergunte sobre impostos, obrigações, MEI, Simples Nacional..." style="flex:1;background:none;border:none;color:var(--white);font-family:var(--body);font-size:.88rem;outline:none;resize:none;line-height:1.5" oninput="autoResizeContab(this)" onkeydown="if(event.keyCode===13&&!event.shiftKey){event.preventDefault();sendContab()}"></textarea>'
+    +'<button id="contab-send" onclick="sendContab()" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#00FF88,#00CCFF);border:none;cursor:pointer;color:#050508;font-size:.9rem;font-weight:900;margin-left:.5rem;flex-shrink:0;transition:opacity .2s">↑</button>'
+    +'</div>'
+    +'<div style="padding:0 .75rem .625rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:.375rem;overflow-x:auto;scrollbar-width:none">'
+    +'<div data-q="Qual o limite de faturamento do MEI em 2026?" onclick="sendContab(this.dataset.q)" style="padding:.3rem .75rem;background:var(--card);border:1px solid var(--border2);color:var(--muted);font-size:.68rem;border-radius:100px;cursor:pointer;white-space:nowrap;flex-shrink:0">💰 Limite MEI</div>'
+    +'<div data-q="Quando devo emitir nota fiscal?" onclick="sendContab(this.dataset.q)" style="padding:.3rem .75rem;background:var(--card);border:1px solid var(--border2);color:var(--muted);font-size:.68rem;border-radius:100px;cursor:pointer;white-space:nowrap;flex-shrink:0">🧾 Nota fiscal</div>'
+    +'<div data-q="O que é pró-labore e como calcular?" onclick="sendContab(this.dataset.q)" style="padding:.3rem .75rem;background:var(--card);border:1px solid var(--border2);color:var(--muted);font-size:.68rem;border-radius:100px;cursor:pointer;white-space:nowrap;flex-shrink:0">💼 Pró-labore</div>'
+    +'<div data-q="Como declarar o IRPJ?" onclick="sendContab(this.dataset.q)" style="padding:.3rem .75rem;background:var(--card);border:1px solid var(--border2);color:var(--muted);font-size:.68rem;border-radius:100px;cursor:pointer;white-space:nowrap;flex-shrink:0">📋 IRPJ</div>'
+    +'<div data-q="Diferença entre MEI, ME e EPP?" onclick="sendContab(this.dataset.q)" style="padding:.3rem .75rem;background:var(--card);border:1px solid var(--border2);color:var(--muted);font-size:.68rem;border-radius:100px;cursor:pointer;white-space:nowrap;flex-shrink:0">🏢 MEI vs ME</div>'
+    +'</div>'
+    +'</div></div></div>';
+
+  document.getElementById('main').innerHTML = html;
+
+  // Scroll to bottom
+  var msgs = document.getElementById('contab-msgs');
+  if(msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+function renderMarkdown(text){
+  if(!text) return '';
+  var t = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  var lines = t.split(/\r?\n/);
+  var r = lines.map(function(l){
+    if(l.indexOf('### ')===0) return '<b style="display:block;margin:.4rem 0 .1rem">'+l.slice(4)+'</b>';
+    if(l.indexOf('## ')===0) return '<b style="display:block;margin:.5rem 0 .15rem">'+l.slice(3)+'</b>';
+    if(l.indexOf('* ')===0||l.indexOf('- ')===0) return '<div style="padding-left:.625rem;margin:.1rem 0">&bull; '+l.slice(2)+'</div>';
+    var nm = l.match(/^(\d+)\. (.+)$/);
+    if(nm) return '<div style="padding-left:.625rem;margin:.1rem 0"><b>'+nm[1]+'.</b> '+nm[2]+'</div>';
+    if(l==='---') return '<hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:.4rem 0">';
+    return l ? '<div>'+l+'</div>' : '<div style="height:.3rem"></div>';
+  }).join('');
+  return r.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*(.+?)\*/g,'<i>$1</i>');
+}
+async function sendContab(txt){
+  if(contabBusy) return;
+  var inp = document.getElementById('contab-inp');
+  var msg = txt || (inp&&inp.value.trim());
+  if(!msg) return;
+  if(inp){ inp.value=''; inp.style.height='auto'; }
+
+  contabMsgs.push({role:'user', content:msg});
+  contabBusy = true;
+
+  var sendBtn = document.getElementById('contab-send');
+  if(sendBtn) sendBtn.disabled = true;
+
+  contabMsgs.push({role:'system', content:'Consultando especialista...'});
+  renderContabilidade();
+
+  try{
+    var systemPrompt = 'Você é um especialista em contabilidade brasileira com 20 anos de experiência.'
+      +' Empresa do cliente: "'+escHtml(S.company&&S.company.nome||'empresa')+'".'
+      +' Você domina: MEI, Simples Nacional, Lucro Presumido, Lucro Real, folha de pagamento, eSocial,'
+      +' SPED, DCTF, EFD-Contribuições, IRPJ, CSLL, PIS, COFINS, ICMS, ISS, INSS, FGTS, DAS.'
+      +' Responda sempre em português, de forma clara e direta para o empresário leigo.'
+      +' Quando necessário, recomende falar com um contador para casos específicos.'
+      +' Use formatação com tópicos quando a resposta for longa. Seja preciso com datas e valores atuais de 2026.';
+
+    var res = await fetch('https://jgerente-ai.vercel.app/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        messages: contabMsgs.filter(function(m){ return m.role==='user'||m.role==='assistant'; }).slice(-10),
+        systemPrompt: systemPrompt
+      })
+    });
+    var data = await res.json();
+    var reply = data.response || 'Erro ao processar.';
+
+    contabMsgs = contabMsgs.filter(function(m){ return m.content!=='Consultando especialista...'; });
+    contabMsgs.push({role:'assistant', content:reply});
+
+  }catch(e){
+    contabMsgs = contabMsgs.filter(function(m){ return m.content!=='Consultando especialista...'; });
+    contabMsgs.push({role:'assistant', content:'Erro ao conectar. Tente novamente.'});
+  }
+
+  contabBusy = false;
+  renderContabilidade();
 }
 
 // ── BOOT ──
