@@ -493,7 +493,8 @@ option{background:var(--card2)}
       <button class="sb-btn" onclick="window.open('jgerente-financeiro.html','_blank')"><span class="sb-icon">💰</span>Financeiro ↗</button>
       <button class="sb-btn" onclick="window.open('jgerente-social.html','_blank')"><span class="sb-icon">📱</span>Social Mídia ↗</button>
       <div class="sb-section">Conta</div>
-      <button class="sb-btn" onclick="navTo('auditoria')"><span class="sb-icon">🔍</span>Auditoria</button>
+      <button class="sb-btn" onclick="navTo('mural')"><span class="sb-icon">🏆</span>Mural da Equipe</button>
+          <button class="sb-btn" onclick="navTo('auditoria')"><span class="sb-icon">🔍</span>Auditoria</button>
       <button class="sb-btn" onclick="navTo('config')"><span class="sb-icon">⚙️</span>Configurações</button>
     </div>
     <div class="sb-footer">
@@ -668,12 +669,12 @@ function navTo(view){
   S.view = view;
   // Sidebar
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
-  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,auditoria:9,config:10};
+  const map={dashboard:0,tarefas:1,equipe:2,presenca:3,chat:4,agentes:5,mural:9,auditoria:10,config:11};
   const btns=document.querySelectorAll('.sb-btn');
   if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
   // Bottom nav mobile
   document.querySelectorAll('.bn-btn').forEach(b=>b.classList.remove('active'));
-  var bnMap={dashboard:'bn-dashboard',tarefas:'bn-tarefas',equipe:'bn-equipe',presenca:'bn-equipe',chat:'bn-chat',agentes:'bn-chat',config:'bn-config',auditoria:'bn-config'};
+  var bnMap={dashboard:'bn-dashboard',tarefas:'bn-tarefas',equipe:'bn-equipe',presenca:'bn-equipe',chat:'bn-chat',agentes:'bn-chat',mural:'bn-mural',config:'bn-config',auditoria:'bn-config'};
   var bnId = bnMap[view];
   if(bnId){ var el=document.getElementById(bnId); if(el) el.classList.add('active'); }
   renderView(view);
@@ -695,6 +696,7 @@ function renderView(view){
     chat: renderChat,
     agentes: renderAgentes,
     config: renderConfig,
+    mural: renderMural,
   };
   const result = (views[view]||renderDashboard)();
   if(result && typeof result.then === 'function'){
@@ -709,6 +711,112 @@ function renderView(view){
 // ══════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// SCORE DE SAÚDE
+// ══════════════════════════════════════════
+function calcScore(){
+  const hoje = new Date().toISOString().split('T')[0];
+  let score = 0;
+  const detalhes = [];
+
+  // Tarefas — 25 pontos
+  const total = S.tarefas.filter(function(t){ return !t.tarefa_pai_id; }).length;
+  const concluidas = S.tarefas.filter(function(t){ return t.status==='concluida'; }).length;
+  const taxaTarefas = total > 0 ? concluidas/total : 0;
+  const pontosTarefas = Math.round(taxaTarefas * 25);
+  score += pontosTarefas;
+  detalhes.push({ label:'Tarefas concluídas', pts:pontosTarefas, max:25,
+    txt: total===0 ? 'Nenhuma tarefa criada' : Math.round(taxaTarefas*100)+'% concluídas' });
+
+  // Presença — 20 pontos
+  const totalFunc = S.equipe.filter(function(m){ return m.id!==S.usuario?.id && m.ativo!==false; }).length;
+  const presentesHoje = new Set(
+    S.presencas.filter(function(p){ return p.tipo==='entrada'; }).map(function(p){ return p.usuario_id; })
+  ).size;
+  const taxaPresenca = totalFunc > 0 ? Math.min(1, presentesHoje/totalFunc) : 0;
+  const pontosPresenca = Math.round(taxaPresenca * 20);
+  score += pontosPresenca;
+  detalhes.push({ label:'Presença da equipe', pts:pontosPresenca, max:20,
+    txt: totalFunc===0 ? 'Nenhum funcionário' : presentesHoje+' de '+totalFunc+' presentes' });
+
+  // Clientes fidelidade — 20 pontos
+  const clientes = S.customers.length;
+  const pontosClientes = clientes===0 ? 0 : clientes < 10 ? 8 : clientes < 50 ? 14 : clientes < 100 ? 18 : 20;
+  score += pontosClientes;
+  detalhes.push({ label:'Clientes fidelizados', pts:pontosClientes, max:20,
+    txt: clientes===0 ? 'Nenhum cliente cadastrado' : clientes+' clientes no programa' });
+
+  // Contas em dia — 15 pontos (verificado via agente financeiro - usa presença de dados)
+  const pontosFinanceiro = 15; // Base — financeiro requer dados do agente financeiro
+  score += pontosFinanceiro;
+  detalhes.push({ label:'Situação financeira', pts:pontosFinanceiro, max:15,
+    txt:'Acesse o Agente Financeiro para análise completa' });
+
+  // Agentes ativos — 10 pontos
+  const agentesAtivos = S.agentes ? S.agentes.filter(function(a){ return a.ativo; }).length : 0;
+  const pontosAgentes = agentesAtivos === 0 ? 0 : agentesAtivos === 1 ? 5 : agentesAtivos >= 2 ? 10 : 0;
+  score += pontosAgentes;
+  detalhes.push({ label:'Agentes de IA ativos', pts:pontosAgentes, max:10,
+    txt: agentesAtivos+' agente(s) ativo(s)' });
+
+  // Equipe configurada — 10 pontos
+  const pontosEquipe = totalFunc === 0 ? 0 : totalFunc === 1 ? 5 : 10;
+  score += pontosEquipe;
+  detalhes.push({ label:'Equipe configurada', pts:pontosEquipe, max:10,
+    txt: totalFunc+' funcionário(s) cadastrado(s)' });
+
+  const cor = score >= 80 ? '#00FF88' : score >= 60 ? '#FFD600' : score >= 40 ? '#FF9500' : '#FF3D6B';
+  const emoji = score >= 80 ? '🟢' : score >= 60 ? '🟡' : score >= 40 ? '🟠' : '🔴';
+  const status = score >= 80 ? 'Excelente' : score >= 60 ? 'Bom' : score >= 40 ? 'Atenção' : 'Crítico';
+
+  return { score, cor, emoji, status, detalhes };
+}
+
+function renderScore(){
+  const { score, cor, emoji, status, detalhes } = calcScore();
+  const pct = score;
+
+  return '<div class="sec-card" style="border-color:'+cor+'22;margin-bottom:1rem">'
+    +'<div class="sec-card-header" style="cursor:pointer" onclick="toggleScoreDetalhes()">'
+    +'<div class="sec-card-title">'+emoji+' Score de Saúde da Empresa</div>'
+    +'<div style="font-family:var(--font);font-size:.8rem;font-weight:900;color:'+cor+'">'+score+'/100</div>'
+    +'</div>'
+    +'<div class="sec-card-body">'
+    +'<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.875rem">'
+    +'<div style="flex:1;height:8px;background:var(--border);border-radius:100px;overflow:hidden">'
+    +'<div style="height:100%;width:'+pct+'%;background:'+cor+';border-radius:100px;transition:width .8s ease"></div>'
+    +'</div>'
+    +'<div style="font-family:var(--font);font-size:.78rem;font-weight:700;color:'+cor+';flex-shrink:0">'+status+'</div>'
+    +'</div>'
+    +'<div id="score-detalhes" style="display:none">'
+    +detalhes.map(function(d){
+      var pctD = Math.round((d.pts/d.max)*100);
+      var corD = d.pts===d.max ? 'var(--accent)' : d.pts > d.max*0.5 ? 'var(--warning)' : 'var(--error)';
+      return '<div style="margin-bottom:.625rem">'
+        +'<div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem">'
+        +'<span style="color:var(--muted)">'+d.label+'</span>'
+        +'<span style="color:'+corD+';font-weight:700">'+d.pts+'/'+d.max+'</span>'
+        +'</div>'
+        +'<div style="height:4px;background:var(--border);border-radius:100px;overflow:hidden;margin-bottom:.2rem">'
+        +'<div style="height:100%;width:'+pctD+'%;background:'+corD+';border-radius:100px"></div>'
+        +'</div>'
+        +'<div style="font-size:.68rem;color:var(--muted)">'+d.txt+'</div>'
+        +'</div>';
+    }).join('')
+    +'</div>'
+    +'<div style="font-size:.68rem;color:var(--muted);text-align:center;margin-top:.375rem">Clique para ver detalhes ↓</div>'
+    +'</div></div>';
+}
+
+function toggleScoreDetalhes(){
+  var el = document.getElementById('score-detalhes');
+  if(!el) return;
+  var showing = el.style.display !== 'none';
+  el.style.display = showing ? 'none' : 'block';
+  var hint = el.parentElement.nextElementSibling;
+  if(hint) hint.textContent = showing ? 'Clique para ver detalhes ↓' : 'Clique para fechar ↑';
+}
+
 function renderDashboard(){
   const pendentes = S.tarefas.filter(t=>t.status==='pendente').length;
   const concluidas = S.tarefas.filter(t=>t.status==='concluida').length;
@@ -721,6 +829,18 @@ function renderDashboard(){
   if(S.equipe.length === 0) alertas.push({icon:'👥',dot:'red',title:'Nenhum funcionário cadastrado',text:'Cadastre sua equipe para distribuir tarefas e controlar a operação.'});
   if(S.agentes.length === 0) alertas.push({icon:'🤖',dot:'yellow',title:'Nenhum agente ativo',text:'Ative seus agentes para começar a automatizar a gestão.'});
   if(clientes > 0) alertas.push({icon:'🎯',dot:'green',title:`${clientes} clientes no programa de fidelidade`,text:'Seu programa está ativo. Continue engajando seus clientes.'});
+  // Anti-churn: clientes sem compras há mais de 30 dias
+  if(S.customers.length > 0){
+    const trintaDiasAtras = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+    const clientesSumidos = S.customers.filter(function(c){
+      return c.updated_at && c.updated_at < trintaDiasAtras;
+    }).length;
+    if(clientesSumidos > 0){
+      alertas.push({icon:'👻',dot:'yellow',
+        title:clientesSumidos+' cliente(s) sumiram há mais de 30 dias',
+        text:'Esses clientes não interagem há muito tempo. Mande uma mensagem de reativação pelo programa de fidelidade.'});
+    }
+  }
   if(alertas.length===0) alertas.push({icon:'✅',dot:'green',title:'Tudo em ordem!',text:'Nenhum alerta no momento. Sua operação está funcionando bem.'});
 
   // Trial info
@@ -736,6 +856,7 @@ function renderDashboard(){
     ${diasTrial>0?`<div style="font-size:.72rem;color:var(--warning);background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.15);padding:.4rem .875rem;border-radius:100px;font-weight:600">⏳ Trial: ${diasTrial} dias restantes</div>`:''}
   </div>
   <div class="content">
+    ${renderScore()}
     <div class="cards-grid">
       <div class="metric-card green">
         <div class="metric-label">Clientes Fidelidade</div>
@@ -2023,6 +2144,110 @@ function assinar(plano){
   window.open('jgerente-checkout.html?'+params.toString(), '_blank');
 }
 
+// ══════════════════════════════════════════
+// MURAL DA EQUIPE
+// ══════════════════════════════════════════
+function renderMural(){
+  const membros = S.equipe.filter(function(m){ return m.perfil==='funcionario' && m.ativo!==false; });
+
+  // Calcular performance de cada membro
+  const ranking = membros.map(function(m){
+    const minhasTarefas = S.tarefas.filter(function(t){ return t.atribuido_para===m.id; });
+    const concluidas = minhasTarefas.filter(function(t){ return t.status==='concluida'; }).length;
+    const pendentes = minhasTarefas.filter(function(t){ return t.status==='pendente'; }).length;
+    const total = minhasTarefas.length;
+    const taxa = total > 0 ? Math.round((concluidas/total)*100) : 0;
+
+    // Presença essa semana
+    const semanaAtras = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+    const presencaSemana = (S.presencas||[]).filter(function(p){
+      return p.usuario_id===m.id && p.tipo==='entrada' && p.created_at >= semanaAtras;
+    }).length;
+
+    // Score do funcionário
+    var score = 0;
+    score += Math.min(50, taxa * 0.5); // até 50 pts por taxa de conclusão
+    score += Math.min(30, presencaSemana * 6); // até 30 pts por presença (5 dias = 30)
+    score += Math.min(20, concluidas * 2); // até 20 pts por volume
+
+    return { ...m, concluidas, pendentes, total, taxa, presencaSemana, score: Math.round(score) };
+  }).sort(function(a,b){ return b.score - a.score; });
+
+  const medalhas = ['🥇','🥈','🥉'];
+  const corScore = function(s){ return s>=80?'var(--accent)':s>=60?'var(--warning)':s>=40?'rgba(255,149,0,1)':'var(--error)'; };
+
+  var html = '<div class="main-header">'
+    +'<div><div class="page-title">🏆 Mural da Equipe</div>'
+    +'<div class="page-sub">Ranking de performance da semana</div></div>'
+    +'</div>'
+    +'<div class="content">';
+
+  if(ranking.length === 0){
+    html += '<div style="text-align:center;padding:3rem;color:var(--muted)">'
+      +'<div style="font-size:2.5rem;margin-bottom:.75rem">👥</div>'
+      +'<div>Nenhum funcionário cadastrado ainda.</div></div>';
+  } else {
+    // Top 3 podium
+    if(ranking.length >= 3){
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:1.25rem;text-align:center">';
+      [ranking[1], ranking[0], ranking[2]].forEach(function(m, i){
+        var posOriginal = i===1 ? 0 : i===0 ? 1 : 2;
+        var altura = i===1 ? '120px' : '90px';
+        html += '<div style="background:var(--card);border:1px solid '+(posOriginal===0?'rgba(255,214,0,.3)':'var(--border)')+';border-radius:16px;padding:1rem .5rem">'
+          +'<div style="font-size:'+(posOriginal===0?'2.5rem':'1.75rem')+'">'+medalhas[posOriginal]+'</div>'
+          +'<div style="font-size:1.75rem;margin:.25rem 0">'+avColor(m.nome)+'</div>'
+          +'<div style="font-family:var(--font);font-size:.7rem;font-weight:700;margin-bottom:.25rem">'+escHtml(m.nome.split(' ')[0])+'</div>'
+          +'<div style="font-family:var(--font);font-size:1rem;font-weight:900;color:'+corScore(m.score)+'">'+m.score+'</div>'
+          +'<div style="font-size:.65rem;color:var(--muted)">pts</div>'
+          +'</div>';
+      });
+      html += '</div>';
+    }
+
+    // Full ranking list
+    html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden">'
+      +'<div style="padding:.875rem 1.25rem;border-bottom:1px solid var(--border);font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Ranking completo</div>';
+
+    ranking.forEach(function(m, idx){
+      var posEmoji = idx < 3 ? medalhas[idx] : (idx+1)+'°';
+      var barW = Math.min(100, m.score);
+      html += '<div style="padding:.875rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.875rem">'
+        +'<div style="font-family:var(--font);font-size:.8rem;font-weight:900;min-width:28px;text-align:center">'+posEmoji+'</div>'
+        +'<div style="font-size:1.5rem">'+avColor(m.nome)+'</div>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:.82rem;font-weight:700;margin-bottom:.25rem">'+escHtml(m.nome)+'</div>'
+        +'<div style="height:4px;background:var(--border);border-radius:100px;overflow:hidden;margin-bottom:.2rem">'
+        +'<div style="height:100%;width:'+barW+'%;background:'+corScore(m.score)+';border-radius:100px"></div>'
+        +'</div>'
+        +'<div style="display:flex;gap:.875rem;font-size:.68rem;color:var(--muted)">'
+        +'<span>✅ '+m.concluidas+' concluídas</span>'
+        +'<span>📋 '+m.total+' tarefas</span>'
+        +'<span>📅 '+m.presencaSemana+'x presença</span>'
+        +'</div>'
+        +'</div>'
+        +'<div style="text-align:right;flex-shrink:0">'
+        +'<div style="font-family:var(--font);font-size:1.1rem;font-weight:900;color:'+corScore(m.score)+'">'+m.score+'</div>'
+        +'<div style="font-size:.65rem;color:var(--muted)">pontos</div>'
+        +'</div>'
+        +'</div>';
+    });
+
+    html += '</div>';
+
+    // Legenda pontuação
+    html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-top:.875rem">'
+      +'<div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem">Como é calculado</div>'
+      +'<div style="display:flex;flex-direction:column;gap:.375rem;font-size:.75rem;color:var(--muted)">'
+      +'<div>✅ Até <b style="color:var(--white)">50 pontos</b> por taxa de tarefas concluídas</div>'
+      +'<div>📅 Até <b style="color:var(--white)">30 pontos</b> por presença na semana</div>'
+      +'<div>📋 Até <b style="color:var(--white)">20 pontos</b> por volume de trabalho</div>'
+      +'</div></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
 // ── PRESENÇA ──────────────────────────────────────
 async function registrarPresenca(tipo){
   const agora = new Date();
@@ -2095,6 +2320,9 @@ function verDetalhes(id){
   </button>
   <button class="bn-btn" id="bn-chat" onclick="navTo('chat')">
     <span class="bn-icon">💬</span>IA
+  </button>
+  <button class="bn-btn" id="bn-mural" onclick="navTo('mural')">
+    <span class="bn-icon">🏆</span>Mural
   </button>
   <button class="bn-btn" id="bn-config" onclick="navTo('config')">
     <span class="bn-icon">⚙️</span>Mais
