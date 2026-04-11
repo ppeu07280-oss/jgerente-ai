@@ -2101,9 +2101,26 @@ async function salvarMembro(){
     if(error) throw error;
     S.equipe.push(data);
     logAuditoria('membro_adicionado', 'Adicionou funcionário: "'+nome+'"');
-    closeModal();
-    toast('✅ Funcionário adicionado! Senha: '+senha);
     renderView('equipe');
+
+    // Mostra modal com senha — usuário precisa fechar manualmente
+    var senhaModal = '<div class="modal-title">✅ Funcionário adicionado!</div>'
+      +'<div style="background:var(--card2);border:1px solid rgba(0,255,136,.2);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;text-align:center">'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Funcionário: <b style="color:var(--white)">'+escHtml(nome)+'</b></div>'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Email: <b style="color:var(--white)">'+escHtml(email)+'</b></div>'
+      +'<div style="font-size:.72rem;color:var(--muted);margin-bottom:.375rem">🔑 Senha de acesso</div>'
+      +'<div style="font-family:var(--font);font-size:1.5rem;font-weight:900;color:var(--accent);letter-spacing:.1em;padding:.625rem;background:var(--card);border-radius:8px;margin-bottom:.75rem">'+senha+'</div>'
+      +'<div style="font-size:.7rem;color:var(--warning)">⚠️ Anote essa senha agora! Ela não será exibida novamente.</div>'
+      +'</div>'
+      
+      +'<button onclick="closeModal()" style="width:100%;padding:.875rem;background:none;border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer">Já anotei → Fechar</button>';
+    openModal(senhaModal);
+    // Add copy handler after modal opens
+    var _senha = senha;
+    setTimeout(function(){
+      var btn = document.getElementById('btn-copy-senha');
+      if(btn) btn.onclick = function(){ navigator.clipboard.writeText(_senha).then(function(){ toast('📋 Senha copiada!'); }); };
+    }, 100);
   }catch(e){
     console.error(e);
     toast('⚠️ Erro ao adicionar: '+e.message, false);
