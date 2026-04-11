@@ -1374,7 +1374,7 @@ function renderEquipe(){
     }).join('');
   }
 
-  el.innerHTML = '<div class="main-header"><div><div class="page-title">Equipe</div>'
+  return '<div class="main-header"><div><div class="page-title">Equipe</div>'
     +'<div class="page-sub">'+S.equipe.length+' membro(s) cadastrado(s)</div></div>'
     +'<button class="btn-add" onclick="showAddMembro()">+ Membro</button></div>'
     +'<div class="content">'
@@ -1426,7 +1426,7 @@ function renderPresencaDono(){
 
   const presentes = statusFuncionarios.filter(function(m){ return m.presente; }).length;
 
-  el.innerHTML = '<div class="main-header"><div><div class="page-title">Presença</div>'
+  return '<div class="main-header"><div><div class="page-title">Presença</div>'
     +'<div class="page-sub">'+presentes+' de '+S.equipe.length+' presente(s) agora</div></div>'
     +'<button class="btn-add" onclick="navTo(\"presenca\")" >↻ Atualizar</button></div>'
     +'<div class="content">'
