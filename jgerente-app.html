@@ -136,7 +136,7 @@ body{font-family:var(--body);background:var(--black);color:var(--white)}
 .btn-sair:hover{border-color:var(--error);color:var(--error)}
 
 /* ── MAIN CONTENT ── */
-.main{flex:1;overflow-y:auto;height:100vh;background:var(--black)}
+.main{flex:1;overflow-y:auto;height:100vh;background:var(--black);-webkit-overflow-scrolling:touch}
 .main-header{
   padding:1.5rem 2rem 0;
   display:flex;align-items:center;justify-content:space-between;
@@ -490,8 +490,8 @@ option{background:var(--card2)}
       <button class="sb-btn" onclick="navTo('chat')"><span class="sb-icon">💬</span>IA Gerente</button>
       <button class="sb-btn" onclick="navTo('agentes')"><span class="sb-icon">🤖</span>Meus Agentes</button>
       <button class="sb-btn" onclick="abrirFidelidade()"><span class="sb-icon">🎯</span>Fidelidade ↗</button>
-      <button class="sb-btn" onclick="window.open('jgerente-financeiro.html','_blank')"><span class="sb-icon">💰</span>Financeiro ↗</button>
-      <button class="sb-btn" onclick="window.open('jgerente-social.html','_blank')"><span class="sb-icon">📱</span>Social Mídia ↗</button>
+      <button class="sb-btn" onclick="window.location.href='jgerente-financeiro.html'"><span class="sb-icon">💰</span>Financeiro ↗</button>
+      <button class="sb-btn" onclick="window.location.href='jgerente-social.html'"><span class="sb-icon">📱</span>Social Mídia ↗</button>
           <button class="sb-btn" onclick="navTo('contabilidade')"><span class="sb-icon">📊</span>Contabilidade</button>
       <div class="sb-section">Conta</div>
       <button class="sb-btn" onclick="navTo('mural')"><span class="sb-icon">🏆</span>Mural da Equipe</button>
@@ -1346,7 +1346,6 @@ function filtrarAuditoria(){
 // EQUIPE
 // ══════════════════════════════════════════
 function renderEquipe(){
-  const el = document.getElementById('main');
   const membros = S.equipe.filter(function(m){ return m.id !== S.usuario?.id; });
 
   function rankingHtml(){
@@ -1407,7 +1406,6 @@ function renderEquipe(){
 // PRESENÇA DONO
 // ══════════════════════════════════════════
 function renderPresencaDono(){
-  const el = document.getElementById('main');
   const hoje = new Date().toISOString().split('T')[0];
 
   const statusFuncionarios = S.equipe.map(function(m){
@@ -2267,7 +2265,7 @@ function assinar(plano){
     nome: S.usuario.nome||'',
     company_id: S.company.id||''
   });
-  window.open('jgerente-checkout.html?'+params.toString(), '_blank');
+  window.location.href='jgerente-checkout.html?'+params.toString();
 }
 
 // ══════════════════════════════════════════
@@ -2482,9 +2480,10 @@ function renderContabilidade(){
     +'</div>'
     +'</div></div></div>';
 
-  document.getElementById('main').innerHTML = html;
+  return html;
+}
 
-  // Scroll to bottom
+function afterRenderContabilidade(){
   var msgs = document.getElementById('contab-msgs');
   if(msgs) msgs.scrollTop = msgs.scrollHeight;
 }
@@ -2549,7 +2548,8 @@ async function sendContab(txt){
   }
 
   contabBusy = false;
-  renderContabilidade();
+  renderView('contabilidade');
+  afterRenderContabilidade();
 }
 
 // ── MENU MAIS (MOBILE) ──
@@ -2612,8 +2612,8 @@ function closeMaisMenu(){
   <div style="font-family:var(--font);font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;padding:0 .25rem">Agentes</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:1rem">
     <button onclick="closeMaisMenu();navTo('fidelidade')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🎯</span><div><div style="font-size:.75rem;font-weight:700">Fidelidade</div><div style="font-size:.65rem;color:var(--muted)">Pontos e clientes</div></div></button>
-    <button onclick="closeMaisMenu();window.open('jgerente-financeiro.html','_blank')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">💰</span><div><div style="font-size:.75rem;font-weight:700">Financeiro</div><div style="font-size:.65rem;color:var(--muted)">Fluxo de caixa</div></div></button>
-    <button onclick="closeMaisMenu();window.open('jgerente-social.html','_blank')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">📱</span><div><div style="font-size:.75rem;font-weight:700">Social Mídia</div><div style="font-size:.65rem;color:var(--muted)">Posts com IA</div></div></button>
+    <button onclick="closeMaisMenu();window.location.href='jgerente-financeiro.html'" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">💰</span><div><div style="font-size:.75rem;font-weight:700">Financeiro</div><div style="font-size:.65rem;color:var(--muted)">Fluxo de caixa</div></div></button>
+    <button onclick="closeMaisMenu();window.location.href='jgerente-social.html'" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">📱</span><div><div style="font-size:.75rem;font-weight:700">Social Mídia</div><div style="font-size:.65rem;color:var(--muted)">Posts com IA</div></div></button>
     <button onclick="closeMaisMenu();navTo('contabilidade')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">📊</span><div><div style="font-size:.75rem;font-weight:700">Contabilidade</div><div style="font-size:.65rem;color:var(--muted)">Impostos e MEI</div></div></button>
     <button onclick="closeMaisMenu();navTo('mural')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🏆</span><div><div style="font-size:.75rem;font-weight:700">Mural</div><div style="font-size:.65rem;color:var(--muted)">Ranking equipe</div></div></button>
     <button onclick="closeMaisMenu();navTo('presenca')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🕐</span><div><div style="font-size:.75rem;font-weight:700">Presença</div><div style="font-size:.65rem;color:var(--muted)">Entrada e saída</div></div></button>
