@@ -675,7 +675,7 @@ function navTo(view){
   if(map[view]!==undefined) btns[map[view]]?.classList.add('active');
   // Bottom nav mobile
   document.querySelectorAll('.bn-btn').forEach(b=>b.classList.remove('active'));
-  var bnMap={dashboard:'bn-dashboard',tarefas:'bn-tarefas',equipe:'bn-equipe',presenca:'bn-equipe',chat:'bn-chat',agentes:'bn-chat',mural:'bn-mural',config:'bn-config',auditoria:'bn-config'};
+  var bnMap={dashboard:'bn-dashboard',tarefas:'bn-tarefas',equipe:'bn-equipe',presenca:'bn-mais',chat:'bn-chat',agentes:'bn-mais',mural:'bn-mais',config:'bn-mais',auditoria:'bn-mais',fidelidade:'bn-mais',contabilidade:'bn-mais'};
   var bnId = bnMap[view];
   if(bnId){ var el=document.getElementById(bnId); if(el) el.classList.add('active'); }
   renderView(view);
@@ -2552,6 +2552,31 @@ async function sendContab(txt){
   renderContabilidade();
 }
 
+// ── MENU MAIS (MOBILE) ──
+function toggleMaisMenu(){
+  var overlay = document.getElementById('mais-overlay');
+  var menu = document.getElementById('mais-menu');
+  var btn = document.getElementById('bn-mais');
+  if(!overlay||!menu) return;
+  var isOpen = overlay.style.display !== 'none';
+  if(isOpen){
+    closeMaisMenu();
+  } else {
+    overlay.style.display = 'block';
+    menu.style.display = 'block';
+    if(btn) btn.classList.add('active');
+  }
+}
+
+function closeMaisMenu(){
+  var overlay = document.getElementById('mais-overlay');
+  var menu = document.getElementById('mais-menu');
+  var btn = document.getElementById('bn-mais');
+  if(overlay) overlay.style.display = 'none';
+  if(menu) menu.style.display = 'none';
+  if(btn) btn.classList.remove('active');
+}
+
 // ── BOOT ──
 (async()=>{
   // Verificar sessão ativa
@@ -2575,12 +2600,31 @@ async function sendContab(txt){
   <button class="bn-btn" id="bn-chat" onclick="navTo('chat')">
     <span class="bn-icon">💬</span>IA
   </button>
-  <button class="bn-btn" id="bn-mural" onclick="navTo('mural')">
-    <span class="bn-icon">🏆</span>Mural
+  <button class="bn-btn" id="bn-mais" onclick="toggleMaisMenu()">
+    <span class="bn-icon">☰</span>Mais
   </button>
-  <button class="bn-btn" id="bn-config" onclick="navTo('config')">
-    <span class="bn-icon">⚙️</span>Mais
-  </button>
+</div>
+
+<!-- MAIS MENU OVERLAY -->
+<div id="mais-overlay" onclick="closeMaisMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150"></div>
+<div id="mais-menu" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--card);border-radius:20px 20px 0 0;border:1px solid var(--border2);border-bottom:none;padding:1rem 1rem calc(1rem + env(safe-area-inset-bottom));max-height:80vh;overflow-y:auto">
+  <div style="width:36px;height:4px;background:var(--border2);border-radius:100px;margin:0 auto .875rem"></div>
+  <div style="font-family:var(--font);font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;padding:0 .25rem">Agentes</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:1rem">
+    <button onclick="closeMaisMenu();navTo('fidelidade')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🎯</span><div><div style="font-size:.75rem;font-weight:700">Fidelidade</div><div style="font-size:.65rem;color:var(--muted)">Pontos e clientes</div></div></button>
+    <button onclick="closeMaisMenu();window.open('jgerente-financeiro.html','_blank')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">💰</span><div><div style="font-size:.75rem;font-weight:700">Financeiro</div><div style="font-size:.65rem;color:var(--muted)">Fluxo de caixa</div></div></button>
+    <button onclick="closeMaisMenu();window.open('jgerente-social.html','_blank')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">📱</span><div><div style="font-size:.75rem;font-weight:700">Social Mídia</div><div style="font-size:.65rem;color:var(--muted)">Posts com IA</div></div></button>
+    <button onclick="closeMaisMenu();navTo('contabilidade')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">📊</span><div><div style="font-size:.75rem;font-weight:700">Contabilidade</div><div style="font-size:.65rem;color:var(--muted)">Impostos e MEI</div></div></button>
+    <button onclick="closeMaisMenu();navTo('mural')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🏆</span><div><div style="font-size:.75rem;font-weight:700">Mural</div><div style="font-size:.65rem;color:var(--muted)">Ranking equipe</div></div></button>
+    <button onclick="closeMaisMenu();navTo('presenca')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🕐</span><div><div style="font-size:.75rem;font-weight:700">Presença</div><div style="font-size:.65rem;color:var(--muted)">Entrada e saída</div></div></button>
+  </div>
+  <div style="font-family:var(--font);font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;padding:0 .25rem">Sistema</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:1rem">
+    <button onclick="closeMaisMenu();navTo('agentes')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🤖</span><div><div style="font-size:.75rem;font-weight:700">Meus Agentes</div><div style="font-size:.65rem;color:var(--muted)">Configurar</div></div></button>
+    <button onclick="closeMaisMenu();navTo('auditoria')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">🔍</span><div><div style="font-size:.75rem;font-weight:700">Auditoria</div><div style="font-size:.65rem;color:var(--muted)">Logs do sistema</div></div></button>
+    <button onclick="closeMaisMenu();navTo('config')" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:var(--card2);border:1px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--white)"><span style="font-size:1.2rem">⚙️</span><div><div style="font-size:.75rem;font-weight:700">Configurações</div><div style="font-size:.65rem;color:var(--muted)">Empresa e plano</div></div></button>
+    <button onclick="closeMaisMenu();doLogout()" style="display:flex;align-items:center;gap:.625rem;padding:.875rem;background:rgba(255,61,107,.06);border:1px solid rgba(255,61,107,.15);border-radius:12px;cursor:pointer;font-family:var(--body);text-align:left;color:var(--error)"><span style="font-size:1.2rem">🚪</span><div><div style="font-size:.75rem;font-weight:700">Sair</div><div style="font-size:.65rem;color:var(--muted)">Fazer logout</div></div></button>
+  </div>
 </div>
 </body>
 </html>
